@@ -113,7 +113,7 @@ public class TDB2StorageBuilder {
                                                   storage, prefixes, txnSystem);
 
         // Enable query processing.
-        QC.setFactory(dsg.getContext(), OpExecutorTDB2.OpExecFactoryTDB);
+        QC.setFactory(dsg.getContext(), SystemTDB.getOpExecutorFactory());
         return dsg;
     }
 

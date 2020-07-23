@@ -1,72 +1,63 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-package arq;
+package org.utfsm.apache.cmds.tdb2;
 
 import arq.cmdline.* ;
 import jena.cmd.ArgDecl;
 import jena.cmd.CmdException;
-import jena.cmd.TerminationException;
-import org.apache.jena.atlas.io.IndentedWriter ;
+import jena.cmd.TerminationException;;
+import org.apache.jena.sparql.engine.Plan;
+import org.apache.jena.sparql.engine.QueryExecutionBase;
+import org.utfsm.apache.cmds.arq.cmdline.ModCsvQueriesIn;
 import org.apache.jena.atlas.lib.Lib ;
+import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.atlas.logging.LogCtl ;
 import org.apache.jena.query.* ;
-import org.apache.jena.riot.RiotException ;
-import org.apache.jena.riot.RiotNotFoundException ;
 import org.apache.jena.riot.SysRIOT ;
 import org.apache.jena.shared.JenaException ;
 import org.apache.jena.sparql.ARQInternalErrorException ;
 import org.apache.jena.sparql.core.Transactional ;
 import org.apache.jena.sparql.core.TransactionalNull;
+import org.apache.jena.sparql.engine.optimizer.StatsMatcher;
 import org.apache.jena.sparql.mgt.Explain ;
 import org.apache.jena.sparql.resultset.ResultSetException ;
 import org.apache.jena.sparql.resultset.ResultsFormat ;
 import org.apache.jena.sparql.util.QueryExecUtils ;
 import org.apache.jena.system.Txn ;
+import org.apache.jena.tdb2.sys.SystemTDB;
+import org.utfsm.jena.arq.sparql.engine.optimizer.reorder.ReorderWeighted;
+import org.utfsm.jena.tdb2.solver.OpExecutorTDB2Neo;
+import tdb2.cmdline.CmdTDB;
+import tdb2.cmdline.ModTDBDataset;
+import java.util.HashMap;
 
-public class query extends CmdARQ
+public class tdbqueryplan extends CmdARQ
 {
     private ArgDecl argRepeat   = new ArgDecl(ArgDecl.HasValue, "repeat") ;
     private ArgDecl argExplain  = new ArgDecl(ArgDecl.NoValue, "explain") ;
     private ArgDecl argOptimize = new ArgDecl(ArgDecl.HasValue, "opt", "optimize") ;
-
-    protected int repeatCount = 1 ; 
+    protected final ArgDecl queriesFile    = new ArgDecl(ArgDecl.HasValue, "queriesFile") ;
+    protected final ArgDecl queryColumn    = new ArgDecl(ArgDecl.HasValue, "queryCol") ;
+//
+    protected int repeatCount = 1 ;
     protected int warmupCount = 0 ;
     protected boolean queryOptimization = true ;
-    
+
     protected ModTime       modTime =     new ModTime() ;
-    protected ModQueryIn    modQuery =    null;
     protected ModDataset    modDataset =  null ;
+    protected ModCsvQueriesIn modQueries =  new ModCsvQueriesIn(Syntax.syntaxARQ);
     protected ModResultsOut modResults =  new ModResultsOut() ;
     protected ModEngine     modEngine =   new ModEngine() ;
 
-    public static void main (String... argv)
-    {
-        new query(argv).mainRun() ;
+    public static void main (String... argv) {
+        CmdTDB.init();
+        new tdbqueryplan(argv).mainRun() ;
     }
 
-    public query(String[] argv)
+    public tdbqueryplan(String[] argv)
     {
         super(argv) ;
-        modQuery = new ModQueryIn(getDefaultSyntax()) ; 
         modDataset = setModDataset() ;
 
-        super.addModule(modQuery) ;
+        super.addModule(modQueries) ;
         super.addModule(modResults) ;
         super.addModule(modDataset) ;
         super.addModule(modEngine) ;
@@ -76,6 +67,8 @@ public class query extends CmdARQ
         super.add(argExplain,  "--explain", "Explain and log query execution") ;
         super.add(argRepeat,   "--repeat=N or N,M", "Do N times or N warmup and then M times (use for timing to overcome start up costs of Java)");
         super.add(argOptimize, "--optimize=", "Turn the query optimizer on or off (default: on)") ;
+        super.add(queriesFile, "--queriesFile=", "Path to csv file containing queries.") ;
+        super.add(queryColumn, "--queryColumn=", "queryColumn index on file") ;
     }
 
     /** Default syntax used when the syntax can not be determined from the command name or file extension
@@ -86,10 +79,19 @@ public class query extends CmdARQ
      *  <li>Command default</li>
      *  <li>System default</li>
      *  </ul>
-     *  
+     *
      */
     protected Syntax getDefaultSyntax()     { return Syntax.defaultQuerySyntax ; }
 
+
+    @Override
+    protected String getSummary() {
+        return getCommandName() + " --loc=<path> --queriesFile=</path/to/file.csv> --queryColumn=<int>";
+    }
+
+    protected ModDataset setModDataset() {
+        return new ModTDBDataset();
+    }
     @Override
     protected void processModulesAndArgs()
     {
@@ -97,7 +99,7 @@ public class query extends CmdARQ
         if ( contains(argRepeat) )
         {
             String[] x = getValue(argRepeat).split(",") ;
-            if ( x.length == 1 ) 
+            if ( x.length == 1 )
             {
                 try { repeatCount = Integer.parseInt(x[0]) ; }
                 catch (NumberFormatException ex)
@@ -115,26 +117,21 @@ public class query extends CmdARQ
         }
         if ( isVerbose() )
             ARQ.getContext().setTrue(ARQ.symLogExec) ;
-        
+
         if ( hasArg(argExplain) )
             ARQ.setExecutionLogging(Explain.InfoLevel.ALL) ;
-        
+
         if ( hasArg(argOptimize) )
         {
             String x1 = getValue(argOptimize) ;
-            if ( hasValueOfTrue(argOptimize) || x1.equalsIgnoreCase("on") || x1.equalsIgnoreCase("yes") ) 
+            if ( hasValueOfTrue(argOptimize) || x1.equalsIgnoreCase("on") || x1.equalsIgnoreCase("yes") )
                 queryOptimization = true ;
             else if ( hasValueOfFalse(argOptimize) || x1.equalsIgnoreCase("off") || x1.equalsIgnoreCase("no") )
                 queryOptimization = false ;
             else throw new CmdException("Optimization flag must be true/false/on/off/yes/no. Found: "+getValue(argOptimize)) ;
         }
     }
-    
-    protected ModDataset setModDataset()
-    {
-        return new ModDatasetGeneralAssembler() ;
-    }
-    
+
     @Override
     protected void exec()
     {
@@ -142,16 +139,16 @@ public class query extends CmdARQ
             ARQ.getContext().setFalse(ARQ.optimization) ;
         if ( cmdStrictMode )
             ARQ.getContext().setFalse(ARQ.optimization) ;
-        
+
         // Warm up.
         for ( int i = 0 ; i < warmupCount ; i++ )
         {
             queryExec(false, ResultsFormat.FMT_NONE) ;
         }
-        
+
         for ( int i = 0 ; i < repeatCount ; i++ )
             queryExec(modTime.timingEnabled(),  modResults.getResultsFormat()) ;
-        
+
         if ( modTime.timingEnabled() && repeatCount > 1 )
         {
             long avg = totalTime/repeatCount ;
@@ -162,92 +159,72 @@ public class query extends CmdARQ
 
     @Override
     protected String getCommandName() { return Lib.className(this) ; }
-    
-    @Override
-    protected String getSummary() { return getCommandName()+" --data=<file> --query=<query>" ; }
-    
-    /** Choose the dataset.
-     * <li> use the data as described on the command line
-     * <li> else use FROM/FROM NAMED if present (pass null to ARQ)
-     * <li> else provided an empty dataset and hope the query has VALUES/BIND
-     */
-    protected Dataset getDataset(Query query)  { 
-        try {
-            Dataset ds = modDataset.getDataset();
-            if ( ds == null )
-                ds = dealWithNoDataset(query);
-            return ds;
-        }
-        catch (RiotNotFoundException ex) {
-            System.err.println("Failed to load data: " + ex.getMessage());
-            throw new TerminationException(1);
-        }
-        catch (RiotException ex) {
-            System.err.println("Failed to load data");
-            throw new TerminationException(1);
-        }
-    }
-    
-    // Policy for no command line dataset. null means "whatever" (use FROM) 
+
+
+    // Policy for no command line dataset. null means "whatever" (use FROM)
     protected Dataset dealWithNoDataset(Query query)  {
         if ( query.hasDatasetDescription() )
             return null;
         return DatasetFactory.createTxnMem();
-        //throw new CmdException("No dataset provided") ; 
+        //throw new CmdException("No dataset provided") ;
     }
-    
+
     protected long totalTime = 0 ;
     protected void queryExec(boolean timed, ResultsFormat fmt)
     {
         try {
-            Query query = modQuery.getQuery() ;
-            if ( isVerbose() ) {
-                IndentedWriter out = new IndentedWriter(System.err, true);
-                query.serialize(out);
-                out.setLineNumbers(false);
-                out.println();
-                out.flush();
-            }
-            
+            HashMap<String, Query> queries = modQueries.readCsvFile();
+
+            testMethod();
             if ( isQuiet() )
                 LogCtl.setError(SysRIOT.riotLoggerName) ;
-            Dataset dataset = getDataset(query) ;
-            // Check there is a dataset. See dealWithNoDataset(query).
-            // The default policy is to create an empty one - convenience for VALUES and BIND providing the data.
-            if ( dataset == null && !query.hasDatasetDescription() ) {
-                System.err.println("Dataset not specified in query nor provided on command line.");
-                throw new TerminationException(1);
-            }
-            Transactional transactional = (dataset != null && dataset.supportsTransactions()) ? dataset : new TransactionalNull() ;
-            Txn.executeRead(transactional, ()->{
-                modTime.startTimer() ;
-                try ( QueryExecution qe = QueryExecutionFactory.create(query, dataset) ) {
-                    try {
-                        ResultSet val = qe.execSelect();
-                        while (val.hasNext()){
-                            QuerySolution vali = val.next();
-                        }
-                    }
-                    catch (QueryCancelledException ex) {
-                        System.out.flush();
-                        System.err.println("Query timed out");
-                    }
+            Dataset dataset = modDataset.getDataset();
+            Object[] ids = queries.keySet().toArray();
 
-                    long time = modTime.endTimer();
-                    if ( timed ) {
-                        totalTime += time;
-                        System.err.println("Time: " + modTime.timeStr(time) + " sec");
+            testMethod();
+
+            for (Object index : ids) {
+                String key = String.valueOf(index);
+
+                Query query = queries.get(key);
+                Log.info(tdbqueryplan.class, key);
+                // Check there is a dataset. See dealWithNoDataset(query).
+                // The default policy is to create an empty one - convenience for VALUES and BIND providing the data.
+                if (dataset == null && !query.hasDatasetDescription()) {
+                    System.err.println("Dataset not specified in query nor provided on command line.");
+                    throw new TerminationException(1);
+                }
+                Transactional transactional = (dataset != null && dataset.supportsTransactions()) ? dataset : new TransactionalNull();
+                Txn.executeRead(transactional, () -> {
+                    modTime.startTimer();
+
+                    try (QueryExecution qe = QueryExecutionFactory.create(query, dataset)) {
+//                        qe.getContext().set(ARQ.optimization, false);
+//                        qe.getContext().set(ARQ.optReorderBGP, false);
+                        try {
+//                            qe.getContext().get(Symbol.create(""))
+                            Plan plan = ((QueryExecutionBase) qe).getPlan();
+//                            plan.getOp()
+                            QueryExecUtils.executeQuery(query, qe, fmt);
+                        } catch (QueryCancelledException ex) {
+                            System.out.flush();
+                            System.err.println("Query timed out");
+                        }
+                        long time = modTime.endTimer();
+                        if (timed) {
+                            totalTime += time;
+                            System.err.println("Time: " + modTime.timeStr(time) + " sec");
+                        }
+                    } catch (ResultSetException ex) {
+                        System.err.println(ex.getMessage());
+                        ex.printStackTrace(System.err);
+                    } catch (QueryException qEx) {
+                        // System.err.println(qEx.getMessage()) ;
+                        throw new CmdException("Query Exeception", qEx);
                     }
-                }
-                catch (ResultSetException ex) {
-                    System.err.println(ex.getMessage());
-                    ex.printStackTrace(System.err);
-                }
-                catch (QueryException qEx) {
-                    // System.err.println(qEx.getMessage()) ;
-                    throw new CmdException("Query Exeception", qEx);
-                }
-            });
+                });
+            }
+
         }
         catch (ARQInternalErrorException intEx) {
             System.err.println(intEx.getMessage()) ;
@@ -264,4 +241,29 @@ public class query extends CmdARQ
             throw new CmdException("Exception", ex) ;
         }
     }
+    public void testMethod(){
+//        ARQ.getContext().set(ARQ.optimization, false);
+//
+//        NeoStageGeneratorGenericStar nstStart = new  NeoStageGeneratorGenericStar();
+//        StageBuilder.setGenerator(ARQ.getContext(), nstStart);
+        String locationStr = "/mnt/46d157e4-f3b2-4033-90d8-ed2b2b56139e/source/java/jena-3.15.0/jena-fuseki2/databases/dblpreal/Data-0001/statsMod.opt";
+        final String dbPrefix     = "Data";
+        final String SEP          = "-";
+        final String startCount   = "0001";
+        StatsMatcher statsMatcher = new StatsMatcher(locationStr);
+        ReorderWeighted reorderWeighted = new ReorderWeighted(statsMatcher);
+        SystemTDB.setDefaultReorderTransform(reorderWeighted);
+        SystemTDB.setOpExecutorFactory(OpExecutorTDB2Neo.OpExecFactoryTDB);
+//        String q = "SELECT  *\n" +
+//                "WHERE\n" +
+//                "  { ?x        <http://xmlns.com/foaf/0.1/page>  ?pag .\n" +
+//                "    ?journal  a                     <http://swrc.ontoware.org/ontology#Journal> .\n" +
+//                "    ?x        <http://swrc.ontoware.org/ontology#journal>  ?journal\n" +
+//                "  }\n";
+//        StageBuilder.setGenerator();
+//        Query query = QueryFactory.create(q);
+//        Dataset ds = TDB2Factory.connectDataset(locationStr);
+
+    }
+
 }

@@ -85,6 +85,4 @@ then
     JVM_ARGS="$JVM_ARGS -Djava.io.tmpdir=\"$TMP\""
 fi
 
-echo "EXECUTING: " $JVM_ARGS $LOGGING -cp "$JENA_CP" tdb2.tdbquery "$@"
-
-java $JVM_ARGS $LOGGING -cp "$JENA_CP" tdb2.tdbquery "$@" 
+java $JVM_ARGS $LOGGING -cp "$JENA_CP" org.utfsm.apache.cmds.tdb2.mkQueryPlanDataset "$@"

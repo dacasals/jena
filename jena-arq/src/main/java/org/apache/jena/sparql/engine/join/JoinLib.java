@@ -23,10 +23,10 @@ import org.apache.jena.sparql.core.Var ;
 import org.apache.jena.sparql.engine.binding.Binding ;
 
 /** Internal operations in support of join algorithms. */
-class JoinLib {
+public class JoinLib {
 
     /** Control stats output / development use */ 
-    static final boolean JOIN_EXPLAIN = false;
+    public static boolean JOIN_EXPLAIN = true;
 
     // No hash key marker.
     public static final Object noKeyHash = new Object() ;

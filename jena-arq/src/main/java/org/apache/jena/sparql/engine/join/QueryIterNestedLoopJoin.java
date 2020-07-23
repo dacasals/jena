@@ -53,6 +53,8 @@ public class QueryIterNestedLoopJoin extends QueryIter2 {
         leftRows = Iter.toList(left);
         s_countLHS = leftRows.size();
         this.right = right;
+        System.out.println(Join.class+ " QueryIterNestedLoopJoin");
+
     }
 
     @Override
@@ -112,6 +114,7 @@ public class QueryIterNestedLoopJoin extends QueryIter2 {
         if ( JoinLib.JOIN_EXPLAIN ) {
             String x = String.format("InnerLoopJoin: LHS=%d RHS=%d Results=%d", s_countLHS, s_countRHS, s_countResults);
             System.out.println(x);
+            System.out.println(this.getClass());
         }
     }
 }

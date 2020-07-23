@@ -33,12 +33,14 @@ import org.apache.jena.atlas.logging.LogCtl ;
 import org.apache.jena.query.* ;
 import org.apache.jena.shared.JenaException ;
 import org.apache.jena.sparql.ARQInternalErrorException ;
+import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.QueryCheckException ;
 import org.apache.jena.sparql.expr.E_Function ;
 import org.apache.jena.sparql.lang.ParserBase ;
 import org.apache.jena.sparql.resultset.ResultSetException ;
 import org.apache.jena.sparql.util.QueryOutputUtils ;
 import org.apache.jena.sparql.util.QueryUtils ;
+import org.apache.jena.tdb2.DatabaseMgr;
 
 /** A program to parse and print a query. */
 
@@ -51,7 +53,8 @@ public class qparse extends CmdARQ
     protected final ArgDecl argDeclOpt      = new ArgDecl(ArgDecl.NoValue, "opt", "optimize") ;
     protected final ArgDecl argDeclExplain  = new ArgDecl(ArgDecl.NoValue, "explain") ;
     protected final ArgDecl argDeclFixup    = new ArgDecl(ArgDecl.NoValue, "fixup") ;
-    
+    protected final ArgDecl tdbloc    = new ArgDecl(ArgDecl.HasValue, "loc") ;
+
     protected boolean printNone             = false ;
     protected boolean printQuery            = false ;
     protected boolean printOp               = false ;
@@ -76,7 +79,8 @@ public class qparse extends CmdARQ
         super.add(argDeclExplain, "--explain", "Print with algebra-level optimization") ;
         super.add(argDeclOpt, "--opt", "[deprecated]") ;
         super.add(argDeclFixup, "--fixup", "Convert undeclared prefix names to URIs") ;
-        
+        super.add(tdbloc, "--loc", "Convert undeclared prefix names to URIs") ;
+
         // Switch off function build warnings.  
         E_Function.WarnOnUnknownFunction = false ;
     }
@@ -186,8 +190,19 @@ public class qparse extends CmdARQ
             if ( printPlan )
             { 
                 divider() ;
+                QueryExecution qExec;
+
                 // This forces internal query initialization - must be after QueryUtils.checkQuery
-                QueryExecution qExec = QueryExecutionFactory.create(query, DatasetFactory.createGeneral()) ;
+                if (contains(tdbloc)) {
+                    System.out.println("Usando dir of tdb");
+                    DatasetGraph ds = DatabaseMgr.connectDatasetGraph(getValue(tdbloc));
+
+                    qExec = QueryExecutionFactory.create(query, ds ) ;
+                }else
+                {
+                    qExec = QueryExecutionFactory.create(query, DatasetFactory.createGeneral()) ;
+                }
+//                QueryExecution qExec = QueryExecutionFactory.create(query, DatasetFactory.createGeneral()) ;
                 QueryOutputUtils.printPlan(query, qExec) ; 
             }
         }

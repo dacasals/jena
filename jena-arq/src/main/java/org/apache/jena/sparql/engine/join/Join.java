@@ -50,7 +50,8 @@ public class Join {
      * @return QueryIterator
      */
     public static QueryIterator join(QueryIterator left, QueryIterator right, ExecutionContext execCxt) {
-        if ( false )
+        System.out.println(Join.class+"public static QueryIterator join(QueryIterator left, QueryIterator right, ExecutionContext execCxt)"+ "54");
+        if ( true )
             return debug(left, right, execCxt,
                          (_left, _right)->hashJoin(_left, _right, execCxt)) ;
         if ( useNestedLoopJoin )
@@ -69,7 +70,9 @@ public class Join {
      * @return QueryIterator
      */
     public static QueryIterator leftJoin(QueryIterator left, QueryIterator right, ExprList conditions, ExecutionContext execCxt) {
-        if ( false )
+        System.out.println(Join.class+ "leftJoin(QueryIterator left, QueryIterator right, ExprList conditions, ExecutionContext execCxt) 74");
+
+        if ( true )
             return debug(left, right, execCxt, 
                          (_left, _right)->hashLeftJoin(_left, _right, conditions, execCxt)) ;
         if ( useNestedLoopLeftJoin )
@@ -112,6 +115,7 @@ public class Join {
      */
     public static QueryIterator hashJoin(QueryIterator left, QueryIterator right, ExecutionContext execCxt) {
         //return new QueryIterNestedLoopJoin(left, right, conditions, execCxt) ;
+        System.out.println("hashJoin: "+left.toString() +" JOIN "+ right.toString() );
         return QueryIterHashJoin.create(left, right, execCxt) ;
     }
 

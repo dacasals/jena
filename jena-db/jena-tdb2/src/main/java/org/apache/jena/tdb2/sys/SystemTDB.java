@@ -30,13 +30,16 @@ import org.apache.jena.dboe.base.file.ProcessFileLock;
 import org.apache.jena.dboe.base.record.RecordFactory;
 import org.apache.jena.dboe.sys.Sys;
 import org.apache.jena.query.ARQ;
+import org.apache.jena.sparql.engine.main.OpExecutorFactory;
 import org.apache.jena.sparql.engine.optimizer.reorder.ReorderLib;
 import org.apache.jena.sparql.engine.optimizer.reorder.ReorderTransformation;
 import org.apache.jena.sparql.util.Symbol;
 import org.apache.jena.sys.JenaSystem;
 import org.apache.jena.tdb2.TDB2;
 import org.apache.jena.tdb2.TDBException;
+import org.apache.jena.tdb2.solver.OpExecutorTDB2;
 import org.apache.jena.tdb2.store.NodeId;
+import org.apache.jena.tdb2.store.TDB2StorageBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -190,7 +193,17 @@ public class SystemTDB
 //    /** Number of adds/deletes between calls to sync (-ve to disable) */
 //    public static final int SyncTick                = intValue("SyncTick", -1);
 
-    
+    /** Define Default OpExecutorFactory to use in TDB2StorageBuilder */
+    private static OpExecutorFactory defaultOpExecutorFactory = OpExecutorTDB2.OpExecFactoryTDB;
+
+    public static void setOpExecutorFactory(OpExecutorFactory opExecutorFactory) {
+        defaultOpExecutorFactory = opExecutorFactory;
+    }
+
+    public static OpExecutorFactory getOpExecutorFactory() {
+        return defaultOpExecutorFactory;
+    }
+
     /** Default BGP optimizer */
     private static ReorderTransformation defaultReorderTransform = ReorderLib.fixed();
 
@@ -374,7 +387,7 @@ public class SystemTDB
 //        //Or wrap DatasetGraphTDB?
 //        return dataset;
 //    }
-//
+
 //    public static DatasetGraph setNonTransactional(DatasetGraph dataset) {
 //        if ( dataset.isInTransaction() )
 //            return dataset;

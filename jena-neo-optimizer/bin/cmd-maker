@@ -25,52 +25,46 @@
 # Not script "jena"
 ## the "jena" script is slightly different (see end of script).
 
-CMDS=$(cat <<EOF
-jena.rdfcat
-jena.rdfcompare
-jena.rdfcopy
-jena.rdfparse
-jena.schemagen
-arq.rdfdiff
-arq.sparql
-arq.arq
-arq.iri
-arq.juuid
-arq.rsparql
-arq.rset
-arq.qparse
-arq.uparse
-arq.update
-arq.rupdate
-arq.wwwdec
-arq.wwwenc
-riotcmd.riot
-riotcmd.ntriples
-riotcmd.nquads
-riotcmd.turtle
-riotcmd.trig
-riotcmd.infer
-riotcmd.utf8
-riotcmd.rdfxml
-shacl.shacl
-tdb.tdbbackup
-tdb.tdbdump
-tdb.tdbloader
-tdb.tdbquery
-tdb.tdbstats
-tdb.tdbupdate
-EOF
-)
+#CMDS=$(cat <<EOF
+#jena.rdfcat
+#jena.rdfcompare
+#jena.rdfcopy
+#jena.rdfparse
+#jena.schemagen
+#arq.rdfdiff
+#arq.sparql
+#arq.arq
+#arq.iri
+#arq.juuid
+#arq.rsparql
+#arq.rset
+#arq.qparse
+#arq.uparse
+#arq.update
+#arq.rupdate
+#arq.wwwdec
+#arq.wwwenc
+#riotcmd.riot
+#riotcmd.ntriples
+#riotcmd.nquads
+#riotcmd.turtle
+#riotcmd.trig
+#riotcmd.infer
+#riotcmd.utf8
+#riotcmd.rdfxml
+#shacl.shacl
+#tdb.tdbbackup
+#tdb.tdbdump
+#tdb.tdbloader
+#tdb.tdbquery
+#tdb.tdbstats
+#tdb.tdbupdate
+#EOF
+#)
 
 CMDS2=$(cat <<EOF
-tdb2.tdbbackup
-tdb2.tdbdump
-tdb2.tdbcompact
-tdb2.tdbloader
-tdb2.tdbquery
 tdb2.tdbqueryplan
-tdb2.tdbstats
-tdb2.tdbupdate
+tdb2.tdbqueryplan
 EOF
 )
 
@@ -108,12 +102,12 @@ make_bat_full()
     sed -e "s!JENA_CMD!$C!" < template.bat > $CMD
 }
 
-for cmd in $CMDS
-do
-    ## echo $cmd
-    make_bin $cmd
-    make_bat $cmd
-done
+#for cmd in $CMDS
+#do
+#    ## echo $cmd
+#    make_bin $cmd
+#    make_bat $cmd
+#done
 
 for cmd in $CMDS2
 do
