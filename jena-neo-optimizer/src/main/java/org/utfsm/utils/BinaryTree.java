@@ -4,8 +4,6 @@ package org.utfsm.utils;// Recursive Java program for level order traversal of B
 node and key value*/
 
 import org.apache.jena.atlas.json.JsonArray;
-import org.apache.jena.atlas.json.JsonObject;
-import org.apache.jena.atlas.json.JsonValue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,18 +39,6 @@ public abstract class BinaryTree<T>
     public abstract String printDataJoin(Node<T> node );
     public abstract String printLeafDataNode(Node<T> node);
 
-//    public String output(Node<T> node, String cadena){
-//        if(node.left == null && node.right == null) {
-//            return cadena.concat("[").concat(printLeafDataNode(node)).concat("]");
-//        }
-//        String dataRoot = printDataJoin(node);
-//
-//        cadena = cadena.concat(dataRoot).concat(", [");
-//        cadena = output(node.left,cadena);
-//        cadena = cadena.concat(",");
-//        cadena = output(node.right, cadena);
-//        return  cadena.concat("]");
-//    }
     public JsonArray outputJson(Node<T> node){
         JsonArray json = new JsonArray();
         if(node.left == null && node.right == null) {
@@ -64,15 +50,12 @@ public abstract class BinaryTree<T>
         String dataRoot = printDataJoin(node);
 
         json.add(dataRoot);
-        JsonArray children = new JsonArray();
-        children.add(outputJson(node.left));
-        children.add(outputJson(node.right));
-        json.add(children);
+        json.add(outputJson(node.left));
+        json.add(outputJson(node.right));
         return  json;
     }
     @Override
     public String toString() {
-//       return  "[".concat(output(root,"")).concat("]");
         return outputJson(root).toString();
     }
 
@@ -81,7 +64,10 @@ public abstract class BinaryTree<T>
 
     public void addNodeList(List<T> arrayList) {
         int index = 0;
-        if(arrayList.size()>=2)
+        if(arrayList.size()==1){
+            root = new Node<>(arrayList.get(0));
+        }
+        else if(arrayList.size()>=2)
             while (index < arrayList.size()) {
                 if(root == null){
                     Node<T> first = new Node<>(arrayList.get(index));

@@ -175,17 +175,15 @@ public class tdbqueryplan extends CmdARQ
         try {
             HashMap<String, Query> queries = modQueries.readCsvFile();
 
-            testMethod();
+            SystemTDB.setOpExecutorFactory(OpExecutorTDB2Neo.OpExecFactoryTDB);
             if ( isQuiet() )
                 LogCtl.setError(SysRIOT.riotLoggerName) ;
             Dataset dataset = modDataset.getDataset();
             Object[] ids = queries.keySet().toArray();
 
-            testMethod();
-
             for (Object index : ids) {
                 String key = String.valueOf(index);
-
+                System.out.println(key);
                 Query query = queries.get(key);
                 Log.info(tdbqueryplan.class, key);
                 // Check there is a dataset. See dealWithNoDataset(query).
@@ -205,10 +203,13 @@ public class tdbqueryplan extends CmdARQ
 //                            qe.getContext().get(Symbol.create(""))
                             Plan plan = ((QueryExecutionBase) qe).getPlan();
 //                            plan.getOp()
-                            QueryExecUtils.executeQuery(query, qe, fmt);
+//                            QueryExecUtils.executeQuery(query, qe, fmt);
                         } catch (QueryCancelledException ex) {
                             System.out.flush();
                             System.err.println("Query timed out");
+                        }
+                        catch (Exception ex) {
+                            ex.printStackTrace();
                         }
                         long time = modTime.endTimer();
                         if (timed) {
@@ -240,30 +241,6 @@ public class tdbqueryplan extends CmdARQ
         catch (Exception ex) {
             throw new CmdException("Exception", ex) ;
         }
-    }
-    public void testMethod(){
-//        ARQ.getContext().set(ARQ.optimization, false);
-//
-//        NeoStageGeneratorGenericStar nstStart = new  NeoStageGeneratorGenericStar();
-//        StageBuilder.setGenerator(ARQ.getContext(), nstStart);
-        String locationStr = "/mnt/46d157e4-f3b2-4033-90d8-ed2b2b56139e/source/java/jena-3.15.0/jena-fuseki2/databases/dblpreal/Data-0001/statsMod.opt";
-        final String dbPrefix     = "Data";
-        final String SEP          = "-";
-        final String startCount   = "0001";
-        StatsMatcher statsMatcher = new StatsMatcher(locationStr);
-        ReorderWeighted reorderWeighted = new ReorderWeighted(statsMatcher);
-        SystemTDB.setDefaultReorderTransform(reorderWeighted);
-        SystemTDB.setOpExecutorFactory(OpExecutorTDB2Neo.OpExecFactoryTDB);
-//        String q = "SELECT  *\n" +
-//                "WHERE\n" +
-//                "  { ?x        <http://xmlns.com/foaf/0.1/page>  ?pag .\n" +
-//                "    ?journal  a                     <http://swrc.ontoware.org/ontology#Journal> .\n" +
-//                "    ?x        <http://swrc.ontoware.org/ontology#journal>  ?journal\n" +
-//                "  }\n";
-//        StageBuilder.setGenerator();
-//        Query query = QueryFactory.create(q);
-//        Dataset ds = TDB2Factory.connectDataset(locationStr);
-
     }
 
 }

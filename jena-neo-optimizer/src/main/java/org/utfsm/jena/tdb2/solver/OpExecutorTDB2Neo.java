@@ -32,7 +32,7 @@ import org.apache.jena.tdb2.store.GraphTDB;
 import org.apache.jena.tdb2.store.NodeId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.utfsm.utils.BinaryTree;
+import org.utfsm.utils.BinaryTreePlan;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -367,38 +367,8 @@ public class OpExecutorTDB2Neo extends OpExecutor
                 BasicPattern bgp = opBGP.getPattern();
                 Explain.explain("Execute", bgp, execCxt.getContext());
                 List<Triple> triples = bgp.getList();
-                BinaryTree<HashMap<String,ArrayList<String>>> tree = new BinaryTree<HashMap<String,ArrayList<String>>>("ᶲ") {
-                    @Override
-                    public void defineDataJoinNode(Node<HashMap<String,ArrayList<String>>> node) {
-                        HashMap<String,ArrayList<String>> join = new HashMap<>();
-                        String tpf_type = "NONE";
-                        //Add node type
-                        ArrayList<String> tpfList= new ArrayList<>();
-                        tpfList.add(tpf_type);
-                        join.put("tpf_type",tpfList);
-                        //Add preds from left and right
-                        ArrayList<String> preds= new ArrayList<>();
-                        preds.addAll(node.left.data.get("predicates"));
-                        preds.addAll(node.right.data.get("predicates"));
-                        join.put("predicates", preds);
-                        //Todo define other info.
-                        node.data = join;
-                    }
 
-                    @Override
-                    public String printDataJoin(Node<HashMap<String, ArrayList<String>>> node) {
-                        return node.data.get("tpf_type").get(0).
-                                concat(this.delimiterValues).
-                                concat(String.join(this.delimiterValues, node.data.get("predicates")));
-                    }
-
-                    @Override
-                    public String printLeafDataNode(Node<HashMap<String, ArrayList<String>>> node) {
-                        return node.data.get("tpf_type").get(0).
-                                concat(this.delimiterValues).
-                                concat(node.data.get("predicates").get(0));
-                    }
-                };
+                BinaryTreePlan tree = new BinaryTreePlan("ᶲ");
                 ArrayList<HashMap<String,ArrayList<String>>> triplesArr = new ArrayList<>();
 
                 for (Triple value : triples) {
@@ -414,12 +384,26 @@ public class OpExecutorTDB2Neo extends OpExecutor
                     treeLeaf.put("tpf_type", tpfList);
                     //Define predicates, in case of leaf only one( the triple predicate).
                     ArrayList<String> preds = new ArrayList<>();
-                    preds.add(value.getPredicate().getURI());
+                    //Todo, need to validate.
+                    //Define the predicate of tpf in the order: (1)predicate, (2)subject,(3)object
+                    if(!patron.equals("VAR_VAR_VAR") && !patron.equals("VAR_VAR_LITERAL") && !patron.equals("LITERAL_VAR_VAR")){
+                        if(predType.get(0).equals("URI")){
+                            preds.add(value.getPredicate().getURI());
+                        }else if (subType.get(0).equals("URI")){
+                            preds.add(value.getSubject().getURI());
+                        }
+                        else{
+                            preds.add(value.getObject().getURI());
+                        }
+                    }
                     treeLeaf.put("predicates", preds);
                     triplesArr.add(treeLeaf);
                 }
-                tree.addNodeList(triplesArr);
-                Log.info("EXECUTION_TREE",tree.toString());
+                if(triplesArr.size() > 0)
+                {
+                    tree.addNodeList(triplesArr);
+                    Log.info("EXECUTION_TREE", tree.toString());
+                }
                 // Triple-backed (but may be named as explicit default graph).
                 //return SolverLib.execute((GraphTDB)g, bgp, input, filter, execCxt);
                 GraphTDB gtdb = (GraphTDB)g;

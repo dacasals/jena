@@ -111,8 +111,6 @@ public class mkQueryPlanDataset extends CmdARQ
     protected long totalTime = 0 ;
     protected void queryExec()
     {
-        
-
         try (FileInputStream reader = new FileInputStream(logFileVal))
         {
 
@@ -190,14 +188,19 @@ public class mkQueryPlanDataset extends CmdARQ
             BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(output));
             String delimiterCol = "ᶶ";
             String delimiterColVals = "ᶷ";
-            for (int i = 0; i < queriesVal.size(); i++) {
-                bw.write(((String)queriesVal.get(i).get("id")).concat(delimiterCol));
-                bw.write(((String)queriesVal.get(i).get("query")).concat(delimiterCol));
-                bw.write(String.join(delimiterColVals,((ArrayList<String>) queriesVal.get(i).get("tdb"))).concat(delimiterCol));
-                bw.write(String.join(delimiterColVals,((ArrayList<String>) queriesVal.get(i).get("execute"))).concat(delimiterCol));
-                bw.write(String.join(delimiterColVals,((ArrayList<String>) queriesVal.get(i).get("execution_tree"))).concat(delimiterCol));
-                bw.newLine();
+            System.out.println("Queries : ".concat(String.valueOf(queriesVal.size())));
+            StringBuilder sb = new StringBuilder();
+            for (HashMap<String, Object> stringObjectHashMap : queriesVal) {
+                sb.append(((String) stringObjectHashMap.get("id")).concat(delimiterCol));
+                sb.append(((String) stringObjectHashMap.get("query")).concat(delimiterCol));
+                sb.append(String.join(delimiterColVals, ((ArrayList<String>) stringObjectHashMap.get("tdb"))).concat(delimiterCol));
+                sb.append(String.join(delimiterColVals, ((ArrayList<String>) stringObjectHashMap.get("execute"))).concat(delimiterCol));
+                if (stringObjectHashMap.containsKey("execution_tree")) {
+                    sb.append(String.join(delimiterColVals, ((ArrayList<String>) stringObjectHashMap.get("execution_tree"))).concat(delimiterCol));
+                }
+                sb.append("\n");
             }
+            bw.write(sb.toString());
             bw.close();
         }
         catch (Exception ex) {

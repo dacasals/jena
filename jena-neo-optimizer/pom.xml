@@ -182,7 +182,7 @@
                             </descriptors>
                             <tarLongFileFormat>gnu</tarLongFileFormat>
                             <includeProjectBuildFilters>
-                                <include>**/service/*</include>
+<!--                                <include>**/service/*</include>-->
                             </includeProjectBuildFilters>
                         </configuration>
                     </execution>

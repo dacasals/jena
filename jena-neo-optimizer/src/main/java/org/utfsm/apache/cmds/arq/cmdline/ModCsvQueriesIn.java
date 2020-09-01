@@ -38,6 +38,7 @@ import java.util.HashMap;
 public class ModCsvQueriesIn extends ModBase {
     protected final ArgDecl queriesFileDecl   = new ArgDecl(ArgDecl.HasValue, "queriesFile", "file") ;
     protected final ArgDecl queryColumnDecl   = new ArgDecl(ArgDecl.HasValue, "queryColumn", "col") ;
+    protected final ArgDecl idColumnDecl   = new ArgDecl(ArgDecl.HasValue, "idColumn", "icol") ;
     protected final ArgDecl inputDelimiterDecl   = new ArgDecl(ArgDecl.HasValue, "delimiter", "del") ;
     protected final ArgDecl querySyntaxDecl = new ArgDecl(ArgDecl.HasValue, "syntax", "syn", "in") ;
 
@@ -45,6 +46,7 @@ public class ModCsvQueriesIn extends ModBase {
     private Syntax          querySyntax;
     private String          queriesFilename   = null ;
     private int             queryColumnVal   = 0 ;
+    private int             idColumnVal   = -1 ;
     private char            inputDelimiterChar;
 
     public ModCsvQueriesIn(Syntax defaultSyntax) {
@@ -57,7 +59,9 @@ public class ModCsvQueriesIn extends ModBase {
         cmdLine.getUsage().startCategory("Query") ;
         cmdLine.add(queriesFileDecl,   "--queriesFile, --file",  "File containing queries") ;
         cmdLine.add(queryColumnDecl,   "--queryColumn, --col",  "Col containing a query") ;
-        cmdLine.add(inputDelimiterDecl,   "--delimiter, --col",  "delimiter char") ;
+        cmdLine.add(idColumnDecl,   "--idyColumn, --icol",  "Col containing a query id") ;
+
+        cmdLine.add(inputDelimiterDecl,   "--delimiter, --dcol",  "delimiter char") ;
         cmdLine.add(querySyntaxDecl, "--syntax, --in",   "Syntax of the query") ;
     }
 
@@ -109,6 +113,12 @@ public class ModCsvQueriesIn extends ModBase {
                 cmdline.cmdError("Unrecognized column: " + s) ;
             queryColumnVal = Integer.parseInt(s);
         }
+        if ( cmdline.contains(idColumnDecl) ) {
+            // short name
+            String s = cmdline.getValue(idColumnDecl) ;
+            if (!s.isEmpty())
+                idColumnVal = Integer.parseInt(s);
+        }
     }
 
     public Syntax getQuerySyntax() {
@@ -128,22 +138,29 @@ public class ModCsvQueriesIn extends ModBase {
                     continue;
                 }
                 String query = record[queryColumnVal];
-                String id = DigestUtils.md5Hex(query);
-                query = URLDecoder.decode(query, StandardCharsets.UTF_8.toString());
+                String id = "";
+                if(idColumnVal >= 0)
+                    id = record[idColumnVal];
+                else
+                    id = DigestUtils.md5Hex(query);
+
+//                query = URLDecoder.decode(query, StandardCharsets.UTF_8.toString());
                 
                 try {
                     Query queryObj = QueryFactory.create(query, getQuerySyntax());
-                    queries.put(id,queryObj);
+
+                    queries.put(id, queryObj);
                 }
                 catch (Exception exception){
                     exception.printStackTrace();
-                    System.out.println("Error leyendo query: ");
+                    System.out.println("Error leyendo query: ".concat(record[queryColumnVal]));
                 }
             }
         }
         catch (IOException e) {
             e.printStackTrace();
         }
+        System.out.println("Queries : ".concat(String.valueOf(queries.size())));
         return  queries;
     }
 }
