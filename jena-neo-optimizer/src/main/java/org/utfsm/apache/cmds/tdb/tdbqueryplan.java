@@ -1,33 +1,37 @@
-package org.utfsm.apache.cmds.tdb2;
+package org.utfsm.apache.cmds.tdb;
 
-import arq.cmdline.* ;
+import arq.cmdline.*;
 import jena.cmd.ArgDecl;
 import jena.cmd.CmdException;
-import jena.cmd.TerminationException;;
+import jena.cmd.TerminationException;
+import org.apache.jena.atlas.lib.Lib;
+import org.apache.jena.atlas.logging.Log;
+import org.apache.jena.atlas.logging.LogCtl;
+import org.apache.jena.query.*;
+import org.apache.jena.riot.SysRIOT;
+import org.apache.jena.shared.JenaException;
+import org.apache.jena.sparql.ARQInternalErrorException;
+import org.apache.jena.sparql.core.Transactional;
+import org.apache.jena.sparql.core.TransactionalNull;
 import org.apache.jena.sparql.engine.Plan;
 import org.apache.jena.sparql.engine.QueryExecutionBase;
+import org.apache.jena.sparql.mgt.Explain;
+import org.apache.jena.sparql.resultset.ResultSetException;
+import org.apache.jena.sparql.resultset.ResultsFormat;
+import org.apache.jena.system.Txn;
+import org.apache.jena.tdb.sys.SystemTDB;
 import org.utfsm.apache.cmds.arq.cmdline.ModCsvQueriesIn;
-import org.apache.jena.atlas.lib.Lib ;
-import org.apache.jena.atlas.logging.Log;
-import org.apache.jena.atlas.logging.LogCtl ;
-import org.apache.jena.query.* ;
-import org.apache.jena.riot.SysRIOT ;
-import org.apache.jena.shared.JenaException ;
-import org.apache.jena.sparql.ARQInternalErrorException ;
-import org.apache.jena.sparql.core.Transactional ;
-import org.apache.jena.sparql.core.TransactionalNull;
-import org.apache.jena.sparql.mgt.Explain ;
-import org.apache.jena.sparql.resultset.ResultSetException ;
-import org.apache.jena.sparql.resultset.ResultsFormat ;
-import org.apache.jena.system.Txn ;
-import org.apache.jena.tdb2.sys.SystemTDB;
+import org.utfsm.jena.tdb.solver.OpExecutorTDBNeo;
 import org.utfsm.jena.tdb2.solver.OpExecutorTDB2Neo;
+import tdb.cmdline.ModTDBDataset;
 import tdb2.cmdline.CmdTDB;
-import tdb2.cmdline.ModTDBDataset;
+
 import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.logging.Logger;
+
+;
 
 public class tdbqueryplan extends CmdARQ
 {
@@ -45,7 +49,7 @@ public class tdbqueryplan extends CmdARQ
     protected boolean queryOptimization = true ;
     protected String outFileVal;
     protected ModTime       modTime =     new ModTime() ;
-    protected ModDataset    modDataset =  null ;
+    protected ModDataset    modDataset;
     protected ModCsvQueriesIn modQueries =  new ModCsvQueriesIn(Syntax.syntaxARQ);
     protected ModResultsOut modResults =  new ModResultsOut() ;
     protected ModEngine     modEngine =   new ModEngine() ;
@@ -100,12 +104,10 @@ public class tdbqueryplan extends CmdARQ
     @Override
     protected void processModulesAndArgs()
     {
-        super.processModulesAndArgs() ;
-        if ( contains(argRepeat) )
-        {
+        super.processModulesAndArgs();
+        if ( contains(argRepeat)) {
             String[] x = getValue(argRepeat).split(",") ;
-            if ( x.length == 1 )
-            {
+            if ( x.length == 1 ) {
                 try { repeatCount = Integer.parseInt(x[0]) ; }
                 catch (NumberFormatException ex)
                 { throw new CmdException("Can't parse "+x[0]+" in arg "+getValue(argRepeat)+" as an integer") ; }
@@ -187,7 +189,7 @@ public class tdbqueryplan extends CmdARQ
         try {
             HashMap<String, Query> queries = modQueries.readCsvFile();
 
-            SystemTDB.setOpExecutorFactory(OpExecutorTDB2Neo.OpExecFactoryTDB);
+            SystemTDB.setOpExecutorFactory(OpExecutorTDBNeo.OpExecFactoryTDB);
             if ( isQuiet() )
                 LogCtl.setError(SysRIOT.riotLoggerName) ;
             Dataset dataset = modDataset.getDataset();
@@ -212,17 +214,14 @@ public class tdbqueryplan extends CmdARQ
                     System.err.println("Dataset not specified in query nor provided on command line.");
                     throw new TerminationException(1);
                 }
-                Transactional transactional = (dataset != null && dataset.supportsTransactions()) ? dataset : new TransactionalNull();
-                Txn.executeRead(transactional, () -> {
                     modTime.startTimer();
 
                     try (QueryExecution qe = QueryExecutionFactory.create(query, dataset)) {
 //                        qe.getContext().set(ARQ.optimization, false);
 //                        qe.getContext().set(ARQ.optReorderBGP, false);
                         try {
-                            qe.execSelect();
 //                            qe.getContext().get(Symbol.create(""))
-//                            Plan plan = ((QueryExecutionBase) qe).getPlan();
+                            Plan plan = ((QueryExecutionBase) qe).getPlan();
 //                            plan.getOp()
 //                            QueryExecUtils.executeQuery(query, qe, fmt);
                         } catch (QueryCancelledException ex) {
@@ -244,7 +243,6 @@ public class tdbqueryplan extends CmdARQ
                         // System.err.println(qEx.getMessage()) ;
                         throw new CmdException("Query Exeception", qEx);
                     }
-                });
             }
             outputQPlanDataset(registros);
 

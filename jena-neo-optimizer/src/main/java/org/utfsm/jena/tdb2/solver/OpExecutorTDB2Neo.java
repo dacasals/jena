@@ -32,6 +32,7 @@ import org.apache.jena.tdb2.store.GraphTDB;
 import org.apache.jena.tdb2.store.NodeId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.utfsm.apache.cmds.tdb2.tdbqueryplan;
 import org.utfsm.utils.BinaryTreePlan;
 
 import java.util.ArrayList;
@@ -402,7 +403,20 @@ public class OpExecutorTDB2Neo extends OpExecutor
                 if(triplesArr.size() > 0)
                 {
                     tree.addNodeList(triplesArr);
-                    Log.info("EXECUTION_TREE", tree.toString());
+//                    Log.info("EXECUTION_TREE", tree.toString());
+
+                    //modify global var
+                    HashMap<String, ArrayList<String>> qData = tdbqueryplan.registros.get(tdbqueryplan.lastReg);
+                    ArrayList<String> exeTree;
+                    if (qData.containsKey("execution_tree")) {
+                        exeTree = qData.get("execution_tree");
+                    }
+                    else {
+                        exeTree = new ArrayList<>();
+                    }
+                    exeTree.add(tree.toString().replaceAll("\n", " "));
+                    qData.put("execution_tree", exeTree);
+                    tdbqueryplan.registros.put(tdbqueryplan.lastReg, qData);
                 }
                 // Triple-backed (but may be named as explicit default graph).
                 //return SolverLib.execute((GraphTDB)g, bgp, input, filter, execCxt);

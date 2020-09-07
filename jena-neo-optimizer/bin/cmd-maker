@@ -63,7 +63,7 @@
 #)
 
 CMDS2=$(cat <<EOF
-tdb2.tdbqueryplan
+tdb.tdbqueryplan
 tdb2.tdbqueryplan
 EOF
 )

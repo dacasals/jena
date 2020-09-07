@@ -1,43 +1,9 @@
 package org.utfsm.utils;
 
-import org.apache.jena.atlas.lib.FileOps;
-import org.apache.jena.atlas.lib.Lib;
-import org.apache.jena.atlas.lib.ThreadLib;
-import org.apache.jena.query.TxnType;
-import org.apache.jena.riot.Lang;
-import org.apache.jena.riot.RDFDataMgr;
-import org.apache.jena.sparql.core.DatasetGraph;
-import org.apache.jena.sparql.core.Quad;
-import org.apache.jena.sparql.sse.SSE;
-import org.apache.jena.system.Txn;
-import org.apache.jena.tdb2.DatabaseMgr;
-import org.apache.jena.tdb2.sys.TDBInternal;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.io.ByteArrayOutputStream;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.jena.atlas.lib.FileOps;
-import org.apache.jena.atlas.lib.Lib;
-import org.apache.jena.atlas.lib.ThreadLib;
-import org.apache.jena.query.TxnType;
-import org.apache.jena.riot.Lang;
-import org.apache.jena.riot.RDFDataMgr;
-import org.apache.jena.sparql.core.DatasetGraph;
-import org.apache.jena.sparql.core.Quad;
-import org.apache.jena.sparql.sse.SSE;
-import org.apache.jena.system.Txn;
-import org.apache.jena.tdb2.sys.TDBInternal;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
