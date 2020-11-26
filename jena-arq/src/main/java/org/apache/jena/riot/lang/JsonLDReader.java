@@ -24,64 +24,97 @@ import java.io.Reader ;
 import java.util.List ;
 import java.util.Map ;
 import java.util.Map.Entry;
+import java.util.Objects;
 
 import org.apache.jena.atlas.io.IO ;
 import org.apache.jena.atlas.lib.InternalErrorException ;
-import org.apache.jena.atlas.lib.Lib ;
 import org.apache.jena.atlas.web.ContentType ;
-import org.apache.jena.riot.RDFLanguages ;
-import org.apache.jena.riot.ReaderRIOT ;
-import org.apache.jena.riot.RiotException ;
-import org.apache.jena.riot.system.* ;
+import org.apache.jena.datatypes.RDFDatatype ;
+import org.apache.jena.datatypes.xsd.XSDDatatype ;
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.NodeFactory ;
+import org.apache.jena.graph.Triple ;
+import org.apache.jena.riot.*;
+import org.apache.jena.riot.system.*;
+import org.apache.jena.sparql.core.Quad ;
+import org.apache.jena.sparql.util.Context ;
 
-import com.github.jsonldjava.core.* ;
+import com.fasterxml.jackson.core.JsonLocation ;
+import com.fasterxml.jackson.core.JsonProcessingException ;
+import com.github.jsonldjava.core.JsonLdError;
+import com.github.jsonldjava.core.JsonLdOptions;
+import com.github.jsonldjava.core.JsonLdProcessor;
+import com.github.jsonldjava.core.JsonLdTripleCallback;
+import com.github.jsonldjava.core.RDFDataset;
 import com.github.jsonldjava.utils.JsonUtils ;
-import com.hp.hpl.jena.datatypes.RDFDatatype ;
-import com.hp.hpl.jena.datatypes.xsd.XSDDatatype ;
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.graph.NodeFactory ;
-import com.hp.hpl.jena.graph.Triple ;
-import com.hp.hpl.jena.sparql.core.Quad ;
-import com.hp.hpl.jena.sparql.util.Context ;
 
+/**
+ * Note: it is possible to override jsonld's "@context" value by providing one,
+ * using a {@link org.apache.jena.sparql.util.Context}, and setting the {@link RIOT#JSONLD_CONTEXT} Symbol's value
+ * to the data expected by JSON-LD java API (a {@link Map}).
+ */
 public class JsonLDReader implements ReaderRIOT
 {
-    private ErrorHandler errorHandler = ErrorHandlerFactory.getDefaultErrorHandler() ;
-    private ParserProfile parserProfile = null ; 
+    private /*final*/ ErrorHandler errorHandler = ErrorHandlerFactory.getDefaultErrorHandler() ;
+    private /*final*/ ParserProfile profile;
     
-    @Override public ErrorHandler getErrorHandler() { return errorHandler ; }
-    @Override public void setErrorHandler(ErrorHandler errorHandler) { this.errorHandler = errorHandler ; }
-    
-    @Override public ParserProfile getParserProfile()                   { return parserProfile ; }
-    @Override public void setParserProfile(ParserProfile parserProfile) { this.parserProfile = parserProfile ; }
+    public JsonLDReader(Lang lang, ParserProfile profile, ErrorHandler errorHandler) {
+        this.profile = profile;
+        this.errorHandler = errorHandler;
+    }
     
     @Override
     public void read(Reader reader, String baseURI, ContentType ct, StreamRDF output, Context context) {
-        if ( parserProfile == null )
-            parserProfile = RiotLib.profile(RDFLanguages.JSONLD, baseURI, errorHandler) ;
         try {
             Object jsonObject = JsonUtils.fromReader(reader) ;
             read$(jsonObject, baseURI, ct, output, context) ;
         }
+        catch (JsonProcessingException ex) {    
+            // includes JsonParseException
+            // The Jackson JSON parser, or addition JSON-level check, throws up something.
+            JsonLocation loc = ex.getLocation() ;
+            errorHandler.error(ex.getOriginalMessage(), loc.getLineNr(), loc.getColumnNr()); 
+            throw new RiotException(ex.getOriginalMessage()) ;
+        }
         catch (IOException e) {
+            errorHandler.error(e.getMessage(), -1, -1); 
             IO.exception(e) ;
         }
     }
 
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     @Override
     public void read(InputStream in, String baseURI, ContentType ct, StreamRDF output, Context context) {
-        if ( parserProfile == null )
-            parserProfile = RiotLib.profile(RDFLanguages.JSONLD, baseURI, errorHandler) ;
         try {
             Object jsonObject = JsonUtils.fromInputStream(in) ;
+            
+            if (context != null) {
+                Object jsonldCtx = context.get(RIOT.JSONLD_CONTEXT);
+                if (jsonldCtx != null) {
+                    if (jsonObject instanceof Map) {
+                        ((Map) jsonObject).put("@context", jsonldCtx);
+                    } else {
+                        errorHandler.warning("Unexpected: not a Map; unable to set JsonLD's @context",-1,-1);
+                    }
+                }
+            }
             read$(jsonObject, baseURI, ct, output, context) ;
         }
+        catch (JsonProcessingException ex) {    
+            // includes JsonParseException
+            // The Jackson JSON parser, or addition JSON-level check, throws up something.
+            JsonLocation loc = ex.getLocation() ;
+            errorHandler.error(ex.getOriginalMessage(), loc.getLineNr(), loc.getColumnNr()); 
+            throw new RiotException(ex.getOriginalMessage()) ;
+        }
         catch (IOException e) {
+            errorHandler.error(e.getMessage(), -1, -1); 
             IO.exception(e) ;
         }
     }
     
     private void read$(Object jsonObject, String baseURI, ContentType ct, final StreamRDF output, Context context) {
+        output.start() ;
         try {       	
             JsonLdTripleCallback callback = new JsonLdTripleCallback() {
                 @Override
@@ -102,7 +135,7 @@ public class JsonLDReader implements ReaderRIOT
                                 Node s = createNode(t, "subject") ;
                                 Node p = createNode(t, "predicate") ;
                                 Node o = createNode(t, "object") ;
-                                Triple triple = parserProfile.createTriple(s, p, o, -1, -1) ;
+                                Triple triple = profile.createTriple(s, p, o, -1, -1) ;
                                 output.triple(triple) ;
                             }
                         } else {
@@ -113,7 +146,7 @@ public class JsonLDReader implements ReaderRIOT
                                 Node s = createNode(q, "subject") ;
                                 Node p = createNode(q, "predicate") ;
                                 Node o = createNode(q, "object") ;
-                                Quad quad = parserProfile.createQuad(g, s, p, o, -1, -1) ;
+                                Quad quad = profile.createQuad(g, s, p, o, -1, -1) ;
                                 output.quad(quad) ;
                             }
                         }
@@ -129,9 +162,8 @@ public class JsonLDReader implements ReaderRIOT
             errorHandler.error(e.getMessage(), -1, -1); 
             throw new RiotException(e) ;
         }
+        output.finish() ;
     }
-
-    private LabelToNode  labels     = SyntaxLabels.createLabelToNode() ;
 
     public static String LITERAL    = "literal" ;
     public static String BLANK_NODE = "blank node" ;
@@ -151,38 +183,34 @@ public class JsonLDReader implements ReaderRIOT
         if ( type.equals(IRI) )
             return createURI(lex) ;
         else if ( type.equals(BLANK_NODE) )
-            return labels.get(null, lex) ;  //??
+            return createBlankNode(lex);
         else if ( type.equals(LITERAL) ) {
             String lang = (String)map.get("language") ;
             String datatype = (String)map.get("datatype") ;
-            if ( Lib.equal(xsdString, datatype) )
+            if ( Objects.equals(xsdString, datatype) )
                 // In RDF 1.1, simple literals and xsd:string are the same.
                 // During migration, we prefer simple literals to xsd:strings. 
                 datatype = null ;
             if ( lang == null && datatype == null )
-                return parserProfile.createStringLiteral(lex,-1, -1) ;
+                return profile.createStringLiteral(lex,-1, -1) ;
             if ( lang != null )
-                return parserProfile.createLangLiteral(lex, lang, -1, -1) ;
+                return profile.createLangLiteral(lex, lang, -1, -1) ;
             RDFDatatype dt = NodeFactory.getType(datatype) ;
-            return parserProfile.createTypedLiteral(lex, dt, -1, -1) ;
+            return profile.createTypedLiteral(lex, dt, -1, -1) ;
         } else
             throw new InternalErrorException("Node is not a IRI, bNode or a literal: " + type) ;
     }
 
+    private Node createBlankNode(String str) {
+        if ( str.startsWith("_:") )
+            str = str.substring(2);
+        return profile.createBlankNode(null, str, -1,-1);
+    }
+
     private Node createURI(String str) {
         if ( str.startsWith("_:") )
-            return labels.get(null, str) ;
+            return createBlankNode(str);
         else
-            return parserProfile.createURI(str, -1, -1) ;
+            return profile.createURI(str, -1, -1) ;
     }
-
-    private Node createLiteral(String lex, String datatype, String lang) {
-        if ( lang == null && datatype == null )
-            return NodeFactory.createLiteral(lex) ;
-        if ( lang != null )
-            return NodeFactory.createLiteral(lex, lang) ;
-        RDFDatatype dt = NodeFactory.getType(datatype) ;
-        return NodeFactory.createLiteral(lex, dt) ;
-    }
-
 }

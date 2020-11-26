@@ -22,8 +22,7 @@ import java.io.OutputStream ;
 import java.io.Writer ;
 
 import org.apache.jena.riot.system.PrefixMap ;
-
-import com.hp.hpl.jena.sparql.util.Context ;
+import org.apache.jena.sparql.util.Context ;
 
 /*public*/ interface WriterRIOT
 {
@@ -40,7 +39,7 @@ import com.hp.hpl.jena.sparql.util.Context ;
     public void write(OutputStream out, String baseURI) ;
     /**
      * @param out           OutputStream
-     * @param prefixMap     PrefixMap - maybe null (default should be to use the prefixmapping from the Graph)
+     * @param prefixMap     PrefixMap - maybe null (default should be to use the prefix mapping from the Graph)
      * @param baseURI       base URI - may be null for "none"
      * @param context       Context (see specific implementation for details) 
      */
@@ -48,7 +47,7 @@ import com.hp.hpl.jena.sparql.util.Context ;
 
     /** Use of Writer is discouraged - let the serializer manage character sets in accordance with the format
      * @param out           Writer
-     * @param prefixMap     PrefixMap - maybe null (default should be to use the prefixmapping from the Graph)
+     * @param prefixMap     PrefixMap - maybe null (default should be to use the prefix mapping from the Graph)
      * @param baseURI       base URI - may be null for "none"
      * @param context       Context (see specific implementation for details) 
      */

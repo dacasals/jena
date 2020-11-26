@@ -18,11 +18,10 @@
 
 package org.apache.jena.hadoop.rdf.mapreduce.filter;
 
+import org.apache.jena.datatypes.xsd.XSDDatatype ;
+import org.apache.jena.graph.NodeFactory ;
+import org.apache.jena.graph.Triple ;
 import org.apache.jena.hadoop.rdf.types.TripleWritable;
-
-import com.hp.hpl.jena.datatypes.xsd.XSDDatatype;
-import com.hp.hpl.jena.graph.NodeFactory;
-import com.hp.hpl.jena.graph.Triple;
 
 /**
  * Abstract tests for triple filter mappers that check triple validity
@@ -53,7 +52,7 @@ public abstract class AbstractTripleValidityFilterTests extends AbstractNodeTupl
                             XSDDatatype.XSDinteger)));
         case 2:
             // Invalid to use Blank Node as Predicate
-            return new TripleWritable(new Triple(NodeFactory.createURI("http://subjects/" + i), NodeFactory.createAnon(),
+            return new TripleWritable(new Triple(NodeFactory.createURI("http://subjects/" + i), NodeFactory.createBlankNode(),
                     NodeFactory.createLiteral(Integer.toString(i), XSDDatatype.XSDinteger)));
         case 3:
             // Invalid to use Literal as Predicate

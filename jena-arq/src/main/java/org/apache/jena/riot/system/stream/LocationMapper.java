@@ -22,13 +22,12 @@ import java.util.HashMap ;
 import java.util.Iterator ;
 import java.util.Map ;
 
+import org.apache.jena.rdf.model.Model ;
+import org.apache.jena.rdf.model.ModelFactory ;
+import org.apache.jena.rdf.model.Resource ;
+import org.apache.jena.vocabulary.LocationMappingVocab ;
 import org.slf4j.Logger ;
 import org.slf4j.LoggerFactory ;
-
-import com.hp.hpl.jena.rdf.model.Model ;
-import com.hp.hpl.jena.rdf.model.ModelFactory ;
-import com.hp.hpl.jena.rdf.model.Resource ;
-import com.hp.hpl.jena.vocabulary.LocationMappingVocab ;
 
 /** 
  * Alternative locations for URIs.  Maintains two maps:
@@ -39,7 +38,7 @@ import com.hp.hpl.jena.vocabulary.LocationMappingVocab ;
  * A LocationMapper can be configured by an RDF file.  The default for this
  * is "etc/location-mapping.n3".
  * 
- * There is a default LocationMapper which is used by the global @link{FileManager}.
+ * There is a default LocationMapper which is used by the global @link{StreamManager}.
  */
 
 public class LocationMapper
@@ -69,6 +68,10 @@ public class LocationMapper
         this.altPrefixes.putAll(lmap2.altPrefixes) ;
     }
 
+    public boolean containsMapping(String uri) {
+        return altMapping(uri, null) != null;
+    }
+
     public String altMapping(String uri) {
         return altMapping(uri, uri) ;
     }
@@ -80,9 +83,11 @@ public class LocationMapper
      * 
      * @param uri
      * @param otherwise
-     * @return The alternative location choosen
+     * @return The alternative location chosen
      */
     public String altMapping(String uri, String otherwise) {
+        if ( altLocations.isEmpty() && altPrefixes.isEmpty() )
+            return otherwise;
         if ( altLocations.containsKey(uri) )
             return altLocations.get(uri) ;
         String newStart = null ;

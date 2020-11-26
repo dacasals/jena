@@ -22,31 +22,20 @@ import java.io.File;
 import java.io.IOException;
 
 import org.apache.jena.atlas.io.IO ;
+import org.apache.jena.query.Dataset ;
+import org.apache.jena.query.DatasetFactory ;
+import org.apache.jena.tdb.TDBFactory ;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.util.Version;
-
-import com.hp.hpl.jena.query.Dataset;
-import com.hp.hpl.jena.query.DatasetFactory;
-import com.hp.hpl.jena.tdb.TDBFactory;
 
 public class SpatialSearchUtil {
-	
-    private static Version VER = SpatialIndexLucene.VER ;
-    private static final Analyzer analyzer = new StandardAnalyzer(VER);
-    
+    private static final Analyzer analyzer = new StandardAnalyzer();
 	private static final String LUCENE_INDEX_PATH = "target/test/LuceneSpatialIndex";
 	private static final File LUCENE_Index_DIR = new File(LUCENE_INDEX_PATH);
-	
-    private static final String  SOLR_DATA_PATH      = "target/test/SolrARQCollection/data";
-    private static final File    SOLR_DATA_DIR       = new File(SOLR_DATA_PATH);
-    private static final String  SOLR_INDEX_PATH     = SOLR_DATA_PATH + "/index";
-    private static final File    SOLR_INDEX_DIR      = new File(SOLR_INDEX_PATH);
-    private static final String  SOLR_TEST_ASSEM     = "src/test/resources/spatial-solr-config.ttl" ;	
 	
     public static void emptyAndDeleteDirectory(File dir) {
         File[] contents = dir.listFiles() ;
@@ -64,37 +53,26 @@ public class SpatialSearchUtil {
 
     public static void createEmptyIndex(File indexDir) {
         try {
-            Directory directory = FSDirectory.open(indexDir) ;
-            IndexWriterConfig wConfig = new IndexWriterConfig(VER, analyzer) ;
-            @SuppressWarnings("resource")
-            IndexWriter indexWriter = new IndexWriter(directory, wConfig) ;
-            indexWriter.close() ; // force creation of the index files
+            Directory directory = FSDirectory.open(indexDir.toPath()) ;
+            IndexWriterConfig wConfig = new IndexWriterConfig(analyzer) ;
+            // force creation of the index files
+            try ( IndexWriter indexWriter = new IndexWriter(directory, wConfig) ){}
         } catch (IOException ex) {
             IO.exception(ex) ;
         }
 	}
-    
-    public static Dataset initInMemoryDatasetWithSolrSpatitalIndex() {
-	    SpatialSearchUtil.deleteOldFiles(SOLR_DATA_DIR  );
-	    SOLR_INDEX_DIR.mkdirs();
-	    SpatialQuery.init() ;
-	    SpatialSearchUtil.createEmptyIndex(SOLR_INDEX_DIR);
-	    return SpatialDatasetFactory.create(SOLR_TEST_ASSEM) ;
-    }
     
     public static Dataset initInMemoryDatasetWithLuceneSpatitalIndex() throws IOException{
     	return initInMemoryDatasetWithLuceneSpatitalIndex(LUCENE_Index_DIR);
     }
     
     public static Dataset initInMemoryDatasetWithLuceneSpatitalIndex(File indexDir) throws IOException{
-		SpatialQuery.init();
 		deleteOldFiles(indexDir);
 		indexDir.mkdirs();
 		return createDatasetByCode(indexDir);
     }
     
     public static Dataset initTDBDatasetWithLuceneSpatitalIndex(File indexDir, File TDBDir) throws IOException{
-		SpatialQuery.init();
 		deleteOldFiles(indexDir);
 		deleteOldFiles(TDBDir);
 		indexDir.mkdirs();
@@ -105,10 +83,7 @@ public class SpatialSearchUtil {
 	public static void deleteOldLuceneIndexDir() {
 		deleteOldFiles(LUCENE_Index_DIR);
 	}
-	public static void deleteOldSolrDataDir() {
-		deleteOldFiles(SOLR_DATA_DIR);
-	}
-    
+
 	public static void deleteOldFiles(File indexDir) {
 		if (indexDir.exists())
 			emptyAndDeleteDirectory(indexDir);
@@ -116,7 +91,7 @@ public class SpatialSearchUtil {
 	
 	private static Dataset createDatasetByCode(File indexDir) throws IOException {
 		// Base data
-		Dataset ds1 = DatasetFactory.createMem();
+		Dataset ds1 = DatasetFactory.create();
 		return joinDataset(ds1, indexDir);
 	}
 	
@@ -130,7 +105,7 @@ public class SpatialSearchUtil {
 		EntityDefinition entDef = new EntityDefinition("uri", "geo");
 
 		// Lucene, index in File system.
-		Directory dir = FSDirectory.open(indexDir);
+		Directory dir = FSDirectory.open(indexDir.toPath());
 
 		// Join together into a dataset
 		Dataset ds = SpatialDatasetFactory.createLucene(baseDataset, dir, entDef);

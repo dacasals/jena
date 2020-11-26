@@ -19,34 +19,27 @@
 package org.apache.jena.atlas.data;
 
 import java.io.File ;
-import java.util.ArrayList ;
-import java.util.Iterator ;
-import java.util.List ;
-import java.util.Random ;
+import java.util.*;
 
-import junit.framework.TestCase ;
-
-import org.apache.jena.atlas.data.DistinctDataBag ;
-import org.apache.jena.atlas.data.ThresholdPolicyCount ;
 import org.apache.jena.atlas.iterator.Iter ;
+import org.apache.jena.datatypes.xsd.XSDDatatype ;
+import org.apache.jena.graph.NodeFactory ;
 import org.junit.Test ;
+import org.apache.jena.query.SortCondition ;
 import org.apache.jena.riot.system.SerializationFactoryFinder ;
+import org.apache.jena.sparql.core.Var ;
+import org.apache.jena.sparql.engine.binding.Binding ;
+import org.apache.jena.sparql.engine.binding.BindingComparator ;
+import org.apache.jena.sparql.engine.binding.BindingFactory ;
+import org.apache.jena.sparql.engine.binding.BindingMap ;
+import org.apache.jena.sparql.resultset.ResultSetCompare ;
+import org.apache.jena.sparql.sse.Item ;
+import org.apache.jena.sparql.sse.SSE ;
+import org.apache.jena.sparql.sse.builders.BuilderBinding ;
+import org.apache.jena.sparql.util.NodeUtils ;
+import static org.junit.Assert.*;
 
-import com.hp.hpl.jena.datatypes.xsd.XSDDatatype ;
-import com.hp.hpl.jena.graph.NodeFactory ;
-import com.hp.hpl.jena.query.SortCondition ;
-import com.hp.hpl.jena.sparql.core.Var ;
-import com.hp.hpl.jena.sparql.engine.binding.Binding ;
-import com.hp.hpl.jena.sparql.engine.binding.BindingComparator ;
-import com.hp.hpl.jena.sparql.engine.binding.BindingFactory ;
-import com.hp.hpl.jena.sparql.engine.binding.BindingMap ;
-import com.hp.hpl.jena.sparql.resultset.ResultSetCompare ;
-import com.hp.hpl.jena.sparql.sse.Item ;
-import com.hp.hpl.jena.sparql.sse.SSE ;
-import com.hp.hpl.jena.sparql.sse.builders.BuilderBinding ;
-import com.hp.hpl.jena.sparql.util.NodeUtils ;
-
-public class TestDistinctDataBag extends TestCase
+public class TestDistinctDataBag
 {
     private static final String LETTERS = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM";
     Random random = new Random();
@@ -96,7 +89,7 @@ public class TestDistinctDataBag extends TestCase
         }
         
         assertEquals(control.size(), distinct.size());
-        assertTrue(ResultSetCompare.equalsByTest(control, distinct, NodeUtils.sameTerm));
+        assertTrue(ResultSetCompare.equalsByTest(control, distinct, NodeUtils.sameNode));
     }
     
     @Test public void testTemporaryFilesAreCleanedUpAfterCompletion()
@@ -166,16 +159,16 @@ public class TestDistinctDataBag extends TestCase
     private Binding randomBinding(Var[] vars)
     {
         BindingMap binding = BindingFactory.create();
-        binding.add(vars[0], NodeFactory.createAnon());
+        binding.add(vars[0], NodeFactory.createBlankNode());
         binding.add(vars[1], NodeFactory.createURI(randomURI()));
         binding.add(vars[2], NodeFactory.createURI(randomURI()));
         binding.add(vars[3], NodeFactory.createLiteral(randomString(20)));
-        binding.add(vars[4], NodeFactory.createAnon());
+        binding.add(vars[4], NodeFactory.createBlankNode());
         binding.add(vars[5], NodeFactory.createURI(randomURI()));
         binding.add(vars[6], NodeFactory.createURI(randomURI()));
         binding.add(vars[7], NodeFactory.createLiteral(randomString(5)));
         binding.add(vars[8], NodeFactory.createLiteral("" + random.nextInt(), XSDDatatype.XSDinteger));
-        binding.add(vars[9], NodeFactory.createAnon());
+        binding.add(vars[9], NodeFactory.createBlankNode());
         return binding;
     }
 
@@ -191,5 +184,40 @@ public class TestDistinctDataBag extends TestCase
             builder.append(LETTERS.charAt(random.nextInt(LETTERS.length())));
         }
         return builder.toString();
+    }
+    
+    @Test
+    public void testOptionalVariables() {
+        // JENA-1770
+        // Setup a situation where the second binding in a spill file binds more
+        // variables than the first binding.
+        BindingMap binding1 = BindingFactory.create();
+        binding1.add(Var.alloc("1"), NodeFactory.createLiteral("A"));
+
+        BindingMap binding2 = BindingFactory.create();
+        binding2.add(Var.alloc("1"), NodeFactory.createLiteral("A"));
+        binding2.add(Var.alloc("2"), NodeFactory.createLiteral("B"));
+
+        List<Binding> undistinct = Arrays.asList(binding1, binding2, binding1);
+        List<Binding> control = Iter.toList(Iter.distinct(undistinct.iterator()));
+        List<Binding> distinct = new ArrayList<>();
+
+        DistinctDataBag<Binding> db = new DistinctDataBag<>(new ThresholdPolicyCount<Binding>(2),
+                                                            SerializationFactoryFinder.bindingSerializationFactory(),
+                                                            new BindingComparator(new ArrayList<SortCondition>()));
+        try {
+            db.addAll(undistinct);
+            Iterator<Binding> iter = db.iterator();
+            while (iter.hasNext()) {
+                distinct.add(iter.next());
+            }
+            Iter.close(iter);
+        }
+        finally {
+            db.close();
+        }
+
+        assertEquals(control.size(), distinct.size());
+        assertTrue(ResultSetCompare.equalsByTest(control, distinct, NodeUtils.sameNode));
     }
 }

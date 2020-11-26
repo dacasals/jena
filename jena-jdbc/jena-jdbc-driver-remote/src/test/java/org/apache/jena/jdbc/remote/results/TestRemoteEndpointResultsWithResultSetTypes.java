@@ -21,24 +21,30 @@ package org.apache.jena.jdbc.remote.results;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import org.apache.jena.fuseki.ServerTest;
+
+import org.apache.jena.fuseki.main.FusekiTestServer ;
 import org.apache.jena.jdbc.JdbcCompatibility;
 import org.apache.jena.jdbc.connections.JenaConnection;
 import org.apache.jena.jdbc.remote.connections.RemoteEndpointConnection;
 import org.apache.jena.jdbc.utils.TestUtils;
+import org.apache.jena.query.Dataset ;
 import org.apache.jena.riot.WebContent;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before ;
 import org.junit.BeforeClass;
-
-import com.hp.hpl.jena.query.Dataset;
 
 /**
  * Tests result sets from a remote endpoint
  *
  */
 public class TestRemoteEndpointResultsWithResultSetTypes extends AbstractRemoteEndpointResultSetTests {
-    
+
+    //@BeforeClass public static void ctlBeforeClass() { FusekiTestServer.ctlBeforeClass(); }
+    //@AfterClass  public static void ctlAfterClass()  { FusekiTestServer.ctlAfterClass(); }
+    @Before      public void ctlBeforeTest()  { FusekiTestServer.ctlBeforeTest(); }
+    @After       public void ctlAfterTest()   { FusekiTestServer.ctlAfterTest(); } 
+
     private static RemoteEndpointConnection connection;
     
     /**
@@ -47,33 +53,19 @@ public class TestRemoteEndpointResultsWithResultSetTypes extends AbstractRemoteE
      */
     @BeforeClass
     public static void setup() throws SQLException {
-        ServerTest.allocServer();
-
-        connection = new RemoteEndpointConnection(ServerTest.serviceQuery, ServerTest.serviceUpdate, null, null, null, null, null, JenaConnection.DEFAULT_HOLDABILITY, JdbcCompatibility.DEFAULT, WebContent.contentTypeTextTSV, WebContent.contentTypeRdfJson);
+        FusekiTestServer.ctlBeforeClass();
+        connection = new RemoteEndpointConnection(FusekiTestServer.serviceQuery(), FusekiTestServer.serviceUpdate(), null, null, null, null, null, JenaConnection.DEFAULT_HOLDABILITY, JdbcCompatibility.DEFAULT, WebContent.contentTypeTextTSV, WebContent.contentTypeRDFJSON);
         connection.setJdbcCompatibilityLevel(JdbcCompatibility.HIGH);
-    }
-    
-    /**
-     * Clean up after each test by resetting the Fuseki instance
-     * @throws InterruptedException 
-     */
-    @After
-    public void cleanupTest() throws InterruptedException {
-        ServerTest.resetServer();
     }
     
     /**
      * Clean up after tests by de-allocating the Fuseki instance
      * @throws SQLException 
-     * @throws InterruptedException 
      */
     @AfterClass
-    public static void cleanup() throws SQLException, InterruptedException {
-        
-        // Sleep attempts to avoid a intermittent timing issue on the build server that can result in hung builds
-        
+    public static void cleanup() throws SQLException {
         connection.close();
-        ServerTest.freeServer();
+        FusekiTestServer.ctlAfterClass();
     }
 
     @Override
@@ -83,7 +75,7 @@ public class TestRemoteEndpointResultsWithResultSetTypes extends AbstractRemoteE
     
     @Override
     protected ResultSet createResults(Dataset ds, String query, int resultSetType) throws SQLException {
-        TestUtils.copyToRemoteDataset(ds, ServerTest.serviceREST);
+        TestUtils.copyToRemoteDataset(ds, FusekiTestServer.serviceGSP());
         Statement stmt = connection.createStatement(resultSetType, ResultSet.CONCUR_READ_ONLY);
         return stmt.executeQuery(query);
     }

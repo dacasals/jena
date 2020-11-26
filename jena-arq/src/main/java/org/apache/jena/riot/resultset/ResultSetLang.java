@@ -24,7 +24,7 @@ import org.apache.jena.riot.RDFLanguages ;
 import org.apache.jena.riot.WebContent ;
 
 public class ResultSetLang {
-    // Add SSE!
+
     public static final Lang SPARQLResultSetXML
         = LangBuilder.create("SPARQL-Results-XML", WebContent.contentTypeResultsXML)
                      .addAltNames("SRX")
@@ -37,12 +37,9 @@ public class ResultSetLang {
                      .addFileExtensions("srj")
                      .build() ;
     
-    public static final Lang SPARQLResultSetCSV = Lang.CSV ;
+    public static final Lang SPARQLResultSetCSV = Lang.CSV;
     
-    public static final Lang SPARQLResultSetTSV
-        = LangBuilder.create("TSV", WebContent.contentTypeTextTSV)
-                     .addFileExtensions("tsv")
-                     .build() ;
+    public static final Lang SPARQLResultSetTSV = Lang.TSV;
     
     public static final Lang SPARQLResultSetThrift
         = LangBuilder.create("SPARQL-Results-Thrift", WebContent.contentTypeResultsThrift)
@@ -54,6 +51,9 @@ public class ResultSetLang {
         = LangBuilder.create("SPARQL-Results-Text", WebContent.contentTypeTextPlain)
                      .addFileExtensions("txt")
                      .build() ;
+    
+    public static final Lang SPARQLResultSetNone
+        = LangBuilder.create("SPARQL-Results-None", "application/sparql-results+none").build() ;
 
     private static boolean initialized = false ;
     public static void init() {
@@ -65,6 +65,7 @@ public class ResultSetLang {
         RDFLanguages.register(SPARQLResultSetCSV) ;
         RDFLanguages.register(SPARQLResultSetTSV) ;
         RDFLanguages.register(SPARQLResultSetThrift) ;
+        RDFLanguages.register(SPARQLResultSetNone) ;
         ResultSetReaderRegistry.init();
         ResultSetWriterRegistry.init();
     }    

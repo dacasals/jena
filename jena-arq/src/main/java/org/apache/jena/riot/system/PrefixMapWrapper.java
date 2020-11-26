@@ -19,86 +19,80 @@
 package org.apache.jena.riot.system;
 
 import java.util.Map ;
+import java.util.function.BiConsumer ;
 
 import org.apache.jena.atlas.lib.Pair ;
-import org.apache.jena.iri.IRI ;
+import org.apache.jena.shared.PrefixMapping ;
 
-import com.hp.hpl.jena.shared.PrefixMapping ;
+public class PrefixMapWrapper implements PrefixMap
+{
+    private final PrefixMap other ;
+    protected PrefixMap get() { return other; }
 
-//private static PrefixMap empty = new PrefixMapNull() ; 
-    /**
-     * Creates an always-empty prefix map, which can not be changed.
-     */
-//    public static PrefixMap nullPrefixMap() {
-//    }
-    
-    public class PrefixMapWrapper implements PrefixMap
-    {
-        protected final PrefixMap other ;
+    public PrefixMapWrapper(PrefixMap other) { this.other = other ; }
 
-        public PrefixMapWrapper(PrefixMap other) { this.other = other ; }
-        
-        @Override
-        public Map<String, IRI> getMapping()
-        { return other.getMapping() ; }
+    @Override
+    public Map<String, String> getMapping()
+    { return get().getMapping() ; }
 
-        @Override
-        public Map<String, IRI> getMappingCopy()
-        { return other.getMappingCopy() ; }
+    @Override
+    public Map<String, String> getMappingCopy()
+    { return get().getMappingCopy() ; }
 
-        @Override
-        public Map<String, String> getMappingCopyStr()
-        { return other.getMappingCopyStr() ; } 
-
-        @Override
-        public void add(String prefix, String iriString)
-        { other.add(prefix, iriString) ; }
-
-        @Override
-        public void add(String prefix, IRI iri)
-        { other.add(prefix, iri) ; }
-
-        @Override
-        public void putAll(PrefixMap pmap)
-        { other.putAll(pmap) ; }
-
-        @Override
-        public void putAll(PrefixMapping pmap)
-        { other.putAll(pmap) ; }
-
-        @Override
-        public void putAll(Map<String, String> mapping)
-        { other.putAll(mapping) ; }
-
-        @Override
-        public void delete(String prefix)
-        { other.delete(prefix) ; }
-
-        @Override
-        public boolean contains(String prefix)
-        { return other.contains(prefix) ; }
-
-        @Override
-        public String abbreviate(String uriStr)
-        { return other.abbreviate(uriStr) ; }
-
-        @Override
-        public Pair<String, String> abbrev(String uriStr)
-        { return other.abbrev(uriStr) ; }
-
-        @Override
-        public String expand(String prefixedName)
-        { return other.expand(prefixedName) ; }
-
-        @Override
-        public String expand(String prefix, String localName)
-        { return other.expand(prefix, localName) ; }
-
-        @Override
-        public boolean isEmpty()
-        { return other.isEmpty() ; }
-
-        @Override
-        public int size()
-        { return other.size() ; }
+    @Override
+    public void forEach(BiConsumer<String, String> action) {
+        get().forEach(action);
     }
+
+    @Override
+    public void add(String prefix, String iri)
+    { get().add(prefix, iri) ; }
+
+    @Override
+    public void putAll(PrefixMap pmap)
+    { get().putAll(pmap) ; }
+
+    @Override
+    public void putAll(PrefixMapping pmap)
+    { get().putAll(pmap) ; }
+
+    @Override
+    public void putAll(Map<String, String> mapping)
+    { get().putAll(mapping) ; }
+
+    @Override
+    public void delete(String prefix)
+    { get().delete(prefix) ; }
+
+    @Override
+    public void clear()
+    { get().clear(); }
+
+    @Override
+    public boolean containsPrefix(String prefix)
+    { return get().containsPrefix(prefix) ; }
+
+    @Override
+    public String abbreviate(String uriStr)
+    { return get().abbreviate(uriStr) ; }
+
+    @Override
+    public Pair<String, String> abbrev(String uriStr)
+    { return get().abbrev(uriStr) ; }
+
+    @Override
+    public String expand(String prefixedName)
+    { return get().expand(prefixedName) ; }
+
+    @Override
+    public String expand(String prefix, String localName)
+    { return get().expand(prefix, localName) ; }
+
+    @Override
+    public boolean isEmpty()
+    { return get().isEmpty() ; }
+
+    @Override
+    public int size()
+    { return get().size() ; }
+}

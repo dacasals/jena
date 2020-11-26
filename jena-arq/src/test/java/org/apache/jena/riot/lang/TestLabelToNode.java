@@ -18,21 +18,23 @@
 
 package org.apache.jena.riot.lang;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+
 import java.util.ArrayList ;
 import java.util.List ;
 
-import org.apache.jena.atlas.junit.BaseTest ;
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.NodeFactory ;
 import org.apache.jena.riot.system.SyntaxLabels ;
 import org.junit.Test ;
 import org.junit.runner.RunWith ;
 import org.junit.runners.Parameterized ;
 import org.junit.runners.Parameterized.Parameters ;
 
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.graph.NodeFactory ;
-
 @RunWith(Parameterized.class)
-public class TestLabelToNode extends BaseTest
+public class TestLabelToNode
 {
     // See also TestNodeAlloc
     
@@ -52,7 +54,7 @@ public class TestLabelToNode extends BaseTest
         } ;
 
         LabelToNodeFactory fScopeByDocumentOld = new LabelToNodeFactory() {
-                @Override public LabelToNode create() { return LabelToNode.createScopeByDocumentOld() ; }
+                @Override public LabelToNode create() { return LabelToNode.createScopeGlobal() ; }
                 @Override public String toString() { return "ScopeByDocumentOld" ; }
         } ;
         LabelToNodeFactory fScopeByGraph = new LabelToNodeFactory() {

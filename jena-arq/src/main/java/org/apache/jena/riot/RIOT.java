@@ -18,12 +18,21 @@
 
 package org.apache.jena.riot ;
 
-import com.hp.hpl.jena.query.ARQ ;
-import com.hp.hpl.jena.sparql.SystemARQ ;
-import com.hp.hpl.jena.sparql.mgt.SystemInfo ;
+import org.apache.jena.query.ARQ ;
+import org.apache.jena.riot.resultset.ResultSetLang;
+import org.apache.jena.sparql.SystemARQ ;
+import org.apache.jena.sparql.mgt.SystemInfo ;
+import org.apache.jena.sparql.util.Context ;
+import org.apache.jena.sparql.util.Symbol ;
+import org.apache.jena.sys.JenaSystem ;
 
 public class RIOT {
-    /** IRI for ARQ */
+    // Initialization statics must be first in the class to avoid
+    // problems with recursive initialization.
+    private static volatile boolean initialized = false ;
+    private static Object           initLock    = new Object() ;
+
+    /** IRI for RIOT */
     public static final String riotIRI = "http://jena.apache.org/#riot" ;
 
     /** The product name */
@@ -40,34 +49,39 @@ public class RIOT {
     /** The root package name for RIOT */
     public static final String PATH    = "org.apache.jena.riot" ;
 
-    public static void setStrictMode(boolean state) {
-        SysRIOT.strictMode = state ;
-        SysRIOT.StrictXSDLexicialForms = state ;
-    }
+    /** Control of multiline literals */
+    public static final Symbol multilineLiterals = Symbol.create("riot.multiline_literals") ;
 
-    private static volatile boolean initialized = false ;
-    private static Object           initLock    = new Object() ;
+    /** The system-wide context */
+    public static Context getContext() {
+        return ARQ.getContext();
+    }
 
     public static void init() {
         if ( initialized )
             return ;
         synchronized (initLock) {
-            if ( initialized )
+            if ( initialized ) {
+                JenaSystem.logLifecycle("RIOT.init - skip") ;
                 return ;
+            }
             initialized = true ;
-            // Becareful with what this touches - don't touch ARQ.*
+            JenaSystem.logLifecycle("RIOT.init - start") ;
+            // Be careful with what this touches - don't touch ARQ.*
             // because that depends on Jena core and we may be
             // initializing because IO_Ctl (ie. Jena core)
             // called RIOT.init.
             RDFLanguages.init() ;
             RDFParserRegistry.init() ;
             RDFWriterRegistry.init() ;
+            ResultSetLang.init();
 
             IO_Jena.wireIntoJena() ;
 
             // Don't register JMX info with ARQ as it may not be initialized
             // itself and we can get into a circularity.
             // This is done in ARQ.init at the proper moment.
+            JenaSystem.logLifecycle("RIOT.init - finish") ;
         }
     }
 
@@ -92,4 +106,25 @@ public class RIOT {
     public static String getBuildDate() {
         return ARQ.BUILD_DATE ;
     }
+
+    // ---- Symbols
+
+    /**
+     * Symbol to use to pass (in a Context object) the "@context" to be used when reading jsonld
+     * (overriding the actual @context in the jsonld)
+     * Expected value: the value of the "@context",
+     * as expected by the JSONLD-java API (a Map) */
+    public static final Symbol JSONLD_CONTEXT = Symbol.create("http://jena.apache.org/riot/jsonld#JSONLD_CONTEXT");
+
+    private static String TURTLE_SYMBOL_BASE = "http://jena.apache.org/riot/turtle#";
+
+    /**
+     * Printing style. One of "RDF11" or RDF10". Controls {@literal @prefix} vs PREFIX.
+     * Values causing SPARQL-style keyword output are "sparql","keyword" and "rdf11".
+     */
+    public static final Symbol symTurtleDirectiveStyle = SystemARQ.allocSymbol(TURTLE_SYMBOL_BASE, "directiveStyle");
+
+    /** @deprecated Use {@link #symTurtleDirectiveStyle}. */
+    @Deprecated
+    public static final Symbol symTurtlePrefixStyle = SystemARQ.allocSymbol(TURTLE_SYMBOL_BASE, "prefixStyle");
 }

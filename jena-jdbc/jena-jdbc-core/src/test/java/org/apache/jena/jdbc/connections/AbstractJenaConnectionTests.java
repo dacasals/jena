@@ -24,6 +24,8 @@ import java.sql.ResultSet ;
 import java.util.HashMap ;
 import java.util.Properties ;
 
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.NodeFactory ;
 import org.apache.jena.jdbc.JdbcCompatibility ;
 import org.apache.jena.jdbc.postprocessing.ResultsEcho ;
 import org.apache.jena.jdbc.preprocessing.Echo ;
@@ -33,16 +35,14 @@ import org.apache.jena.jdbc.results.TripleIteratorResults ;
 import org.apache.jena.jdbc.results.metadata.AskResultsMetadata ;
 import org.apache.jena.jdbc.results.metadata.TripleResultsMetadata ;
 import org.apache.jena.jdbc.utils.TestUtils ;
+import org.apache.jena.query.* ;
+import org.apache.jena.sparql.core.Quad ;
+import org.apache.jena.sys.JenaSystem ;
+import org.apache.jena.update.UpdateFactory ;
+import org.apache.jena.update.UpdateRequest ;
 import org.junit.Assert ;
 import org.junit.Assume ;
 import org.junit.Test ;
-
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.graph.NodeFactory ;
-import com.hp.hpl.jena.query.* ;
-import com.hp.hpl.jena.sparql.core.Quad ;
-import com.hp.hpl.jena.update.UpdateFactory ;
-import com.hp.hpl.jena.update.UpdateRequest ;
 
 /**
  * Abstract tests for {@link JenaConnection} implementations
@@ -51,7 +51,7 @@ import com.hp.hpl.jena.update.UpdateRequest ;
 public abstract class AbstractJenaConnectionTests {
 
     static {
-        ARQ.init();
+        JenaSystem.init() ;
     }
 
     /**
@@ -130,7 +130,7 @@ public abstract class AbstractJenaConnectionTests {
      */
     @Test
     public void connection_create_close_02() throws SQLException {
-        JenaConnection conn = this.getConnection(DatasetFactory.createMem());
+        JenaConnection conn = this.getConnection(DatasetFactory.createTxnMem());
         Assert.assertFalse(conn.isClosed());
         conn.close();
         Assert.assertTrue(conn.isClosed());
@@ -228,7 +228,7 @@ public abstract class AbstractJenaConnectionTests {
     @Test
     public void connection_statement_query_select_02() throws SQLException {
         // Prepare a dataset
-        Dataset ds = DatasetFactory.createMem();
+        Dataset ds = DatasetFactory.createTxnMem();
         ds.asDatasetGraph().add(
                 new Quad(NodeFactory.createURI("http://example/graph"), NodeFactory.createURI("http://example/subject"),
                         NodeFactory.createURI("http://example/predicate"), NodeFactory.createURI("http://example/object")));
@@ -272,7 +272,7 @@ public abstract class AbstractJenaConnectionTests {
     @Test
     public void connection_statement_query_select_03() throws SQLException {
         // Prepare a dataset
-        Dataset ds = DatasetFactory.createMem();
+        Dataset ds = DatasetFactory.createTxnMem();
         ds.asDatasetGraph().add(
                 new Quad(NodeFactory.createURI("http://example/graph"), NodeFactory.createURI("http://example/subject"),
                         NodeFactory.createURI("http://example/predicate"), NodeFactory.createURI("http://example/object")));
@@ -317,7 +317,7 @@ public abstract class AbstractJenaConnectionTests {
     @Test
     public void connection_statement_query_select_04() throws SQLException {
         // Prepare a dataset
-        Dataset ds = DatasetFactory.createMem();
+        Dataset ds = DatasetFactory.createTxnMem();
         ds.asDatasetGraph().add(
                 new Quad(NodeFactory.createURI("http://example/graph"), NodeFactory.createURI("http://example/subject"),
                         NodeFactory.createURI("http://example/predicate"), NodeFactory.createURI("http://example/object")));
@@ -362,7 +362,7 @@ public abstract class AbstractJenaConnectionTests {
     @Test
     public void connection_prepared_statement_select_01() throws SQLException, MalformedURLException {
         // Prepare a dataset
-        Dataset ds = DatasetFactory.createMem();
+        Dataset ds = DatasetFactory.createTxnMem();
         ds.asDatasetGraph().add(
                 new Quad(NodeFactory.createURI("http://example/graph"), NodeFactory.createURI("http://example/subject"),
                         NodeFactory.createURI("http://example/predicate"), NodeFactory.createURI("http://example/object")));
@@ -406,12 +406,11 @@ public abstract class AbstractJenaConnectionTests {
      * Tests use of prepared statements
      * 
      * @throws SQLException
-     * @throws MalformedURLException
      */
     @Test
-    public void connection_prepared_statement_select_02() throws SQLException, MalformedURLException {
+    public void connection_prepared_statement_select_02() throws SQLException {
         // Prepare a dataset
-        Dataset ds = DatasetFactory.createMem();
+        Dataset ds = DatasetFactory.createTxnMem();
         ds.asDatasetGraph().add(
                 new Quad(NodeFactory.createURI("http://example/graph"), NodeFactory.createURI("http://example/subject"),
                         NodeFactory.createURI("http://example/predicate"), NodeFactory.createLiteral("value")));
@@ -455,12 +454,11 @@ public abstract class AbstractJenaConnectionTests {
      * Tests use of prepared statements
      * 
      * @throws SQLException
-     * @throws MalformedURLException
      */
     @Test
-    public void connection_prepared_statement_select_03() throws SQLException, MalformedURLException {
+    public void connection_prepared_statement_select_03() throws SQLException {
         // Prepare a dataset
-        Dataset ds = DatasetFactory.createMem();
+        Dataset ds = DatasetFactory.createTxnMem();
         ds.asDatasetGraph().add(
                 new Quad(NodeFactory.createURI("http://example/graph"), NodeFactory.createURI("http://example/subject"),
                         NodeFactory.createURI("http://example/predicate"), NodeFactory.createLiteral("value")));
@@ -740,7 +738,7 @@ public abstract class AbstractJenaConnectionTests {
         try {
             ResultSet rset = stmt.executeQuery("CONSTRUCT { ?s ?p ?o } WHERE { "
                     + (this.usesNamedGraphAsDefault() ? "GRAPH <" + this.getDefaultGraphName() + "> {" : "")
-                    + " FILTER(<http://jena.hpl.hp.com/ARQ/function#wait>(1500)) " + (this.usesNamedGraphAsDefault() ? "}" : "") + "}");
+                    + " FILTER(<http://jena.apache.org/ARQ/function#wait>(1500)) " + (this.usesNamedGraphAsDefault() ? "}" : "") + "}");
 
             // Note that we have to start iterating otherwise the query doesn't
             // get executed and the timeout will never apply
@@ -779,7 +777,7 @@ public abstract class AbstractJenaConnectionTests {
         try {
             ResultSet rset = stmt.executeQuery("CONSTRUCT { ?s ?p ?o } WHERE { "
                     + (this.usesNamedGraphAsDefault() ? "GRAPH <" + this.getDefaultGraphName() + "> {" : "")
-                    + " FILTER(<http://jena.hpl.hp.com/ARQ/function#wait>(1500)) " + (this.usesNamedGraphAsDefault() ? "}" : "") + "}");
+                    + " FILTER(<http://jena.apache.org/ARQ/function#wait>(1500)) " + (this.usesNamedGraphAsDefault() ? "}" : "") + "}");
 
             // Note that we have to start iterating otherwise the query doesn't
             // get executed and the timeout will never apply
@@ -888,7 +886,7 @@ public abstract class AbstractJenaConnectionTests {
     @Test
     public void connection_statement_query_construct_02() throws SQLException {
         // Prepare a dataset
-        Dataset ds = DatasetFactory.createMem();
+        Dataset ds = DatasetFactory.createTxnMem();
         ds.asDatasetGraph().add(
                 new Quad(NodeFactory.createURI("http://example/graph"), NodeFactory.createURI("http://example/subject"),
                         NodeFactory.createURI("http://example/predicate"), NodeFactory.createURI("http://example/object")));
@@ -961,7 +959,7 @@ public abstract class AbstractJenaConnectionTests {
     @Test
     public void connection_statement_query_describe_02() throws SQLException {
         // Prepare a dataset
-        Dataset ds = DatasetFactory.createMem();
+        Dataset ds = DatasetFactory.createTxnMem();
         ds.asDatasetGraph().add(
                 new Quad(NodeFactory.createURI("http://example/graph"), NodeFactory.createURI("http://example/subject"),
                         NodeFactory.createURI("http://example/predicate"), NodeFactory.createURI("http://example/object")));
@@ -1012,7 +1010,7 @@ public abstract class AbstractJenaConnectionTests {
     @Test
     public void connection_transactions_01() throws SQLException {
         // Set up connection
-        JenaConnection conn = this.getConnection(DatasetFactory.createMem());
+        JenaConnection conn = this.getConnection(DatasetFactory.createTxnMem());
         Assume.assumeNotNull(conn.getMetaData());
         Assume.assumeTrue(conn.getMetaData().supportsTransactions());
         conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
@@ -1046,7 +1044,7 @@ public abstract class AbstractJenaConnectionTests {
     @Test
     public void connection_transactions_02() throws SQLException {
         // Set up connection
-        JenaConnection conn = this.getConnection(DatasetFactory.createMem());
+        JenaConnection conn = this.getConnection(DatasetFactory.createTxnMem());
         Assume.assumeNotNull(conn.getMetaData());
         Assume.assumeTrue(conn.getMetaData().supportsTransactions());
         conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
@@ -1084,7 +1082,7 @@ public abstract class AbstractJenaConnectionTests {
     @Test
     public void connection_transactions_03() throws SQLException {
         // Set up connection
-        JenaConnection conn = this.getConnection(DatasetFactory.createMem());
+        JenaConnection conn = this.getConnection(DatasetFactory.createTxnMem());
         Assume.assumeNotNull(conn.getMetaData());
         Assume.assumeTrue(conn.getMetaData().supportsTransactions());
         conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
@@ -1137,7 +1135,7 @@ public abstract class AbstractJenaConnectionTests {
     @Test
     public void connection_transactions_04() throws SQLException {
         // Set up connection
-        JenaConnection conn = this.getConnection(DatasetFactory.createMem());
+        JenaConnection conn = this.getConnection();
         Assume.assumeNotNull(conn.getMetaData());
         Assume.assumeTrue(conn.getMetaData().supportsTransactions());
         conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);

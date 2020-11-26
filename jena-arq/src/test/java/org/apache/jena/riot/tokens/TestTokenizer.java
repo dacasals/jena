@@ -18,25 +18,29 @@
 
 package org.apache.jena.riot.tokens ;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import java.io.ByteArrayInputStream ;
 
 import org.apache.jena.atlas.io.PeekReader ;
-import org.apache.jena.atlas.junit.BaseTest ;
 import org.apache.jena.atlas.lib.StrUtils ;
+import org.apache.jena.riot.RiotException ;
 import org.apache.jena.riot.RiotParseException ;
+import org.apache.jena.sparql.ARQConstants ;
 import org.junit.Test ;
 
-import com.hp.hpl.jena.sparql.ARQConstants ;
+public class TestTokenizer {
 
-public class TestTokenizer extends BaseTest {
-    // WORKERS
     private static Tokenizer tokenizer(String string) {
         return tokenizer(string, false) ;
     }
 
     private static Tokenizer tokenizer(String string, boolean lineMode) {
         PeekReader r = PeekReader.readString(string) ;
-        Tokenizer tokenizer = new TokenizerText(r, lineMode) ;
+        Tokenizer tokenizer = TokenizerText.create().source(r).lineMode(lineMode).build();
         return tokenizer ;
     }
 
@@ -60,6 +64,12 @@ public class TestTokenizer extends BaseTest {
         return tokenizeAndTestExact(input, tokenType, tokenImage, null) ;
     }
 
+    private static Token tokenizeAndTestExact(String input, StringType stringType, String tokenImage) {
+        Token token = tokenizeAndTestExact(input, TokenType.STRING, tokenImage, null) ;
+        assertEquals(stringType, token.getStringType());
+        return token;
+    }
+
     private static Token tokenizeAndTestExact(String input, TokenType tokenType, String tokenImage1, String tokenImage2) {
         Tokenizer tokenizer = tokenizer(input) ;
         Token token = testNextToken(tokenizer, tokenType, tokenImage1, tokenImage2) ;
@@ -78,12 +88,15 @@ public class TestTokenizer extends BaseTest {
         return token ;
     }
 
+    private static Tokenizer tokenizeAndTestFirst(String input, TokenType tokenType) {
+        return tokenizeAndTestFirst(input, tokenType, null, null) ;
+    }
+
     private static Tokenizer tokenizeAndTestFirst(String input, TokenType tokenType, String tokenImage) {
         return tokenizeAndTestFirst(input, tokenType, tokenImage, null) ;
     }
 
-    private static Tokenizer tokenizeAndTestFirst(String input, TokenType tokenType, String tokenImage1,
-                                                  String tokenImage2) {
+    private static Tokenizer tokenizeAndTestFirst(String input, TokenType tokenType, String tokenImage1, String tokenImage2) {
         Tokenizer tokenizer = tokenizer(input) ;
         testNextToken(tokenizer, tokenType, tokenImage1, tokenImage2) ;
         return tokenizer ;
@@ -102,13 +115,15 @@ public class TestTokenizer extends BaseTest {
         Token token = tokenizer.next() ;
         assertNotNull(token) ;
         assertEquals(tokenType, token.getType()) ;
-        assertEquals(tokenImage1, token.getImage()) ;
+        if ( tokenImage1 != null )
+            assertEquals(tokenImage1, token.getImage()) ;
+        if ( tokenImage2 != null )
+            assertEquals(tokenImage1, token.getImage()) ;
         assertEquals(tokenImage2, token.getImage2()) ;
         return token ;
     }
 
-    private static Token tokenizeAndTest(String input, TokenType tokenType, String tokenImage1, String tokenImage2,
-                                         Token subToken1, Token subToken2) {
+    private static Token tokenizeAndTest(String input, TokenType tokenType, String tokenImage1, String tokenImage2, Token subToken1, Token subToken2) {
         Token token = tokenFor(input) ;
         assertNotNull(token) ;
         assertEquals(tokenType, token.getType()) ;
@@ -137,56 +152,135 @@ public class TestTokenizer extends BaseTest {
             tokenFirst("<abc\\>def>") ;
         } catch (RiotParseException ex) {
             String x = ex.getMessage() ;
-            assertTrue(x.contains("illegal escape sequence value: >")) ;
+            assertTrue(x.contains("Illegal")) ;
         }
     }
 
     @Test
     public void tokenUnit_iri4() {
-        // \\\\ is a double \\ in the data.
-        tokenizeAndTestFirst("   <abc\\\\def>   123", TokenType.IRI, "abc\\def") ;
-    }
-
-    @Test
-    public void tokenUnit_iri5() {
         // \\\\ is a double \\ in the data. 0x41 is 'A'
         tokenizeAndTestFirst("<abc\\u0041def>   123", TokenType.IRI, "abcAdef") ;
     }
 
     @Test
+    public void tokenUnit_iri5() {
+        // \\\\ is a double \\ in the data. 0x41 is 'A'
+        tokenizeAndTestFirst("<\\u0041def>   123", TokenType.IRI, "Adef") ;
+    }
+
+    @Test
+    public void tokenUnit_iri6() {
+        // \\\\ is a double \\ in the data. 0x41 is 'A'
+        tokenizeAndTestFirst("<abc\\u0041>   123", TokenType.IRI, "abcA") ;
+    }
+
+    // Bad IRIs
+    @Test(expected=RiotException.class)
+    public void tokenUnit_iri10() {
+        tokenFirst("<abc def>") ;
+    }
+
+    @Test(expected=RiotException.class)
+    public void tokenUnit_iri11() {
+        tokenFirst("<abc<def>") ;
+    }
+
+    @Test(expected=RiotException.class)
+    public void tokenUnit_iri12() {
+        tokenFirst("<abc{def>") ;
+    }
+
+    @Test(expected=RiotException.class)
+    public void tokenUnit_iri13() {
+        tokenFirst("<abc}def>") ;
+    }
+
+    @Test(expected=RiotException.class)
+    public void tokenUnit_iri14() {
+        tokenFirst("<abc|def>") ;
+    }
+
+    @Test(expected=RiotException.class)
+    public void tokenUnit_iri15() {
+        tokenFirst("<abc^def>") ;
+    }
+
+    @Test(expected=RiotException.class)
+    public void tokenUnit_iri16() {
+        tokenFirst("<abc`def>") ;
+    }
+
+    @Test(expected=RiotException.class)
+    public void tokenUnit_iri17() {
+        tokenFirst("<abc\tdef>") ;          // Java escae - real tab
+    }
+
+    @Test(expected=RiotException.class)
+    public void tokenUnit_iri18() {
+        tokenFirst("<abc\u0007def>") ;      // Java escape - codepoint 7
+    }
+
+    @Test(expected=RiotException.class)
+    public void tokenUnit_iri19() {
+        tokenFirst("<abc\\>") ;
+    }
+
+    @Test(expected=RiotException.class)
+    public void tokenUnit_iri20() {
+        tokenFirst("<abc\\def>") ;
+    }
+
+    @Test(expected=RiotException.class)
+    public void tokenUnit_iri21() {
+        // \\\\ is a double \\ in the data.
+        // RDF 1.1 - \\ is not legal in a IRIREF
+        tokenFirst("<abc\\\\def>") ;
+    }
+
+    @Test(expected=RiotException.class)
+    public void tokenUnit_iri22() {
+        tokenFirst("<abc\\u00ZZdef>") ;
+    }
+
+    @Test(expected=RiotException.class)
+    public void tokenUnit_iri23() {
+        tokenFirst("<abc\\uZZ20def>") ;
+    }
+
+    @Test
     public void tokenUnit_str1() {
-        tokenizeAndTestExact("   'abc'   ", TokenType.STRING1, "abc") ;
+        tokenizeAndTestExact("   'abc'   ", StringType.STRING1, "abc") ;
     }
 
     @Test
     public void tokenUnit_str2() {
-        tokenizeAndTestExact("   ''   ", TokenType.STRING1, "") ;
+        tokenizeAndTestExact("   ''   ", StringType.STRING1, "") ;
     }
 
     @Test
     public void tokenUnit_str3() {
-        tokenizeAndTestExact("'\\u0020'", TokenType.STRING1, " ") ;
+        tokenizeAndTestExact("'\\u0020'", StringType.STRING1, " ") ;
     }
 
     @Test
     public void tokenUnit_str4() {
-        tokenizeAndTestExact("'a\\'\\\"\\n\\t\\r\\f'", TokenType.STRING1, "a'\"\n\t\r\f") ;
+        tokenizeAndTestExact("'a\\'\\\"\\n\\t\\r\\f'", StringType.STRING1, "a'\"\n\t\r\f") ;
     }
 
     @Test(expected = RiotParseException.class)
     public void tokenUnit_str5() {
         // This is a raw newline. \n is a Java string escape.
-        tokenizeAndTestExact("'\n'", TokenType.STRING1, "\n") ;
+        tokenizeAndTestExact("'\n'", StringType.STRING1, "\n") ;
     }
 
     @Test
     public void tokenUnit_str6() {
-        tokenizeAndTestExact("   \"abc\"   ", TokenType.STRING2, "abc") ;
+        tokenizeAndTestExact("   \"abc\"   ", StringType.STRING2, "abc") ;
     }
 
     @Test
     public void tokenUnit_str7() {
-        tokenizeAndTestExact("\"\"", TokenType.STRING2, "") ;
+        tokenizeAndTestExact("\"\"", StringType.STRING2, "") ;
     }
 
     @Test(expected = RiotParseException.class)
@@ -202,57 +296,57 @@ public class TestTokenizer extends BaseTest {
 
     @Test
     public void tokenUnit_str10() {
-        tokenizeAndTestExact("'\\'abc'", TokenType.STRING1, "'abc") ;
+        tokenizeAndTestExact("'\\'abc'", StringType.STRING1, "'abc") ;
     }
 
     @Test
     public void tokenUnit_str11() {
-        tokenizeAndTestExact("'\\U00000020'", TokenType.STRING1, " ") ;
+        tokenizeAndTestExact("'\\U00000020'", StringType.STRING1, " ") ;
     }
 
     @Test
     public void tokenUnit_str_long1() {
-        tokenizeAndTestExact("'''aaa'''", TokenType.LONG_STRING1, "aaa") ;
+        tokenizeAndTestExact("'''aaa'''", StringType.LONG_STRING1, "aaa") ;
     }
 
     @Test
     public void tokenUnit_str_long2() {
-        tokenizeAndTestExact("\"\"\"aaa\"\"\"", TokenType.LONG_STRING2, "aaa") ;
+        tokenizeAndTestExact("\"\"\"aaa\"\"\"", StringType.LONG_STRING2, "aaa") ;
     }
 
     @Test
     public void tokenUnit_str_long3() {
-        tokenizeAndTestExact("''''1234'''", TokenType.LONG_STRING1, "'1234") ;
+        tokenizeAndTestExact("''''1234'''", StringType.LONG_STRING1, "'1234") ;
     }
 
     @Test
     public void tokenUnit_str_long4() {
-        tokenizeAndTestExact("'''''1234'''", TokenType.LONG_STRING1, "''1234") ;
+        tokenizeAndTestExact("'''''1234'''", StringType.LONG_STRING1, "''1234") ;
     }
 
     @Test
     public void tokenUnit_str_long5() {
-        tokenizeAndTestExact("'''\\'''1234'''", TokenType.LONG_STRING1, "'''1234") ;
+        tokenizeAndTestExact("'''\\'''1234'''", StringType.LONG_STRING1, "'''1234") ;
     }
 
     @Test
     public void tokenUnit_str_long6() {
-        tokenizeAndTestExact("\"\"\"\"1234\"\"\"", TokenType.LONG_STRING2, "\"1234") ;
+        tokenizeAndTestExact("\"\"\"\"1234\"\"\"", StringType.LONG_STRING2, "\"1234") ;
     }
 
     @Test
     public void tokenUnit_str_long7() {
-        tokenizeAndTestExact("\"\"\"\"\"1234\"\"\"", TokenType.LONG_STRING2, "\"\"1234") ;
+        tokenizeAndTestExact("\"\"\"\"\"1234\"\"\"", StringType.LONG_STRING2, "\"\"1234") ;
     }
 
     @Test
     public void tokenUnit_str_long8() {
-        tokenizeAndTestExact("''''''", TokenType.LONG_STRING1, "") ;
+        tokenizeAndTestExact("''''''", StringType.LONG_STRING1, "") ;
     }
 
     @Test
     public void tokenUnit_str_long9() {
-        tokenizeAndTestExact("\"\"\"'''''''''''''''''\"\"\"", TokenType.LONG_STRING2, "'''''''''''''''''") ;
+        tokenizeAndTestExact("\"\"\"'''''''''''''''''\"\"\"", StringType.LONG_STRING2, "'''''''''''''''''") ;
     }
 
     @Test(expected = RiotParseException.class)
@@ -565,6 +659,21 @@ public class TestTokenizer extends BaseTest {
     }
 
     @Test
+    public void tokenUnit_var7() {
+        tokenizeAndTestExact("?" + ARQConstants.allocVarScopeHiding + "0", TokenType.VAR, ARQConstants.allocVarScopeHiding + "0") ;
+    }
+
+    @Test
+    public void tokenUnit_var8() {
+        tokenizeAndTestExact("?" + ARQConstants.allocVarAnonMarker + "0", TokenType.VAR, ARQConstants.allocVarAnonMarker + "0") ;
+    }
+
+    @Test
+    public void tokenUnit_var9() {
+        tokenizeAndTestExact("?" + ARQConstants.allocVarTripleTerm + "9", TokenType.VAR, ARQConstants.allocVarTripleTerm + "9") ;
+    }
+
+    @Test
     public void tokenUnit_hex1() {
         tokenizeAndTestExact("0xABC", TokenType.HEX, "0xABC") ;
     }
@@ -584,9 +693,10 @@ public class TestTokenizer extends BaseTest {
         tokenizeAndTestExact("0Xabc", TokenType.HEX, "0Xabc") ;
     }
 
-    private static void tokenizeAndTestLiteralDT(String input, TokenType lexType, String image, TokenType dt,
+    private static void tokenizeAndTestLiteralDT(String input, StringType lexType, String image, TokenType dt,
                                                  String dtImage1, String dtImage2) {
-        Token lexToken = new Token(lexType, image) ;
+        Token lexToken = new Token(TokenType.STRING, image) ;
+        lexToken.setStringType(lexType);
         Token dtToken = new Token(dt, dtImage1, dtImage2) ;
         tokenizeAndTest(input, TokenType.LITERAL_DT, image, null, lexToken, dtToken) ;
 
@@ -607,24 +717,24 @@ public class TestTokenizer extends BaseTest {
 
     @Test
     public void tokenLiteralDT_0() {
-        tokenizeAndTestLiteralDT("\"123\"^^<x> ", TokenType.STRING2, "123", TokenType.IRI, "x", null) ;
+        tokenizeAndTestLiteralDT("\"123\"^^<x> ", StringType.STRING2, "123", TokenType.IRI, "x", null) ;
     }
 
     // literal test function.
 
     @Test
     public void tokenLiteralDT_1() {
-        tokenizeAndTestLiteralDT("'123'^^x:y ", TokenType.STRING1, "123", TokenType.PREFIXED_NAME, "x", "y") ;
+        tokenizeAndTestLiteralDT("'123'^^x:y ", StringType.STRING1, "123", TokenType.PREFIXED_NAME, "x", "y") ;
     }
 
     @Test
     public void tokenLiteralDT_2() {
-        tokenizeAndTestLiteralDT("'123'^^:y", TokenType.STRING1, "123", TokenType.PREFIXED_NAME, "", "y") ;
+        tokenizeAndTestLiteralDT("'123'^^:y", StringType.STRING1, "123", TokenType.PREFIXED_NAME, "", "y") ;
     }
 
     @Test
     public void tokenLiteralDT_3() {
-        tokenizeAndTestLiteralDT("'''123'''^^<xyz>", TokenType.LONG_STRING1, "123", TokenType.IRI, "xyz", null) ;
+        tokenizeAndTestLiteralDT("'''123'''^^<xyz>", StringType.LONG_STRING1, "123", TokenType.IRI, "xyz", null) ;
     }
 
 //    @Test(expected = RiotParseException.class)
@@ -650,15 +760,15 @@ public class TestTokenizer extends BaseTest {
 //    }
 
     public void tokenLiteralDT_4() {
-        tokenizeAndTestLiteralDT("'123'  ^^<xyz>", TokenType.STRING1, "123", TokenType.IRI, "xyz", null) ;
+        tokenizeAndTestLiteralDT("'123'  ^^<xyz>", StringType.STRING1, "123", TokenType.IRI, "xyz", null) ;
     }
-    
+
     public void tokenLiteralDT_5() {
-        tokenizeAndTestLiteralDT("'123'^^  <xyz>", TokenType.STRING1, "123", TokenType.IRI, "xyz", null) ;
+        tokenizeAndTestLiteralDT("'123'^^  <xyz>", StringType.STRING1, "123", TokenType.IRI, "xyz", null) ;
     }
 
     public void tokenLiteralDT_6() {
-        tokenizeAndTestLiteralDT("'123'  ^^  <xyz>", TokenType.STRING1, "123", TokenType.IRI, "xyz", null) ;
+        tokenizeAndTestLiteralDT("'123'  ^^  <xyz>", StringType.STRING1, "123", TokenType.IRI, "xyz", null) ;
     }
 
     @Test(expected = RiotParseException.class)
@@ -757,13 +867,13 @@ public class TestTokenizer extends BaseTest {
 
     @Test
     public void tokenComment_02() {
-        tokenizeAndTestExact("\"foo # Non-Comment\"", TokenType.STRING2, "foo # Non-Comment") ;
+        tokenizeAndTestExact("\"foo # Non-Comment\"", TokenType.STRING, "foo # Non-Comment") ;
     }
 
     @Test
     public void tokenComment_03() {
-        Tokenizer tokenizer = tokenizeAndTestFirst("'foo' # Comment\n'bar'", TokenType.STRING1, "foo") ;
-        testNextToken(tokenizer, TokenType.STRING1, "bar") ;
+        Tokenizer tokenizer = tokenizeAndTestFirst("'foo' # Comment\n'bar'", TokenType.STRING, "foo") ;
+        testNextToken(tokenizer, TokenType.STRING, "bar") ;
     }
 
     @Test
@@ -802,7 +912,7 @@ public class TestTokenizer extends BaseTest {
     @Test
     public void tokenizer_charset_1() {
         ByteArrayInputStream in = bytes("'abc'") ;
-        Tokenizer tokenizer = TokenizerFactory.makeTokenizerASCII(in) ;
+        Tokenizer tokenizer = TokenizerText.create().asciiOnly(true).source(in).build() ;
         Token t = tokenizer.next() ;
         assertFalse(tokenizer.hasNext()) ;
     }
@@ -810,7 +920,7 @@ public class TestTokenizer extends BaseTest {
     @Test(expected = RiotParseException.class)
     public void tokenizer_charset_2() {
         ByteArrayInputStream in = bytes("'abcdé'") ;
-        Tokenizer tokenizer = TokenizerFactory.makeTokenizerASCII(in) ;
+        Tokenizer tokenizer = TokenizerText.create().asciiOnly(true).source(in).build() ;
         Token t = tokenizer.next() ;
         assertFalse(tokenizer.hasNext()) ;
     }
@@ -818,7 +928,7 @@ public class TestTokenizer extends BaseTest {
     @Test(expected = RiotParseException.class)
     public void tokenizer_charset_3() {
         ByteArrayInputStream in = bytes("<http://example/abcdé>") ;
-        Tokenizer tokenizer = TokenizerFactory.makeTokenizerASCII(in) ;
+        Tokenizer tokenizer = TokenizerText.create().asciiOnly(true).source(in).build() ;
         Token t = tokenizer.next() ;
         assertFalse(tokenizer.hasNext()) ;
     }
@@ -827,18 +937,19 @@ public class TestTokenizer extends BaseTest {
     public void tokenizer_BOM_1() {
         // BOM
         ByteArrayInputStream in = bytes("\uFEFF'abc'") ;
-        Tokenizer tokenizer = TokenizerFactory.makeTokenizerUTF8(in) ;
+        Tokenizer tokenizer = TokenizerText.create().source(in).build() ;
         assertTrue(tokenizer.hasNext()) ;
         Token token = tokenizer.next() ;
         assertNotNull(token) ;
-        assertEquals(TokenType.STRING1, token.getType()) ;
+        assertEquals(TokenType.STRING, token.getType()) ;
         assertEquals("abc", token.getImage()) ;
         assertFalse(tokenizer.hasNext()) ;
     }
-
+    
     // First symbol from the stream.
     private static void testSymbol(String string, TokenType expected) {
-        tokenizeAndTestFirst(string, expected, null) ;
+        Tokenizer tokenizer = tokenizeAndTestFirst(string, expected, null) ;
+        assertFalse(tokenizer.hasNext());
     }
 
     // -- Symbols
@@ -867,22 +978,40 @@ public class TestTokenizer extends BaseTest {
         testSymbol("=", TokenType.EQUALS) ;
     }
 
-    // @Test public void tokenizer_symbol_07() { testSymbol(">=", TokenType.LE)
-    // ; }
-    // @Test public void tokenizer_symbol_08() { testSymbol("<=", TokenType.GE)
-    // ; }
-    // @Test public void tokenizer_symbol_09() { testSymbol("&&",
-    // TokenType.LOGICAL_AND) ; }
-    // @Test public void tokenizer_symbol_10() { testSymbol("||",
-    // TokenType.LOGICAL_OR) ; }
-    // @Test public void tokenizer_symbol_11() { testSymbol("&  &",
-    // TokenType.AMPHERSAND) ; }
-    // @Test public void tokenizer_symbol_12() { testSymbol("| |",
-    // TokenType.VBAR) ; }
+//    @Test
+//    public void tokenizer_symbol_07() {
+//        testSymbol(">=", TokenType.LE);
+//    }
+//
+//    @Test
+//    public void tokenizer_symbol_08() {
+//        testSymbol("<=", TokenType.GE);
+//    }
+//
+//    @Test
+//    public void tokenizer_symbol_09() {
+//        testSymbol("&&", TokenType.LOGICAL_AND);
+//    }
+//
+//    @Test
+//    public void tokenizer_symbol_10() {
+//        testSymbol("||", TokenType.LOGICAL_OR);
+//    }
+
+    @Test
+    public void tokenizer_symbol_11() {
+        testSymbol(" & ", TokenType.AMPHERSAND);
+    }
+
+    @Test
+    public void tokenizer_symbol_12() {
+        testSymbol(" | ", TokenType.VBAR);
+    }
 
     @Test
     public void tokenUnit_symbol_11() {
-        testSymbol("+A", TokenType.PLUS) ;
+        Tokenizer tokenizer = tokenizeAndTestFirst("+A", TokenType.PLUS, null) ;
+
     }
 
     @Test
@@ -900,6 +1029,32 @@ public class TestTokenizer extends BaseTest {
     public void tokenUnit_symbol_14() {
         Tokenizer tokenizer = tokenizeAndTestFirst(".a", TokenType.DOT, null) ;
         testNextToken(tokenizer, TokenType.KEYWORD, "a") ;
+    }
+
+    @Test
+    public void tokenUnit_symbol_15() {
+        Tokenizer tokenizer = tokenizer("| |");
+        testNextToken(tokenizer, TokenType.VBAR);
+        testNextToken(tokenizer, TokenType.VBAR);
+    }
+
+    @Test
+    public void tokenUnit_symbol_16() {
+        Tokenizer tokenizer = tokenizer("|&/");
+        testNextToken(tokenizer, TokenType.VBAR);
+        testNextToken(tokenizer, TokenType.AMPHERSAND);
+        testNextToken(tokenizer, TokenType.SLASH);
+        assertFalse(tokenizer.hasNext());
+    }
+
+    @Test
+    public void tokenUnit_symbol_17() {
+        testSymbol("*", TokenType.STAR) ;
+    }
+
+    @Test
+    public void tokenUnit_symbol_18() {
+        testSymbol("\\", TokenType.RSLASH) ;
     }
 
     @Test
@@ -936,6 +1091,7 @@ public class TestTokenizer extends BaseTest {
         assertFalse(tokenizer.hasNext()) ;
     }
 
+    @Test
     public void token_newlines_5() {
         Tokenizer tokenizer = tokenizer("abc\n\n", true) ;
         testNextToken(tokenizer, TokenType.KEYWORD, "abc") ;
@@ -943,10 +1099,49 @@ public class TestTokenizer extends BaseTest {
         assertFalse(tokenizer.hasNext()) ;
     }
 
+    @Test
     public void token_newlines_6() {
         Tokenizer tokenizer = tokenizer("\n \n", true) ;
         testNextToken(tokenizer, TokenType.NL) ;
         testNextToken(tokenizer, TokenType.NL) ;
+        assertFalse(tokenizer.hasNext()) ;
+    }
+
+    @Test
+    public void token_rdf_star_1() {
+        Tokenizer tokenizer = tokenizer("<<>>") ;
+        testNextToken(tokenizer, TokenType.LT2) ;
+        testNextToken(tokenizer, TokenType.GT2) ;
+        assertFalse(tokenizer.hasNext()) ;
+    }
+
+    @Test
+    public void token_rdf_star_2() {
+        Tokenizer tokenizer = tokenizer("<< >>") ;
+        testNextToken(tokenizer, TokenType.LT2) ;
+        testNextToken(tokenizer, TokenType.GT2) ;
+        assertFalse(tokenizer.hasNext()) ;
+    }
+
+    @Test
+    public void token_rdf_star_3() {
+        Tokenizer tokenizer = tokenizer("<<:s x:p 123>> :q ") ;
+        testNextToken(tokenizer, TokenType.LT2) ;
+        testNextToken(tokenizer, TokenType.PREFIXED_NAME, "", "s") ;
+        testNextToken(tokenizer, TokenType.PREFIXED_NAME, "x", "p") ;
+        testNextToken(tokenizer, TokenType.INTEGER, "123", null);
+        testNextToken(tokenizer, TokenType.GT2) ;
+        testNextToken(tokenizer, TokenType.PREFIXED_NAME, "", "q") ;
+        assertFalse(tokenizer.hasNext()) ;
+    }
+
+    @Test
+    public void token_rdf_star_4() {
+        Tokenizer tokenizer = tokenizer("<<<>>>") ;
+        testNextToken(tokenizer, TokenType.LT2) ;
+        Token t = testNextToken(tokenizer, TokenType.IRI) ;
+        assertEquals("", t.getImage());
+        testNextToken(tokenizer, TokenType.GT2) ;
         assertFalse(tokenizer.hasNext()) ;
     }
 }

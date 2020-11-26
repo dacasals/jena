@@ -23,14 +23,8 @@ import java.util.HashMap ;
 import java.util.List ;
 import java.util.Map ;
 
-import com.hp.hpl.jena.query.ARQ ;
-import com.hp.hpl.jena.query.Query ;
-import com.hp.hpl.jena.query.QueryExecution ;
-import com.hp.hpl.jena.query.QueryExecutionFactory ;
-import com.hp.hpl.jena.query.QueryFactory ;
-import com.hp.hpl.jena.query.ResultSet ;
-import com.hp.hpl.jena.query.ResultSetFormatter ;
-import com.hp.hpl.jena.rdf.model.ModelFactory ;
+import org.apache.jena.query.* ;
+import org.apache.jena.rdf.model.ModelFactory ;
 
 public class ExampleDBpedia3
 {
@@ -45,9 +39,9 @@ public class ExampleDBpedia3
         
         Query query = QueryFactory.create(queryString) ;
         try(QueryExecution qexec = QueryExecutionFactory.create(query, ModelFactory.createDefaultModel())) {
-            Map<String, Map<String,List<String>>> serviceParams = new HashMap<String, Map<String,List<String>>>() ;
-            Map<String,List<String>> params = new HashMap<String,List<String>>() ;
-            List<String> values = new ArrayList<String>() ;
+            Map<String, Map<String,List<String>>> serviceParams = new HashMap<>() ;
+            Map<String,List<String>> params = new HashMap<>() ;
+            List<String> values = new ArrayList<>() ;
             values.add("2000") ;
             params.put("timeout", values) ;
             serviceParams.put(serviceURI, params) ;

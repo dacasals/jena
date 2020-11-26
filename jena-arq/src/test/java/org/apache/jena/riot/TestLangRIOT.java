@@ -18,11 +18,12 @@
 
 package org.apache.jena.riot;
 
-import org.apache.jena.atlas.junit.BaseTest ;
+import static org.junit.Assert.assertEquals;
+
 import org.junit.BeforeClass ;
 import org.junit.Test ;
 
-public class TestLangRIOT extends BaseTest
+public class TestLangRIOT
 {
     @BeforeClass public static void beforeClass() { RDFLanguages.init() ; } 
     
@@ -58,10 +59,16 @@ public class TestLangRIOT extends BaseTest
     //@Test public void guess_05() { guess("D.owl", RDFLanguages.RDFXML) ; }
     
     @Test public void guess_06() { guess("D.rj", RDFLanguages.RDFJSON) ; }
-    @Test public void guess_07() { guess("D.json", RDFLanguages.RDFJSON) ; }
+    // Jena2 - changed JENA-997 : @Test public void guess_07() { guess("D.json", RDFLanguages.RDFJSON) ; }
 
     @Test public void guess_08() { guess("D.nq", RDFLanguages.NQUADS) ; }
     @Test public void guess_09() { guess("D.trig", RDFLanguages.TRIG) ; }
+    @Test public void guess_10() { guess("D.jsonld", RDFLanguages.JSONLD) ; }
+    
+    // JENA-1467 : URI fragments
+    @Test public void guess_11() { guess("http://example/foo/bar.ttl#frag", RDFLanguages.TTL) ; }
+    @Test public void guess_12() { guess("bar.ttl#frag", RDFLanguages.TTL) ; }
+
     
     private void test(Lang expected, String string)
     {

@@ -19,15 +19,14 @@
 package org.apache.jena.riot.lang ;
 
 import static org.apache.jena.riot.tokens.TokenType.* ;
+import org.apache.jena.graph.Node ;
 import org.apache.jena.riot.Lang ;
 import org.apache.jena.riot.RDFLanguages ;
 import org.apache.jena.riot.system.ParserProfile ;
 import org.apache.jena.riot.system.StreamRDF ;
 import org.apache.jena.riot.tokens.Token ;
 import org.apache.jena.riot.tokens.Tokenizer ;
-
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.sparql.core.Quad ;
+import org.apache.jena.sparql.core.Quad ;
 
 /** TriG.
  *
@@ -79,7 +78,7 @@ public class LangTriG extends LangTurtleBase {
         // () :p :o .
         // (1 2) :p :o .
 
-        // XXX Find the Turtle code to do this for the Trutle case and refactor.
+        // XXX Find the Turtle code to do this for the Turtle case and refactor.
         
         if ( lookingAt(LBRACKET) ) {
             nextToken() ;
@@ -111,7 +110,6 @@ public class LangTriG extends LangTurtleBase {
                 expectEndOfTriplesTurtle() ;
                 return ;
             }
-
         } else if ( token.isNode() ) {
             // Either :s :p :o or :g { ... }
             Node n = node() ;
@@ -129,7 +127,11 @@ public class LangTriG extends LangTurtleBase {
             // Turtle - list
             turtle() ;
             return ;
-        }
+        } else if ( lookingAt(LT2) ) {
+            // <<:s :p :o>> :q :z -- Turtle*
+            turtle() ;
+            return;
+        }            
 
         if ( mustBeNamedGraph && graphNode == null )
             exception(t, "Keyword 'GRAPH' must be followed by a graph name") ;
@@ -189,7 +191,7 @@ public class LangTriG extends LangTurtleBase {
 
         // = is optional and old style.
         if ( lookingAt(EQUALS) ) {
-            if ( profile.isStrictMode() )
+            if ( isStrictMode )
                 exception(token, "Use of = {} is not part of standard TriG: " + graphNode) ;
             // Skip.
             nextToken() ;
@@ -219,7 +221,7 @@ public class LangTriG extends LangTurtleBase {
         if ( lookingAt(RBRACE) )
             exception(token, "Expected end of graph: got %s", token) ;
 
-        if ( !profile.isStrictMode() ) {
+        if ( !isStrictMode ) {
             // Skip DOT after {}
             token = peekToken() ;
             if ( lookingAt(DOT) )
@@ -260,8 +262,8 @@ public class LangTriG extends LangTurtleBase {
     protected void emit(Node subject, Node predicate, Node object) {
         Node graph = getCurrentGraph() ;
 
-        if ( graph == Quad.defaultGraphNodeGenerated )
-            graph = Quad.tripleInQuad ;
+        if ( graph == Quad.tripleInQuad )
+            graph = Quad.defaultGraphNodeGenerated;
 
         Quad quad = profile.createQuad(graph, subject, predicate, object, currLine, currCol) ;
         dest.quad(quad) ;

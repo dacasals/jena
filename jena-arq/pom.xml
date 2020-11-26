@@ -21,32 +21,19 @@
   <artifactId>jena-arq</artifactId>
   <packaging>jar</packaging>
   <name>Apache Jena - ARQ (SPARQL 1.1 Query Engine)</name>
-  <version>2.13.1-SNAPSHOT</version>
-
   <parent>
     <groupId>org.apache.jena</groupId>
-    <artifactId>jena-parent</artifactId>
-    <version>13-SNAPSHOT</version>
-    <relativePath>../jena-parent</relativePath>
+    <artifactId>jena</artifactId>
+    <version>3.16.0-SNAPSHOT</version>
+    <relativePath>..</relativePath>
   </parent>
-
-  <!-- Need if the parent is a snapshot -->
-  <repositories>
-    <repository>
-      <id>apache.snapshots</id>
-      <name>Apache Snapshot Repository</name>
-      <url>http://repository.apache.org/snapshots</url>
-      <releases>
-        <enabled>false</enabled>
-      </releases>
-    </repository>
-  </repositories>
 
   <description>ARQ is a SPARQL 1.1 query engine for Apache Jena</description>
 
   <properties>
     <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ssZ</maven.build.timestamp.format>
     <build.time.xsd>${maven.build.timestamp}</build.time.xsd>
+    <automatic.module.name>org.apache.jena.arq</automatic.module.name>
   </properties>
 
   <dependencies>
@@ -54,23 +41,31 @@
     <dependency>
       <groupId>org.apache.jena</groupId>
       <artifactId>jena-core</artifactId>
-      <version>2.13.1-SNAPSHOT</version>
+      <version>3.16.0-SNAPSHOT</version>
     </dependency>
 
     <dependency>
       <groupId>org.apache.jena</groupId>
       <artifactId>jena-core</artifactId>
       <classifier>tests</classifier>
-      <version>2.13.1-SNAPSHOT</version>
+      <version>3.16.0-SNAPSHOT</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.jena</groupId>
+      <artifactId>jena-base</artifactId>
+      <classifier>tests</classifier>
+      <version>3.16.0-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.apache.jena</groupId>
       <artifactId>jena-shaded-guava</artifactId>
-      <version>2.13.1-SNAPSHOT</version>
+      <version>3.16.0-SNAPSHOT</version>
     </dependency>
-    
+
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpclient</artifactId>
@@ -79,6 +74,16 @@
     <dependency>
       <groupId>com.github.jsonld-java</groupId>
       <artifactId>jsonld-java</artifactId>
+    </dependency>
+
+    <!-- See parent POM. Our choice of version here. -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
     </dependency>
 
     <!-- replace that used via jsonld-java -->
@@ -92,9 +97,9 @@
       <artifactId>libthrift</artifactId>
     </dependency>
 
-    <!-- 
-      Intercept any uses of Jakarta Commons Logging 
-      e.g. Apache Common HTTP client. 
+    <!--
+         Intercept any uses of Jakarta Commons Logging
+         e.g. Apache Common HTTP client.
     -->
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -103,12 +108,25 @@
 
     <dependency>
       <groupId>org.apache.commons</groupId>
-      <artifactId>commons-csv</artifactId>
+      <artifactId>commons-lang3</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-lang3</artifactId>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j-impl</artifactId>
+      <scope>test</scope>
     </dependency>
 
   </dependencies>
@@ -116,11 +134,11 @@
   <build>
     <resources>
       <resource>
-	<filtering>true</filtering>
+        <filtering>true</filtering>
         <directory>src/main/resources</directory>
-	<includes>
-	  <include>org/apache/jena/arq/arq-properties.xml</include>
-	</includes>
+        <includes>
+          <include>org/apache/jena/arq/arq-properties.xml</include>
+        </includes>
       </resource>
       <resource>
         <filtering>false</filtering>
@@ -143,14 +161,14 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <includes>
-            <!-- 
-	      The test collections TC_General, TC_Riot, TC_Atlas 
-	      are development support that collect the relavent 
-	      tests for partial testing during development. 
-	    -->
+            <!--
+                The test collections TC_ARQ, TC_Riot, TC_Atlas_ARQ
+                are development support that collect the relevant
+                tests for partial testing during development.
+                TC_Examples does not run in the the build.
+            -->
             <include>**/TS_*.java</include>
-            <include>**/TC_Scripted.java</include>
-            <include>**/TC_DAWG.java</include>
+            <include>**/Scripts_*.java</include>
           </includes>
         </configuration>
       </plugin>
@@ -180,6 +198,13 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <archive>
+            <manifestEntries>
+              <Automatic-Module-Name>${automatic.module.name}</Automatic-Module-Name>
+            </manifestEntries>
+          </archive>
+        </configuration>
         <executions>
           <execution>
             <goals>
@@ -203,7 +228,7 @@
           <groups>
             <group>
               <title>SPARQL Query and Update</title>
-              <packages>com.hp.hpl.jena.query:com.hp.hpl.jena.update</packages>
+              <packages>org.apache.jena.query:org.apache.jena.update</packages>
             </group>
             <group>
               <title>RIOT</title>
@@ -213,7 +238,6 @@
           <bottom>Licenced under the Apache License, Version 2.0</bottom>
         </configuration>
       </plugin>
-
     </plugins>
   </build>
 

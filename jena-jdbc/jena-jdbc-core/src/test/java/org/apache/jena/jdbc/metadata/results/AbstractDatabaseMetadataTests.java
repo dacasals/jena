@@ -25,10 +25,9 @@ import java.sql.SQLException ;
 import java.util.List ;
 
 import org.apache.jena.jdbc.connections.JenaConnection ;
+import org.apache.jena.sys.JenaSystem ;
 import org.junit.Assert ;
 import org.junit.Test ;
-
-import com.hp.hpl.jena.query.ARQ ;
 
 /**
  * Tests that inspect the information provided by {@link JenaConnection}
@@ -49,7 +48,7 @@ public abstract class AbstractDatabaseMetadataTests {
             Connection.TRANSACTION_READ_UNCOMMITTED, Connection.TRANSACTION_REPEATABLE_READ, Connection.TRANSACTION_SERIALIZABLE };
 
     static {
-        ARQ.init();
+        JenaSystem.init() ;
     }
 
     /**

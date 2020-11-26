@@ -23,39 +23,38 @@ public class RiotChars
     // ---- Character classes 
     
     public static boolean isAlpha(int codepoint) {
-        return Character.isLetter(codepoint) ;
+        return Character.isLetter(codepoint);
     }
 
     public static boolean isAlphaNumeric(int codepoint) {
-        return Character.isLetterOrDigit(codepoint) ;
+        return Character.isLetterOrDigit(codepoint);
     }
 
     /** ASCII A-Z */
     public static boolean isA2Z(int ch) {
-        return range(ch, 'a', 'z') || range(ch, 'A', 'Z') ;
+        return range(ch, 'a', 'z') || range(ch, 'A', 'Z');
     }
 
     /** ASCII A-Z or 0-9 */
     public static boolean isA2ZN(int ch) {
-        return range(ch, 'a', 'z') || range(ch, 'A', 'Z') || range(ch, '0', '9') ;
+        return range(ch, 'a', 'z') || range(ch, 'A', 'Z') || range(ch, '0', '9');
     }
 
     /** ASCII 0-9 */
     public static boolean isDigit(int ch) {
-        return range(ch, '0', '9') ;
+        return range(ch, '0', '9');
     }
 
     public static boolean isWhitespace(int ch) {
-        // ch = ch | 0xFF ;
-        return isHorizontalWhitespace(ch) || isNewlineChar(ch) || ch == '\f' ;
+        return isHorizontalWhitespace(ch) || isNewlineChar(ch) || ch == '\f';
     }
 
     public static boolean isHorizontalWhitespace(int ch) {
-        return ch == ' ' || ch == '\t' ;
+        return ch == ' ' || ch == '\t';
     }
 
     public static boolean isNewlineChar(int ch) {
-        return ch == '\r' || ch == '\n' ;
+        return ch == '\r' || ch == '\n';
     }
     
     /*
@@ -73,8 +72,7 @@ PN_LOCAL       ::=  ( PN_CHARS_U | [0-9] ) ((PN_CHARS|'.')* PN_CHARS)?
 Notes: PN_CHARS_BASE has a hole above #xD800 -- these are the  surrogate pairs 
      */
     
-    public static boolean isPNCharsBase(int ch)
-    {
+    public static boolean isPNCharsBase(int ch) {
         // PN_CHARS_BASE ::= [A-Z] | [a-z] | [#x00C0-#x00D6] | [#x00D8-#x00F6] | [#x00F8-#x02FF] | 
         //                   [#x0370-#x037D] | [#x037F-#x1FFF] | [#x200C-#x200D] | [#x2070-#x218F] |
         //                   [#x2C00-#x2FEF] | [#x3001-#xD7FF] | [#xF900-#xFDCF] | [#xFDF0-#xFFFD] | 
@@ -86,58 +84,65 @@ Notes: PN_CHARS_BASE has a hole above #xD800 -- these are the  surrogate pairs
             // Surrogate pairs
             r(ch, 0xD800, 0xDFFF) ||
             r(ch, 0xF900, 0xFDCF) || r(ch, 0xFDF0, 0xFFFD) || 
-            r(ch, 0x10000, 0xEFFFF) ; // Outside the basic plain. 
+            r(ch, 0x10000, 0xEFFFF); // Outside the basic plain. 
     }
     
-    public static boolean isPNChars_U(int ch)
-    {
+    public static boolean isPNChars_U(int ch) {
         //PN_CHARS_BASE | '_'
-        return isPNCharsBase(ch) || ( ch == '_' ) ;
+        return isPNCharsBase(ch) || ( ch == '_' );
     }
     
-    public static boolean isPNChars_U_N(int ch)
-    {
+    public static boolean isPNChars_U_N(int ch) {
         // PN_CHARS_U | [0-9] 
-        return isPNCharsBase(ch) || ( ch == '_' ) || isDigit(ch) ;
+        return isPNCharsBase(ch) || ( ch == '_' ) || isDigit(ch);
     }
     
-    public static boolean isPNChars(int ch)
-    {
+    public static boolean isPNChars(int ch) {
         // PN_CHARS ::=  PN_CHARS_U | '-' | [0-9] | #x00B7 | [#x0300-#x036F] | [#x203F-#x2040]
-        return isPNChars_U(ch) || isDigit(ch) || ( ch == '-' ) || ch == 0x00B7 || r(ch, 0x300, 0x036F) || r(ch, 0x203F, 0x2040) ;
+        return isPNChars_U(ch) || isDigit(ch) || ( ch == '-' ) || ch == 0x00B7 || r(ch, 0x300, 0x036F) || r(ch, 0x203F, 0x2040);
+    }
+    
+    public static boolean isPN_LOCAL_ESC(char ch) {
+        //[172s]  PN_LOCAL_ESC    ::=     '\' ('_' | '~' | '.' | '-' | '!' | '$' | '&' | "'" | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '/' | '?' | '#' | '@' | '%')
+        switch (ch) {
+            case '\\': case '_':  case '~': case '.': case '-': case '!': case '$':
+            case '&':  case '\'': case '(': case ')': case '*': case '+': case ',':
+            case ';':  case '=':  case '/': case '?': case '#': case '@': case '%':
+                return true;
+            default:
+                return false;
+        }
     }
     
     /** Hexadecimal character */
-    public static boolean isHexChar(int ch)
-    {
-        return range(ch, '0', '9') || range(ch, 'a', 'f') || range(ch, 'A', 'F') ;
+    public static boolean isHexChar(int ch) {
+        return range(ch, '0', '9') || range(ch, 'a', 'f') || range(ch, 'A', 'F');
     }
     
-    public static int valHexChar(int ch)
-    {
+    /** Hexadecimal character, only lower case a-f */
+    public static boolean isHexCharLC(int ch) {
+        return range(ch, '0', '9') || range(ch, 'a', 'f');
+    }
+    
+    /** Hexadecimal character, only upper case A-F */
+    public static boolean isHexCharUC(int ch) {
+        return range(ch, '0', '9') || range(ch, 'A', 'F');
+    }
+
+    public static int valHexChar(int ch) {
         if ( range(ch, '0', '9') )
-            return ch-'0' ;
+            return ch - '0';
         if ( range(ch, 'a', 'f') )
-            return ch-'a'+10 ;
+            return ch - 'a' + 10;
         if ( range(ch, 'A', 'F') )
-            return ch-'A'+10 ;
-        return -1 ;
+            return ch - 'A' + 10;
+        return -1;
     }
 
-    private static boolean r(int ch, int a, int b) { return ( ch >= a && ch <= b ) ; }
-    
-    
-    public static boolean range(int ch, char a, char b)
-    {
-        return ( ch >= a && ch <= b ) ;
-    }
+    private static boolean r(int ch, int a, int b) { return ( ch >= a && ch <= b ); }
 
-    public static boolean charInArray(int ch, char[] chars)
-    {
-        for ( int xch : chars )
-        {
-            if ( ch == xch )  return true ;
-        }
-        return false ;
+    /** Test whether a codepoint is a given range (both ends inclusive)*/
+    public static boolean range(int ch, int a, int b) {
+        return (ch >= a && ch <= b);
     }
 }

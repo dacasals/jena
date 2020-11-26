@@ -18,35 +18,31 @@
 
 package org.apache.jena.riot.writer;
 
-import static org.apache.jena.riot.writer.WriterConst.INDENT_GDFT ;
-import static org.apache.jena.riot.writer.WriterConst.INDENT_GNMD ;
-import static org.apache.jena.riot.writer.WriterConst.NL_GDFT_END ;
-import static org.apache.jena.riot.writer.WriterConst.NL_GDFT_START ;
-import static org.apache.jena.riot.writer.WriterConst.NL_GNMD_END ;
-import static org.apache.jena.riot.writer.WriterConst.NL_GNMD_START ;
+import static org.apache.jena.riot.writer.WriterConst.*;
 
-import java.util.Iterator ;
+import java.util.Set;
 
 import org.apache.jena.atlas.io.IndentedWriter ;
+import org.apache.jena.atlas.iterator.Iter;
+import org.apache.jena.graph.Node ;
 import org.apache.jena.riot.system.PrefixMap ;
-
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.sparql.core.DatasetGraph ;
-import com.hp.hpl.jena.sparql.core.Quad ;
+import org.apache.jena.sparql.core.DatasetGraph ;
+import org.apache.jena.sparql.core.Quad ;
+import org.apache.jena.sparql.util.Context ;
 
 /** TriG pretty writer */
 public class TriGWriter extends TriGWriterBase
 {
     @Override
-    protected void output(IndentedWriter iOut, DatasetGraph dsg, PrefixMap prefixMap, String baseURI) {
-        TriGWriter$ w = new TriGWriter$(iOut, prefixMap, baseURI) ;
+    protected void output(IndentedWriter iOut, DatasetGraph dsg, PrefixMap prefixMap, String baseURI, Context context) {
+        TriGWriter$ w = new TriGWriter$(iOut, prefixMap, baseURI, context) ;
         w.write(dsg) ;
     }
 
     private static class TriGWriter$ extends TurtleShell
     {
-        TriGWriter$(IndentedWriter out, PrefixMap prefixMap, String baseURI) {
-            super(out, prefixMap, baseURI) ;
+        TriGWriter$(IndentedWriter out, PrefixMap prefixMap, String baseURI, Context context) {
+            super(out, prefixMap, baseURI, context) ;
         }
 
         private void write(DatasetGraph dsg) {
@@ -55,31 +51,39 @@ public class TriGWriter extends TriGWriterBase
             if ( !prefixMap.isEmpty() && !dsg.isEmpty() )
                 out.println() ;
 
-            Iterator<Node> graphNames = dsg.listGraphNodes() ;
+            Set<Node> graphNames = Iter.toSet(dsg.listGraphNodes());
 
-            boolean anyGraphOutput = writeGraphTriG(dsg, null) ;
+            boolean anyGraphOutput = writeGraphTriG(dsg, null, graphNames) ;
 
-            for ( ; graphNames.hasNext() ; ) {
+            for ( Node gn : graphNames ) {
                 if ( anyGraphOutput )
                     out.println() ;
-                Node gn = graphNames.next() ;
-                anyGraphOutput |= writeGraphTriG(dsg, gn) ;
+                anyGraphOutput |= writeGraphTriG(dsg, gn, graphNames) ;
             }
         }
 
         /** Return true if anything written */
-        private boolean writeGraphTriG(DatasetGraph dsg, Node name) {
-            boolean dftGraph =  ( name == null || name == Quad.defaultGraphNodeGenerated  ) ;
-            boolean NL_START =  ( dftGraph ? NL_GDFT_START : NL_GNMD_START ) ; 
-            boolean NL_END =    ( dftGraph ? NL_GDFT_END : NL_GNMD_END ) ; 
-            int INDENT_GRAPH =  ( dftGraph ? INDENT_GDFT : INDENT_GNMD ) ; 
+        private boolean writeGraphTriG(DatasetGraph dsg, Node name, Set<Node> graphNames) {
+            boolean dftGraph = ( name == null || name == Quad.defaultGraphNodeGenerated  ) ;
+
+            if ( dftGraph && dsg.getDefaultGraph().isEmpty() )
+                return false ;
+
+            if ( dftGraph && ! GDFT_BRACE ) {
+                // Non-empty default graph, no braces.
+                // No indenting.
+                writeGraphTTL(dsg, name, graphNames) ;
+                return true ;
+            }
+
+            // The graph will go in braces, whether non-empty default graph or a named graph.
+            boolean NL_START =  ( dftGraph ? NL_GDFT_START : NL_GNMD_START ) ;
+            boolean NL_END =    ( dftGraph ? NL_GDFT_END : NL_GNMD_END ) ;
+            int INDENT_GRAPH =  ( dftGraph ? INDENT_GDFT : INDENT_GNMD ) ;
 
             if ( !dftGraph ) {
                 writeNode(name) ;
                 out.print(" ") ;
-            } else {
-                if ( dsg.getDefaultGraph().isEmpty() )
-                    return false ;
             }
 
             out.print("{") ;
@@ -89,7 +93,7 @@ public class TriGWriter extends TriGWriterBase
                 out.print(" ") ;
 
             out.incIndent(INDENT_GRAPH) ;
-            writeGraphTTL(dsg, name) ;
+            writeGraphTTL(dsg, name, graphNames) ;
             out.decIndent(INDENT_GRAPH) ;
 
             if ( NL_END )

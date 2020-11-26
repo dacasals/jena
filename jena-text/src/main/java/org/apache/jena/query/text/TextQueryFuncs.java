@@ -19,17 +19,16 @@
 package org.apache.jena.query.text;
 
 import org.apache.jena.atlas.logging.Log ;
-
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.graph.NodeFactory ;
-import com.hp.hpl.jena.rdf.model.AnonId ;
-import com.hp.hpl.jena.sparql.core.Quad ;
-import com.hp.hpl.jena.sparql.util.FmtUtils ;
+import org.apache.jena.datatypes.RDFDatatype ;
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.NodeFactory ;
+import org.apache.jena.sparql.core.Quad ;
+import org.apache.jena.sparql.util.FmtUtils ;
 
 /** Functions relating to text query */
 public class TextQueryFuncs {
 
-    /** Create a string to put in a Lucene/Solr index for the subject node */  
+    /** Create a string to put in a Lucene index for the subject node */  
     public static String subjectToString(Node s) {
         if ( s == null )
             throw new IllegalArgumentException("Subject node can not be null") ;
@@ -38,7 +37,7 @@ public class TextQueryFuncs {
         return nodeToString(s) ;
     }
 
-    /** Create a string to put in a Lucene/Solr index for a graph node */  
+    /** Create a string to put in a Lucene index for a graph node */  
     public static String graphNodeToString(Node g) {
         if ( g == null )
             return null ;
@@ -51,11 +50,11 @@ public class TextQueryFuncs {
         return (n.isURI() ) ? n.getURI() : "_:" + n.getBlankNodeLabel() ;
     }
 
-    /** Recover a Node from a stored Lucene/Solr string */
+    /** Recover a Node from a stored Lucene string */
     public static Node stringToNode(String v) {
         if ( v.startsWith("_:") ) {
             v = v.substring("_:".length()) ;
-            return NodeFactory.createAnon(new AnonId(v)) ;
+            return NodeFactory.createBlankNode(v) ;
         }
         else
             return NodeFactory.createURI(v) ;
@@ -75,19 +74,18 @@ public class TextQueryFuncs {
         String field = defn.getField(p) ;
         if ( field == null )
             return null ;
-    
-        String x = TextQueryFuncs.subjectToString(s) ;
-        String graphText = TextQueryFuncs.graphNodeToString(g) ;
-        Entity entity = new Entity(x, graphText) ;
-        String graphField = defn.getGraphField() ;
-        if ( defn.getGraphField() != null )
-            entity.put(graphField, graphText) ;
-    
         if ( !o.isLiteral() ) {
             Log.warn(TextQuery.class, "Not a literal value for mapped field-predicate: " + field + " :: "
                      + FmtUtils.stringForString(field)) ;
             return null ;
         }
+        String x = TextQueryFuncs.subjectToString(s) ;
+        String graphText = TextQueryFuncs.graphNodeToString(g) ;
+
+        String language = o.getLiteral().language() ;
+        RDFDatatype datatype = o.getLiteral().getDatatype() ;
+        Entity entity = new Entity(x, graphText, language, datatype) ;
+    
         entity.put(field, o.getLiteralLexicalForm()) ;
         return entity ;
     }

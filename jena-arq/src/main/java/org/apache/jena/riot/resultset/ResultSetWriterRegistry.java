@@ -18,12 +18,7 @@
 
 package org.apache.jena.riot.resultset;
 
-import static org.apache.jena.riot.resultset.ResultSetLang.SPARQLResultSetCSV ;
-import static org.apache.jena.riot.resultset.ResultSetLang.SPARQLResultSetJSON ;
-import static org.apache.jena.riot.resultset.ResultSetLang.SPARQLResultSetTSV ;
-import static org.apache.jena.riot.resultset.ResultSetLang.SPARQLResultSetText ;
-import static org.apache.jena.riot.resultset.ResultSetLang.SPARQLResultSetThrift ;
-import static org.apache.jena.riot.resultset.ResultSetLang.SPARQLResultSetXML ;
+import static org.apache.jena.riot.resultset.ResultSetLang.*;
 
 import java.io.OutputStream ;
 import java.io.Writer ;
@@ -32,24 +27,36 @@ import java.util.Map ;
 import java.util.Objects ;
 
 import org.apache.jena.atlas.lib.NotImplemented ;
+import org.apache.jena.atlas.logging.Log;
+import org.apache.jena.query.ARQ;
+import org.apache.jena.query.ResultSet ;
+import org.apache.jena.rdf.model.Model;
 import org.apache.jena.riot.Lang ;
 import org.apache.jena.riot.RiotException ;
-import org.apache.jena.riot.thrift.BinRDF ;
-
-import com.hp.hpl.jena.query.ResultSet ;
-import com.hp.hpl.jena.sparql.core.Prologue ;
-import com.hp.hpl.jena.sparql.resultset.* ;
-import com.hp.hpl.jena.sparql.serializer.SerializationContext ;
-import com.hp.hpl.jena.sparql.util.Context ;
+import org.apache.jena.riot.resultset.rw.ResultSetWriterJSON;
+import org.apache.jena.riot.resultset.rw.ResultSetWriterThrift;
+import org.apache.jena.riot.resultset.rw.ResultSetWriterXML;
+import org.apache.jena.sparql.ARQConstants;
+import org.apache.jena.sparql.core.Prologue ;
+import org.apache.jena.sparql.resultset.CSVOutput;
+import org.apache.jena.sparql.resultset.TSVOutput;
+import org.apache.jena.sparql.resultset.TextOutput;
+import org.apache.jena.sparql.serializer.SerializationContext ;
+import org.apache.jena.sparql.util.Context ;
 
 public class ResultSetWriterRegistry {
 
     private static Map<Lang, ResultSetWriterFactory> registry = new HashMap<>() ;
     
     /** Lookup a {@link Lang} to get the registered {@link ResultSetReaderFactory} (or null) */
-    public static ResultSetWriterFactory lookup(Lang lang) {
+    public static ResultSetWriterFactory getFactory(Lang lang) {
         Objects.requireNonNull(lang) ;
         return registry.get(lang) ;
+    }
+
+    public static boolean isRegistered(Lang lang) {
+        Objects.requireNonNull(lang) ;
+        return registry.containsKey(lang) ;
     }
 
     /** Register a {@link ResultSetReaderFactory} for a {@link Lang} */
@@ -65,55 +72,24 @@ public class ResultSetWriterRegistry {
             return ;
         initialized = true ;
 
-//        RDFLanguages.register(SPARQLResultSetXML) ;
-//        RDFLanguages.register(SPARQLResultSetJSON) ;
-//        RDFLanguages.register(SPARQLResultSetCSV) ;
-//        RDFLanguages.register(SPARQLResultSetTSV) ;
-//        RDFLanguages.register(SPARQLResultSetThrift) ;
-//        // Not text. 
-        
         ResultSetWriterFactory factory = new ResultSetWriterFactoryStd() ;
-        register(SPARQLResultSetXML,    factory) ;
-        register(SPARQLResultSetJSON,   factory) ;
+        register(SPARQLResultSetXML,    ResultSetWriterXML.factory) ;
+        register(SPARQLResultSetJSON,   ResultSetWriterJSON.factory) ;
+        register(SPARQLResultSetThrift, ResultSetWriterThrift.factory) ;
+        // Build-in std factory (below).
         register(SPARQLResultSetCSV,    factory) ;
         register(SPARQLResultSetTSV,    factory) ;
-        register(SPARQLResultSetThrift, new ResultSetWriterThriftFactory()) ;
         register(SPARQLResultSetText,   factory) ;
+        register(SPARQLResultSetNone,   factory) ;
     }
  
-    static { ResultSetLang.init(); }
-    
-    private static ResultSetWriter writerXML = new ResultSetWriter() {
-        @Override public void write(OutputStream out, ResultSet resultSet, Context context) { 
-            XMLOutput xOut = new XMLOutput(null) ;
-            xOut.format(out, resultSet) ;
-        }
-        @Override public void write(Writer out, ResultSet resultSet, Context context) {throw new NotImplemented("Writer") ; }
-        @Override public void write(OutputStream out, boolean result, Context context) {
-            XMLOutput xOut = new XMLOutput(null);
-            xOut.format(out, result);
-        }
-    } ;
-
-    private static ResultSetWriter writerJSON = new ResultSetWriter() {
-        @Override public void write(OutputStream out, ResultSet resultSet, Context context) {
-            JSONOutput jOut = new JSONOutput() ;
-            jOut.format(out, resultSet) ; 
-        }
-        @Override public void write(Writer out, ResultSet resultSet, Context context) {throw new NotImplemented("Writer") ; }
-        @Override public void write(OutputStream out, boolean result, Context context) {
-            JSONOutput jOut = new JSONOutput() ;
-            jOut.format(out, result) ; 
-        }
-    } ;
-    
     private static ResultSetWriter writerCSV = new ResultSetWriter() {
         @Override public void write(OutputStream out, ResultSet resultSet, Context context) {
             CSVOutput fmt = new CSVOutput() ;
             fmt.format(out, resultSet) ;
         }
-        @Override public void write(Writer out, ResultSet resultSet, Context context) {throw new NotImplemented("Writer") ; }
-        @Override public void write(OutputStream out, boolean result, Context context) {
+        @Override public void write(Writer out, ResultSet resultSet, Context context)   { throw new NotImplemented("Writer") ; }
+        @Override public void write(OutputStream out, boolean result, Context context)  {
             CSVOutput fmt = new CSVOutput() ;
             fmt.format(out, result) ;
         }
@@ -124,62 +100,57 @@ public class ResultSetWriterRegistry {
             TSVOutput fmt = new TSVOutput() ;
             fmt.format(out, resultSet) ;
         }
-        @Override public void write(Writer out, ResultSet resultSet, Context context) {throw new NotImplemented("Writer") ; }
-        @Override public void write(OutputStream out, boolean result, Context context) {
+        @Override public void write(Writer out, ResultSet resultSet, Context context)   {throw new NotImplemented("Writer") ; }
+        @Override public void write(OutputStream out, boolean result, Context context)  {
             TSVOutput fmt = new TSVOutput() ;
             fmt.format(out, result) ;
         }
     } ;
 
-    private static ResultSetWriter writerNo = new ResultSetWriter() {
+    private static ResultSetWriter writerNone = new ResultSetWriter() {
         @Override public void write(OutputStream out, ResultSet resultSet, Context context) {}
         @Override public void write(Writer out, ResultSet resultSet, Context context)       {}
-        @Override public void write(OutputStream out, boolean result, Context context) {}
+        @Override public void write(OutputStream out, boolean result, Context context)      {}
     } ;
 
     private static ResultSetWriter writerText = new ResultSetWriter() {
         @Override public void write(OutputStream out, ResultSet resultSet, Context context) {
-            // Prefix mapp
-            TextOutput tFmt = new TextOutput(new SerializationContext((Prologue)null)) ;
+            Prologue prologue = choosePrologue(resultSet, context);
+            TextOutput tFmt = new TextOutput(new SerializationContext(prologue)) ;
             tFmt.format(out, resultSet) ; 
         }
         @Override public void write(Writer out, ResultSet resultSet, Context context) {throw new NotImplemented("Writer") ; }
         @Override public void write(OutputStream out, boolean result, Context context) {
-            // Prefix mapp
             TextOutput tFmt = new TextOutput(new SerializationContext((Prologue)null)) ;
             tFmt.format(out, result) ; 
         }
     } ;
     
+    /** Establish a prologue for formatting output.  Return "null" for none found. */ 
+    private static Prologue choosePrologue(ResultSet resultSet, Context context) {
+        try {
+            if ( context != null && context.get(ARQConstants.symPrologue) != null )
+                return context.get(ARQConstants.symPrologue);
+            Model m = resultSet.getResourceModel();
+            if ( m != null )
+                return new Prologue(m);
+        } catch (Exception ex) {
+            Log.warn(ARQ.getExecLogger(), "Failed to establish a 'Prologue' for text output: "+ex.getMessage()); 
+        }
+        return null;
+    }
+
     private static class ResultSetWriterFactoryStd implements ResultSetWriterFactory {
         @Override
         public ResultSetWriter create(Lang lang) {
-            lang = Objects.requireNonNull(lang, "Language must not be null") ;
-            if ( lang.equals(SPARQLResultSetXML) )      return writerXML ;
-            if ( lang.equals(SPARQLResultSetJSON) )     return writerJSON ;
-            if ( lang.equals(SPARQLResultSetCSV) )      return writerCSV ;
-            if ( lang.equals(SPARQLResultSetTSV) )      return writerTSV ;
-            if ( lang.equals(SPARQLResultSetText) )     return writerText ;
+            lang = Objects.requireNonNull(lang, "Language must not be null");
+//            if ( lang.equals(SPARQLResultSetXML) )      return writerXML;
+//            if ( lang.equals(SPARQLResultSetJSON) )     return writerJSON;
+            if ( lang.equals(SPARQLResultSetCSV) )      return writerCSV;
+            if ( lang.equals(SPARQLResultSetTSV) )      return writerTSV;
+            if ( lang.equals(SPARQLResultSetText) )     return writerText;
+            if ( lang.equals(SPARQLResultSetNone) )     return writerNone;
             throw new RiotException("Lang not registered (ResultSet writer)") ;
-        }
-    }
-    
-    private static class ResultSetWriterThriftFactory implements ResultSetWriterFactory {
-        @Override
-        public ResultSetWriter create(Lang lang) {
-            return new ResultSetWriter() {
-                @Override
-                public void write(OutputStream out, ResultSet resultSet, Context context)
-                { BinRDF.writeResultSet(out, resultSet) ; }
-                
-                @Override
-                public void write(Writer out, ResultSet resultSet, Context context) {
-                    throw new NotImplemented("Writing binary data to a java.io.Writer is not possible") ;
-                }
-                @Override
-                public void write(OutputStream out, boolean result, Context context)
-                { throw new NotImplemented("No Thrift RDF encoding defined for boolean results"); }
-            } ;
         }
     }
 }

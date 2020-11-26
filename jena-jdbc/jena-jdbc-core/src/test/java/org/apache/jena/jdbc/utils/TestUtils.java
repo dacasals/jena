@@ -18,19 +18,19 @@
 
 package org.apache.jena.jdbc.utils;
 
+import static org.apache.jena.graph.Node.ANY;
+import static org.apache.jena.sparql.core.Quad.defaultGraphIRI;
+
 import java.util.Iterator;
 
-import org.apache.jena.atlas.web.auth.HttpAuthenticator;
-
-import com.hp.hpl.jena.graph.Node;
-import com.hp.hpl.jena.query.Dataset;
-import com.hp.hpl.jena.query.DatasetAccessor;
-import com.hp.hpl.jena.query.DatasetAccessorFactory;
-import com.hp.hpl.jena.query.DatasetFactory;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
-import com.hp.hpl.jena.sparql.core.DatasetGraph;
-import com.hp.hpl.jena.sparql.core.Quad;
+import org.apache.http.client.HttpClient;
+import org.apache.jena.query.Dataset ;
+import org.apache.jena.query.DatasetAccessor ;
+import org.apache.jena.query.DatasetAccessorFactory ;
+import org.apache.jena.query.DatasetFactory ;
+import org.apache.jena.rdf.model.Model ;
+import org.apache.jena.rdf.model.ModelFactory ;
+import org.apache.jena.sparql.core.DatasetGraph ;
 
 /**
  * Test utility methods
@@ -54,7 +54,7 @@ public class TestUtils {
         if (triplesPerGraph <= 0)
             throw new IllegalArgumentException("Number of triples per graph must be >= 1");
 
-        Dataset ds = DatasetFactory.createMem();
+        Dataset ds = DatasetFactory.createTxnMem();
         if (createDefaultGraph) {
             numGraphs--;
             Model def = ModelFactory.createDefaultModel();
@@ -104,21 +104,15 @@ public class TestUtils {
     public static void copyDataset(Dataset source, Dataset target, boolean copyDefaultAsQuads) {
         // Copy the default graph
         if (copyDefaultAsQuads) {
-            Iterator<Quad> quads = source.asDatasetGraph().find(Quad.defaultGraphIRI, Node.ANY, Node.ANY, Node.ANY);
             DatasetGraph targetDSG = target.asDatasetGraph();
-            while (quads.hasNext()) {
-                targetDSG.add(quads.next());
-            }
+            source.asDatasetGraph().find(defaultGraphIRI, ANY, ANY, ANY).forEachRemaining(targetDSG::add);
         } else {
             target.setDefaultModel(source.getDefaultModel());
         }
 
         // Copy named graphs
-        Iterator<String> uris = source.listNames();
-        while (uris.hasNext()) {
-            String uri = uris.next();
-            target.addNamedModel(uri, source.getNamedModel(uri));
-        }
+        source.listNames().forEachRemaining(uri->target.addNamedModel(uri, source.getNamedModel(uri)));
+
     }
 
     /**
@@ -142,11 +136,11 @@ public class TestUtils {
      *            Source Dataset
      * @param service
      *            Remote Graph Store protocol service
-     * @param authenticator
-     *            HTTP Authenticator
+     * @param client
+     *            HTTP Client
      */
-    public static void copyToRemoteDataset(Dataset source, String service, HttpAuthenticator authenticator) {
-        DatasetAccessor target = DatasetAccessorFactory.createHTTP(service, authenticator);
+    public static void copyToRemoteDataset(Dataset source, String service, HttpClient client) {
+        DatasetAccessor target = DatasetAccessorFactory.createHTTP(service, client);
         target.putModel(source.getDefaultModel());
         Iterator<String> uris = source.listNames();
         while (uris.hasNext()) {
@@ -169,7 +163,7 @@ public class TestUtils {
      * @return New Dataset
      */
     public static Dataset renameGraph(Dataset ds, String oldUri, String newUri) {
-        Dataset dest = DatasetFactory.createMem();
+        Dataset dest = DatasetFactory.createTxnMem();
         if (oldUri == null) {
             // Rename default graph
             dest.addNamedModel(newUri, ds.getDefaultModel());

@@ -18,25 +18,25 @@
 
 package org.apache.jena.riot.writer;
 
+import static org.junit.Assert.assertTrue;
+
 import java.io.ByteArrayInputStream ;
 import java.io.ByteArrayOutputStream ;
 import java.util.Arrays ;
 
-import org.apache.jena.atlas.junit.BaseTest ;
 import org.apache.jena.riot.Lang ;
 import org.apache.jena.riot.RDFDataMgr ;
+import org.apache.jena.sparql.core.DatasetGraph ;
+import org.apache.jena.sparql.core.DatasetGraphFactory ;
+import org.apache.jena.sparql.util.IsoMatcher ;
 import org.junit.Test ;
 import org.junit.runner.RunWith ;
 import org.junit.runners.Parameterized ;
 import org.junit.runners.Parameterized.Parameter ;
 import org.junit.runners.Parameterized.Parameters ;
 
-import com.hp.hpl.jena.sparql.core.DatasetGraph ;
-import com.hp.hpl.jena.sparql.core.DatasetGraphFactory ;
-import com.hp.hpl.jena.sparql.util.IsoMatcher ;
-
 @RunWith(Parameterized.class)
-public class TestTriXWriter extends BaseTest {
+public class TestTriXWriter {
 
     static String DIR = "testing/RIOT/Lang/TriX" ;
 
@@ -69,7 +69,7 @@ public class TestTriXWriter extends BaseTest {
         ByteArrayOutputStream bout = new ByteArrayOutputStream() ;
         RDFDataMgr.write(bout, dsg, Lang.TRIX) ;
         ByteArrayInputStream bin = new ByteArrayInputStream(bout.toByteArray()) ;
-        DatasetGraph dsg2 = DatasetGraphFactory.createMem() ;
+        DatasetGraph dsg2 = DatasetGraphFactory.create() ;
         RDFDataMgr.read(dsg2, bin, Lang.TRIX) ;
         boolean b = IsoMatcher.isomorphic(dsg, dsg2) ;
         assertTrue("Not isomorphic", b) ;

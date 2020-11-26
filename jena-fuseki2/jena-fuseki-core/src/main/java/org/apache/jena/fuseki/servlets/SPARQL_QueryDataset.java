@@ -18,43 +18,50 @@
 
 package org.apache.jena.fuseki.servlets;
 
-import com.hp.hpl.jena.query.Dataset ;
-import com.hp.hpl.jena.query.DatasetFactory ;
-import com.hp.hpl.jena.query.Query ;
-import com.hp.hpl.jena.sparql.core.DatasetDescription ;
-import com.hp.hpl.jena.sparql.core.DatasetGraph ;
-import com.hp.hpl.jena.sparql.core.DynamicDatasets ;
+import org.apache.jena.atlas.lib.Pair;
+import org.apache.jena.query.Query;
+import org.apache.jena.sparql.core.DatasetDescription;
+import org.apache.jena.sparql.core.DatasetGraph;
+import org.apache.jena.sparql.core.DynamicDatasets;
 
-public class SPARQL_QueryDataset extends SPARQL_Query
-{
-    public SPARQL_QueryDataset(boolean verbose)     { super() ; }
+public class SPARQL_QueryDataset extends SPARQLQueryProcessor {
 
-    public SPARQL_QueryDataset()
-    { this(false) ; }
-    
-    @Override
-    protected void validateRequest(HttpAction action) 
-    { }
+    public SPARQL_QueryDataset() { }
 
     @Override
-    protected void validateQuery(HttpAction action, Query query) 
-    { }
-   
+    protected void validateRequest(HttpAction action) { }
+
     @Override
-    protected Dataset decideDataset(HttpAction action, Query query, String queryStringLog) 
-    { 
-        DatasetGraph dsg = action.getActiveDSG() ;
-        
-        // query.getDatasetDescription() ;
-        
-        // Protocol.
-        DatasetDescription dsDesc = getDatasetDescription(action) ;
-        if (dsDesc != null )
-        {
-            //errorBadRequest("SPARQL Query: Dataset description in the protocol request") ;
-            dsg = DynamicDatasets.dynamicDataset(dsDesc, dsg, false) ;
+    protected void validateQuery(HttpAction action, Query query) { }
+
+    @Override
+    protected Pair<DatasetGraph, Query> decideDataset(HttpAction action, Query query, String queryStringLog) {
+        return decideDatasetDynamic(action, query, queryStringLog);
+    }
+
+    /**
+     * Function to return the {@code Pair<DatasetGraph, Query>} based on processing any dataset description as {@link DynamicDatasets a dynamic dataset}.
+     * The query is modified to remove any dataset description.
+     *
+     * @param action
+     * @param query
+     * @param queryStringLog
+     * @return Pair<DatasetGraph, Query>
+     */
+    public Pair<DatasetGraph, Query> decideDatasetDynamic(HttpAction action, Query query, String queryStringLog) {
+        DatasetGraph dsg = getDataset(action);
+        DatasetDescription dsDesc = SPARQLProtocol.getDatasetDescription(action, query);
+        if ( dsDesc != null ) {
+            dsg = DynamicDatasets.dynamicDataset(dsDesc, dsg, false);
+            if ( query.hasDatasetDescription() ) {
+                query.getGraphURIs().clear();
+                query.getNamedGraphURIs().clear();
+            }
         }
-        
-        return DatasetFactory.create(dsg) ;
+        return Pair.create(dsg, query);
+    }
+    
+    protected DatasetGraph getDataset(HttpAction action) {
+        return action.getActiveDSG();
     }
 }

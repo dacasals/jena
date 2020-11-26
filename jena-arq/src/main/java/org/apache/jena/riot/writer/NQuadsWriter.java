@@ -22,16 +22,15 @@ import java.io.OutputStream ;
 import java.io.Writer ;
 import java.util.Iterator ;
 
+import org.apache.jena.atlas.lib.CharSpace ;
 import org.apache.jena.riot.Lang ;
-import org.apache.jena.riot.out.CharSpace ;
 import org.apache.jena.riot.system.PrefixMap ;
-import org.apache.jena.riot.system.StreamOps ;
+import org.apache.jena.riot.system.StreamRDFOps ;
 import org.apache.jena.riot.system.StreamRDF ;
 import org.apache.jena.riot.system.StreamRDFLib ;
-
-import com.hp.hpl.jena.sparql.core.DatasetGraph ;
-import com.hp.hpl.jena.sparql.core.Quad ;
-import com.hp.hpl.jena.sparql.util.Context ;
+import org.apache.jena.sparql.core.DatasetGraph ;
+import org.apache.jena.sparql.core.Quad ;
+import org.apache.jena.sparql.util.Context ;
 
 public class NQuadsWriter extends WriterDatasetRIOTBase
 {
@@ -60,7 +59,7 @@ public class NQuadsWriter extends WriterDatasetRIOTBase
     private static void write$(StreamRDF s, Iterator<Quad> iter)
     {
         s.start() ;
-        StreamOps.sendQuadsToStream(iter, s) ;
+        StreamRDFOps.sendQuadsToStream(iter, s) ;
         s.finish();
     }
     

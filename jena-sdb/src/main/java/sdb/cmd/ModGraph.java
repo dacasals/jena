@@ -18,20 +18,19 @@
 
 package sdb.cmd;
 
-import com.hp.hpl.jena.graph.Graph;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.sdb.SDBFactory;
-import com.hp.hpl.jena.sdb.Store;
+import jena.cmd.ArgDecl;
+import jena.cmd.CmdArgModule;
+import jena.cmd.CmdGeneral;
+import jena.cmd.ModBase;
 
-import arq.cmdline.ArgDecl;
-import arq.cmdline.CmdArgModule;
-import arq.cmdline.CmdGeneral;
-import arq.cmdline.ModBase;
+import org.apache.jena.graph.Graph ;
+import org.apache.jena.rdf.model.Model ;
+import org.apache.jena.sdb.SDBFactory ;
+import org.apache.jena.sdb.Store ;
 
 public class ModGraph extends ModBase
 {
     private static ArgDecl argDeclGraphName = new ArgDecl(true, "graph") ;
-    private static ArgDecl argDeclGraphDeafult = new ArgDecl(false, "default") ;
 
     private Graph graph = null ;
     private String graphName = null ;
@@ -51,9 +50,11 @@ public class ModGraph extends ModBase
         graphName = cmdLine.getValue(argDeclGraphName) ;
     }
 
+    public String getGraphName() { return graphName ; }
+    
     public Graph getGraph(Store store)
     { 
-        if ( graphName == null )
+        if ( graphName == null || graphName.equals("default") )
             return SDBFactory.connectDefaultGraph(store) ;
         else
             return SDBFactory.connectNamedGraph(store, graphName) ;
@@ -61,7 +62,7 @@ public class ModGraph extends ModBase
     
     public Model getModel(Store store)
     { 
-        if ( graphName == null )
+        if ( graphName == null || graphName.equals("default") )
             return SDBFactory.connectDefaultModel(store) ;
         else
             return SDBFactory.connectNamedModel(store, graphName) ;

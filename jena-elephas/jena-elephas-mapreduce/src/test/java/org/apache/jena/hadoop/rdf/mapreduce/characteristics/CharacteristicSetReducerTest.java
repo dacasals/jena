@@ -26,14 +26,12 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mrunit.mapreduce.MapReduceDriver;
 import org.apache.hadoop.mrunit.types.Pair;
+import org.apache.jena.graph.NodeFactory ;
 import org.apache.jena.hadoop.rdf.mapreduce.AbstractMapReduceTests;
-import org.apache.jena.hadoop.rdf.mapreduce.characteristics.CharacteristicSetReducer;
 import org.apache.jena.hadoop.rdf.types.CharacteristicSetWritable;
 import org.apache.jena.hadoop.rdf.types.CharacteristicWritable;
 import org.junit.Assert;
 import org.junit.Test;
-
-import com.hp.hpl.jena.graph.NodeFactory;
 
 /**
  * Abstract tests for the {@link CharacteristicSetReducer}
@@ -104,9 +102,10 @@ public class CharacteristicSetReducerTest
                 .getMapReduceDriver();
 
         this.createSet(driver, 2, 1, "http://predicate");
-
         driver.runTest(false);
-
+        
+        driver = getMapReduceDriver();
+        createSet(driver, 2, 1, "http://predicate");
         List<Pair<CharacteristicSetWritable, NullWritable>> results = driver.run();
         CharacteristicSetWritable cw = results.get(0).getFirst();
         Assert.assertEquals(2, cw.getCount().get());
@@ -140,9 +139,11 @@ public class CharacteristicSetReducerTest
 
         this.createSet(driver, 2, 1, "http://predicate");
         this.createSet(driver, 1, 1, "http://other");
-
         driver.runTest(false);
-
+        
+        driver = getMapReduceDriver();
+        createSet(driver, 2, 1, "http://predicate");
+        createSet(driver, 1, 1, "http://other");
         List<Pair<CharacteristicSetWritable, NullWritable>> results = driver.run();
         for (Pair<CharacteristicSetWritable, NullWritable> pair : results) {
             CharacteristicSetWritable cw = pair.getFirst();
@@ -179,9 +180,11 @@ public class CharacteristicSetReducerTest
 
         this.createSet(driver, 2, 1, "http://predicate", "http://other");
         this.createSet(driver, 1, 1, "http://other");
-
         driver.runTest(false);
-
+        
+        driver = getMapReduceDriver();
+        createSet(driver, 2, 1, "http://predicate", "http://other");
+        createSet(driver, 1, 1, "http://other");
         List<Pair<CharacteristicSetWritable, NullWritable>> results = driver.run();
         for (Pair<CharacteristicSetWritable, NullWritable> pair : results) {
             CharacteristicSetWritable cw = pair.getFirst();

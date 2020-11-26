@@ -20,21 +20,21 @@ package org.apache.jena.query.spatial;
 
 import org.apache.jena.query.spatial.assembler.SpatialAssembler ;
 import org.apache.jena.query.spatial.pfunction.library.* ;
-
-import com.hp.hpl.jena.sparql.SystemARQ ;
-import com.hp.hpl.jena.sparql.lib.Metadata ;
-import com.hp.hpl.jena.sparql.mgt.SystemInfo ;
-import com.hp.hpl.jena.sparql.pfunction.PropertyFunction ;
-import com.hp.hpl.jena.sparql.pfunction.PropertyFunctionFactory ;
-import com.hp.hpl.jena.sparql.pfunction.PropertyFunctionRegistry ;
-import com.hp.hpl.jena.sparql.util.Symbol ;
-import com.hp.hpl.jena.tdb.TDB ;
-import com.spatial4j.core.context.SpatialContext ;
+import org.apache.jena.sparql.SystemARQ ;
+import org.apache.jena.sparql.mgt.SystemInfo ;
+import org.apache.jena.sparql.pfunction.PropertyFunction ;
+import org.apache.jena.sparql.pfunction.PropertyFunctionFactory ;
+import org.apache.jena.sparql.pfunction.PropertyFunctionRegistry ;
+import org.apache.jena.sparql.util.Symbol ;
+import org.apache.jena.sys.JenaSystem ;
+import org.apache.jena.util.Metadata;
+import org.locationtech.spatial4j.context.SpatialContext ;
 
 public class SpatialQuery
 {
-    private static boolean initialized = false ;
+    private static volatile boolean initialized = false ;
     private static Object lock = new Object() ;
+
     public static String NS = "http://jena.apache.org/spatial#" ;
     public static String IRI = "http://jena.apache.org/#spatial" ;
     public static final Symbol spatialIndex = Symbol.create(NS+"index") ;
@@ -50,18 +50,23 @@ public class SpatialQuery
     public static SpatialContext ctx = SpatialContext.GEO;
     
     // an optional feature for WKT literals, loaded when necessary, but not required
-    public static final String JTS_SPATIAL_CONTEXT_FACTORY_CLASS = "com.spatial4j.core.context.jts.JtsSpatialContextFactory"; 
+    public static final String JTS_SPATIAL_CONTEXT_FACTORY_CLASS = "org.locationtech.spatial4j.context.jts.JtsSpatialContextFactory"; 
     
-    static { init() ; }
+    static { JenaSystem.init(); }
     
     public static void init() 
     {
-        if ( initialized ) return ;
+        if ( initialized ) 
+            return ;
         synchronized(lock)
         {
-            if ( initialized ) return ;
+            if ( initialized ) {
+                JenaSystem.logLifecycle("SpatialQuery.init - skip") ;
+                return ; 
+            }
             initialized = true ;
-            TDB.init() ;
+            JenaSystem.logLifecycle("SpatialQuery.init - start") ;
+
             SpatialAssembler.init() ;
             
             SystemInfo sysInfo = new SystemInfo(IRI, PATH, VERSION, BUILD_DATE) ;
@@ -122,6 +127,9 @@ public class SpatialQuery
                     return new WestPF() ;
                 }
             });
+            
+            JenaSystem.logLifecycle("SpatialQuery.init - finish") ;
+
         }
     }
 }

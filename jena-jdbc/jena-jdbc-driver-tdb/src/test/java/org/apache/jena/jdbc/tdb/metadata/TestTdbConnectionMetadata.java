@@ -28,11 +28,10 @@ import org.apache.jena.jdbc.JdbcCompatibility;
 import org.apache.jena.jdbc.connections.JenaConnection;
 import org.apache.jena.jdbc.metadata.results.AbstractDatabaseMetadataTests;
 import org.apache.jena.jdbc.tdb.connections.TDBConnection;
+import org.apache.jena.tdb.TDBFactory ;
+import org.apache.jena.tdb.base.file.Location ;
+import org.apache.jena.tdb.sys.TDBInternal;
 import org.junit.After;
-
-import com.hp.hpl.jena.tdb.StoreConnection;
-import com.hp.hpl.jena.tdb.TDBFactory;
-import com.hp.hpl.jena.tdb.base.file.Location;
 
 /**
  * Tests database metadata for TDB connections
@@ -44,7 +43,7 @@ public class TestTdbConnectionMetadata extends AbstractDatabaseMetadataTests {
      */
     @After
     public void cleanupTest() {
-        StoreConnection.expel(Location.mem(), true);
+        TDBInternal.expel(Location.mem(), true);
     }
 
     @Override
@@ -55,7 +54,7 @@ public class TestTdbConnectionMetadata extends AbstractDatabaseMetadataTests {
 
     @Override
     protected List<Integer> getSupportedTransactionLevels() {
-        List<Integer> levels = new ArrayList<Integer>();
+        List<Integer> levels = new ArrayList<>();
         levels.add(Connection.TRANSACTION_SERIALIZABLE);
         return levels;
     }

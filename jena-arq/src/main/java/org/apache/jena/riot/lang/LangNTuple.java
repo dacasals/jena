@@ -18,19 +18,19 @@
 
 package org.apache.jena.riot.lang;
 
-import static org.apache.jena.riot.tokens.TokenType.STRING2 ;
-
 import java.util.Iterator ;
 
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.NodeFactory;
+import org.apache.jena.graph.Triple;
 import org.apache.jena.riot.system.ParserProfile ;
 import org.apache.jena.riot.system.StreamRDF ;
+import org.apache.jena.riot.tokens.StringType;
 import org.apache.jena.riot.tokens.Token ;
 import org.apache.jena.riot.tokens.TokenType ;
 import org.apache.jena.riot.tokens.Tokenizer ;
 import org.slf4j.Logger ;
 import org.slf4j.LoggerFactory ;
-
-import com.hp.hpl.jena.graph.Node ;
 
 /** N-Quads, N-triples parser framework, with both push and pull interfaces.
  * 
@@ -54,24 +54,19 @@ public abstract class LangNTuple<X> extends LangBase implements Iterator<X>
     
     protected boolean skipOnBadTerm = false ;
     
-    protected LangNTuple(Tokenizer tokens,
-                         ParserProfile profile,
-                         StreamRDF dest)
-    { 
-        super(tokens, profile, dest) ;
+    protected LangNTuple(Tokenizer tokens, ParserProfile profile, StreamRDF dest) {
+        super(tokens, profile, dest);
     }
 
     // Assumes no syntax errors.
     @Override
-    public final boolean hasNext()
-    {
-        return super.moreTokens() ;
+    public final boolean hasNext() {
+        return super.moreTokens();
     }
     
     @Override
-    public final X next()
-    {
-        return parseOne() ;
+    public final X next() {
+        return parseOne();
     }
     
     @Override
@@ -82,51 +77,91 @@ public abstract class LangNTuple<X> extends LangBase implements Iterator<X>
     protected abstract X parseOne() ;
     
     /** Note a tuple not being output */
-    protected void skipOne(X object, String printForm, long line, long col)
-    {
-        profile.getHandler().warning("Skip: "+printForm, line, col) ;
+    protected void skipOne(X object, String printForm, long line, long col) {
+        errorHandler.warning("Skip: " + printForm, line, col);
     }
 
     protected abstract Node tokenAsNode(Token token) ;
+    
+    // One triple, not include terminator.
+    protected final Triple parseTriple() {
+        Token sToken = nextToken();
+        if ( sToken.isEOF() )
+            exception(sToken, "Premature end of file: %s", sToken);
+        Node s;
+        if ( sToken.hasType(TokenType.LT2) )
+            s = parseTripleTerm();
+        else {
+            checkIRIOrBNode(sToken);
+            s = tokenAsNode(sToken);
+        }
 
-    protected final void checkIRIOrBNode(Token token)
-    {
-        if ( token.hasType(TokenType.IRI) ) return ;
-        if ( token.hasType(TokenType.BNODE) ) return ; 
-        exception(token, "Expected BNode or IRI: Got: %s", token) ;
+        Token pToken = nextToken();
+        if ( pToken.isEOF() )
+            exception(pToken, "Premature end of file: %s", pToken);
+        checkIRI(pToken);
+        Node p = tokenAsNode(pToken);
+
+        Token oToken = nextToken();
+        if ( oToken.isEOF() )
+            exception(oToken, "Premature end of file: %s", oToken);
+        Node o;
+        if ( oToken.hasType(TokenType.LT2) )
+            o = parseTripleTerm();
+        else {
+            checkRDFTerm(oToken);
+            o = tokenAsNode(oToken);
+        }
+        return profile.createTriple(s, p, o, sToken.getLine(), sToken.getColumn());
     }
 
-    protected final void checkIRI(Token token)
-    {
-        if ( token.hasType(TokenType.IRI) ) return ;
-        exception(token, "Expected IRI: Got: %s", token) ;
+    // Looking at "<<" (LT2)
+    final protected Node parseTripleTerm() {
+        Triple t = parseTriple();
+        Token x = nextToken();
+        if ( x.getType() != TokenType.GT2 )
+            exception(x, "Triple term not terminated by >>: %s", x);
+        return NodeFactory.createTripleNode(t);
     }
 
-    protected final void checkRDFTerm(Token token)
-    {
-        switch(token.getType())
-        {
+    protected final void checkIRIOrBNode(Token token) {
+        if ( token.hasType(TokenType.IRI) )
+            return;
+        if ( token.hasType(TokenType.BNODE) )
+            return;
+        exception(token, "Expected BNode or IRI: Got: %s", token);
+    }
+
+    protected final void checkIRI(Token token) {
+        if ( token.hasType(TokenType.IRI) )
+            return;
+        exception(token, "Expected IRI: Got: %s", token);
+    }
+
+    protected final void checkRDFTerm(Token token) {
+        switch (token.getType()) {
             case IRI:
             case BNODE:
-            case STRING2:
-                return ;
-            case LITERAL_DT:
-                if ( profile.isStrictMode() && ! token.getSubToken1().hasType(STRING2) )
-                    exception(token, "Illegal single quoted string: %s", token) ;
+                return;
+            case STRING:
+                checkString(token);
                 return ;
             case LITERAL_LANG:
-                if ( profile.isStrictMode() && ! token.getSubToken1().hasType(STRING2) )
-                    exception(token, "Illegal single quoted string: %s", token) ;
+            case LITERAL_DT:
+                checkString(token.getSubToken1());
                 return ;
-            case STRING1:
-                if ( profile.isStrictMode() )
-                    exception(token, "Illegal single quoted string: %s", token) ;
-                break ;
             default:
                 exception(token, "Illegal object: %s", token) ;
         }
     }
-
+    
+    private void checkString(Token token) {
+        if ( token.isLongString() )
+            exception(token, "Triple quoted string not permitted: %s", token) ;
+        if ( isStrictMode && ! token.hasStringType(StringType.STRING2) )
+            exception(token, "Not a \"\"-quoted string: %s", token); 
+    }
+    
     /** SkipOnBadTerm - do not output tuples with bad RDF terms */ 
     public boolean  getSkipOnBadTerm()                      { return skipOnBadTerm ; }
     /** SkipOnBadTerm - do not output tuples with bad RDF terms */ 

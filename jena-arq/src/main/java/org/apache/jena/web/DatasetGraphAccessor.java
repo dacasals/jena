@@ -18,9 +18,11 @@
 
 package org.apache.jena.web;
 
-import com.hp.hpl.jena.graph.Graph ;
-import com.hp.hpl.jena.graph.Node ;
+import org.apache.jena.graph.Graph ;
+import org.apache.jena.graph.Node ;
 
+/** @deprecated This will be replaced by the {@code RDFConnection} style at the Graph/Triple level. */
+@Deprecated
 public interface DatasetGraphAccessor
 {
     public Graph httpGet() ; 

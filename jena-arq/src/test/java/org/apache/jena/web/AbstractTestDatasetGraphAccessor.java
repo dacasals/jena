@@ -18,21 +18,24 @@
 
 package org.apache.jena.web;
 
-import org.apache.jena.atlas.junit.BaseTest ;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
+import org.apache.jena.graph.Graph ;
+import org.apache.jena.graph.GraphUtil ;
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.NodeFactory ;
+import org.apache.jena.rdf.model.Model ;
+import org.apache.jena.rdf.model.ModelFactory ;
 import org.apache.jena.riot.Lang ;
 import org.apache.jena.riot.RDFDataMgr ;
+import org.apache.jena.sparql.graph.GraphFactory ;
+import org.apache.jena.sparql.sse.SSE ;
 import org.junit.Test ;
 
-import com.hp.hpl.jena.graph.Graph ;
-import com.hp.hpl.jena.graph.GraphUtil ;
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.graph.NodeFactory ;
-import com.hp.hpl.jena.rdf.model.Model ;
-import com.hp.hpl.jena.rdf.model.ModelFactory ;
-import com.hp.hpl.jena.sparql.graph.GraphFactory ;
-import com.hp.hpl.jena.sparql.sse.SSE ;
-
-public abstract class AbstractTestDatasetGraphAccessor extends BaseTest
+@SuppressWarnings("deprecation")
+public abstract class AbstractTestDatasetGraphAccessor
 {
     protected static final String gn1       = "http://graph/1" ;
     protected static final String gn2       = "http://graph/2" ;
@@ -151,7 +154,7 @@ public abstract class AbstractTestDatasetGraphAccessor extends BaseTest
     }
     
     // Named graph, no side effects.
-    @Test public void delete_02() 
+    @Test public void delete_02()
     {
         DatasetGraphAccessor updater = getDatasetUpdater() ;
         //updater.httpDelete(n1) ;

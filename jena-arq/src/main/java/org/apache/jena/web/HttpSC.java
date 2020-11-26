@@ -467,7 +467,7 @@ package org.apache.jena.web;
  * <td>&nbsp;</td>
  * <td><strike>418</strike></td>
  * <td><strike>Unprocessable Entity</strike></td>
- * <td>&nbsp;<direct/td>
+ * <td>&nbsp;</td>
  * <td>&nbsp;</td>
  * <td>
  * <a href=
@@ -694,13 +694,14 @@ public class HttpSC
         }
     }
 
-
     public enum Code
     {
         /*
          * --------------------------------------------------------------------
-         * Informational messages in 1xx series. As defined by ... RFC 1945 -
-         * HTTP/1.0 RFC 2616 - HTTP/1.1 RFC 2518 - WebDAV 
+         * Informational messages in 1xx series. As defined by ...
+         * RFC 1945 - HTTP/1.0
+         * RFC 2616 - HTTP/1.1
+         * RFC 2518 - WebDAV 
          * and RFC2324
          */
 

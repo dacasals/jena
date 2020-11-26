@@ -29,21 +29,20 @@ import java.util.Set;
 
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.OutputFormat;
+import org.apache.jena.datatypes.xsd.XSDDatatype ;
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.NodeFactory ;
+import org.apache.jena.graph.Triple ;
 import org.apache.jena.hadoop.rdf.io.RdfIOConstants;
 import org.apache.jena.hadoop.rdf.types.TripleWritable;
+import org.apache.jena.rdf.model.Model ;
+import org.apache.jena.rdf.model.ResIterator ;
+import org.apache.jena.rdf.model.Resource ;
 import org.apache.jena.riot.RDFDataMgr;
 import org.junit.Assert;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
-
-import com.hp.hpl.jena.datatypes.xsd.XSDDatatype;
-import com.hp.hpl.jena.graph.Node;
-import com.hp.hpl.jena.graph.NodeFactory;
-import com.hp.hpl.jena.graph.Triple;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ResIterator;
-import com.hp.hpl.jena.rdf.model.Resource;
 
 /**
  * Tests for Turtle output with blank nodes
@@ -54,9 +53,13 @@ import com.hp.hpl.jena.rdf.model.Resource;
 @RunWith(Parameterized.class)
 public class TurtleBlankNodeOutputTests extends StreamedTurtleOutputTest {
 
+    @SuppressWarnings("hiding")
 	static long $bs1 = RdfIOConstants.DEFAULT_OUTPUT_BATCH_SIZE;
+    @SuppressWarnings("hiding")
 	static long $bs2 = 1000;
+    @SuppressWarnings("hiding")
 	static long $bs3 = 100;
+    @SuppressWarnings("hiding")
 	static long $bs4 = 1;
 
 	/**
@@ -81,7 +84,7 @@ public class TurtleBlankNodeOutputTests extends StreamedTurtleOutputTest {
 	@Override
 	protected Iterator<TripleWritable> generateTuples(int num) {
 		List<TripleWritable> ts = new ArrayList<TripleWritable>();
-		Node subject = NodeFactory.createAnon();
+		Node subject = NodeFactory.createBlankNode();
 		for (int i = 0; i < num; i++) {
 			Triple t = new Triple(subject,
 					NodeFactory.createURI("http://example.org/predicate"),

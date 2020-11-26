@@ -47,10 +47,10 @@ import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.task.JobContextImpl;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.NodeFactory ;
 import org.apache.jena.hadoop.rdf.io.RdfIOConstants;
 import org.apache.jena.hadoop.rdf.types.AbstractNodeTupleWritable;
-import org.apache.jena.riot.system.ParserProfile;
-import org.apache.log4j.BasicConfigurator;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.BeforeClass;
@@ -58,13 +58,9 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.hp.hpl.jena.graph.Node;
-import com.hp.hpl.jena.graph.NodeFactory;
-
 /**
  * Test case that embodies the scenario described in JENA-820
  */
-@SuppressWarnings("unused")
 public abstract class AbstractBlankNodeTests<T, TValue extends AbstractNodeTupleWritable<T>> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractBlankNodeTests.class);
@@ -80,8 +76,6 @@ public abstract class AbstractBlankNodeTests<T, TValue extends AbstractNodeTuple
 
     /**
      * Gets the extension for the initial input files
-     * 
-     * @return Extension including the {@code .}
      */
     protected abstract String getInitialInputExtension();
 
@@ -180,7 +174,7 @@ public abstract class AbstractBlankNodeTests<T, TValue extends AbstractNodeTuple
             // Prepare the input data
             // Two mentions of the same blank node in the same file
             List<T> tuples = new ArrayList<>();
-            Node bnode = NodeFactory.createAnon();
+            Node bnode = NodeFactory.createBlankNode();
             Node pred = NodeFactory.createURI("http://example.org/predicate");
             tuples.add(createTuple(bnode, pred, NodeFactory.createLiteral("first")));
             tuples.add(createTuple(bnode, pred, NodeFactory.createLiteral("second")));
@@ -289,7 +283,7 @@ public abstract class AbstractBlankNodeTests<T, TValue extends AbstractNodeTuple
             // Prepare the input data
             // Two mentions of the same blank node in the same file
             List<T> tuples = new ArrayList<>();
-            Node bnode = NodeFactory.createAnon();
+            Node bnode = NodeFactory.createBlankNode();
             Node pred = NodeFactory.createURI("http://example.org/predicate");
             tuples.add(createTuple(bnode, pred, NodeFactory.createLiteral("first")));
             tuples.add(createTuple(bnode, pred, NodeFactory.createLiteral("second")));
@@ -400,8 +394,8 @@ public abstract class AbstractBlankNodeTests<T, TValue extends AbstractNodeTuple
             // Prepare the input data
             // Different blank nodes in different files
             List<T> tuples = new ArrayList<>();
-            Node bnode1 = NodeFactory.createAnon();
-            Node bnode2 = NodeFactory.createAnon();
+            Node bnode1 = NodeFactory.createBlankNode();
+            Node bnode2 = NodeFactory.createBlankNode();
             Node pred = NodeFactory.createURI("http://example.org/predicate");
 
             tuples.add(createTuple(bnode1, pred, NodeFactory.createLiteral("first")));
@@ -510,7 +504,7 @@ public abstract class AbstractBlankNodeTests<T, TValue extends AbstractNodeTuple
             // Same blank node but in different files so must be treated as
             // different blank nodes and not converge
             List<T> tuples = new ArrayList<>();
-            Node bnode = NodeFactory.createAnon();
+            Node bnode = NodeFactory.createBlankNode();
             Node pred = NodeFactory.createURI("http://example.org/predicate");
 
             tuples.add(createTuple(bnode, pred, NodeFactory.createLiteral("first")));

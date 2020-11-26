@@ -19,30 +19,15 @@ package org.apache.jena.arq.querybuilder.rewriters;
 
 import java.util.Iterator;
 import java.util.Map;
+
 import org.apache.jena.arq.querybuilder.AbstractQueryBuilder;
-import com.hp.hpl.jena.graph.Node;
-import com.hp.hpl.jena.graph.Triple;
-import com.hp.hpl.jena.sparql.core.TriplePath;
-import com.hp.hpl.jena.sparql.core.Var;
-import com.hp.hpl.jena.sparql.engine.binding.Binding;
-import com.hp.hpl.jena.sparql.syntax.Element;
-import com.hp.hpl.jena.sparql.syntax.ElementAssign;
-import com.hp.hpl.jena.sparql.syntax.ElementBind;
-import com.hp.hpl.jena.sparql.syntax.ElementData;
-import com.hp.hpl.jena.sparql.syntax.ElementDataset;
-import com.hp.hpl.jena.sparql.syntax.ElementExists;
-import com.hp.hpl.jena.sparql.syntax.ElementFilter;
-import com.hp.hpl.jena.sparql.syntax.ElementGroup;
-import com.hp.hpl.jena.sparql.syntax.ElementMinus;
-import com.hp.hpl.jena.sparql.syntax.ElementNamedGraph;
-import com.hp.hpl.jena.sparql.syntax.ElementNotExists;
-import com.hp.hpl.jena.sparql.syntax.ElementOptional;
-import com.hp.hpl.jena.sparql.syntax.ElementPathBlock;
-import com.hp.hpl.jena.sparql.syntax.ElementService;
-import com.hp.hpl.jena.sparql.syntax.ElementSubQuery;
-import com.hp.hpl.jena.sparql.syntax.ElementTriplesBlock;
-import com.hp.hpl.jena.sparql.syntax.ElementUnion;
-import com.hp.hpl.jena.sparql.syntax.ElementVisitor;
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.Triple ;
+import org.apache.jena.query.Query;
+import org.apache.jena.sparql.core.TriplePath ;
+import org.apache.jena.sparql.core.Var ;
+import org.apache.jena.sparql.engine.binding.Binding ;
+import org.apache.jena.sparql.syntax.* ;
 
 /**
  * A rewriter that implements an ElementVisitor
@@ -114,21 +99,30 @@ public class ElementRewriter extends AbstractRewriter<Element> implements
 			push(new ElementTriplesBlock());
 		}
 	}
+	
+    @Override
+    public void visit(ElementFind el) {
+        Node n = changeNode(el.getVar());
+        Triple triple = rewrite(el.getTriple());
+        
+        if (n.equals(el.getVar())) {
+            push(new ElementFind(Var.alloc(n), triple));
+        } else {
+            ElementTriplesBlock etb = new ElementTriplesBlock();
+            etb.addTriple(triple);
+            push(etb);
+        }
+    }
 
 	@Override
 	public void visit(ElementData el) {
 		ElementData retval = new ElementData();
-		Iterator<Var> vars = el.getVars().iterator();
-		Iterator<Binding> bindings = el.getRows().iterator();
-		while (vars.hasNext()) {
-			Var v = vars.next();
-			if (values.containsKey(v)) {
-				bindings.next(); // skip the binding
-			} else {
-				retval.add(v);
-				retval.add(rewrite(bindings.next()));
-			}
+		for (Var v : el.getVars()) {
+			retval.add(v);
 		}
+		for (Binding binding : el.getRows()) {
+			retval.add( binding );
+		}		
 		push(retval);
 
 	}
@@ -162,8 +156,8 @@ public class ElementRewriter extends AbstractRewriter<Element> implements
 	@Override
 	public void visit(ElementDataset el) {
 		Element pattern = null;
-		if (el.getPatternElement() != null) {
-			el.getPatternElement().visit(this);
+		if (el.getElement() != null) {
+			el.getElement().visit(this);
 			pattern = getResult();
 		}
 		push(new ElementDataset(el.getDataset(), pattern));
@@ -206,8 +200,9 @@ public class ElementRewriter extends AbstractRewriter<Element> implements
 
 	@Override
 	public void visit(ElementSubQuery el) {
+		Query q = AbstractQueryBuilder.clone(el.getQuery());
 		push(new ElementSubQuery(AbstractQueryBuilder.rewrite(
-				AbstractQueryBuilder.clone(el.getQuery()), values)));
+				q, values)));
 	}
 
 }

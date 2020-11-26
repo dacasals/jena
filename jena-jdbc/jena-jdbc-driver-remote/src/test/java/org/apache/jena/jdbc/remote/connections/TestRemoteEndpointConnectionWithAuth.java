@@ -18,33 +18,27 @@
 
 package org.apache.jena.jdbc.remote.connections;
 
-import java.io.File ;
-import java.io.FileWriter ;
 import java.io.IOException ;
 import java.sql.SQLException ;
 
-import org.apache.jena.atlas.web.auth.HttpAuthenticator ;
-import org.apache.jena.atlas.web.auth.SimpleAuthenticator ;
-import org.apache.jena.fuseki.ServerTest ;
-import org.apache.jena.fuseki.server.FusekiConfig ;
-import org.apache.jena.fuseki.server.SPARQLServer ;
-import org.apache.jena.fuseki.server.ServerConfig ;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.HttpClient;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.jena.fuseki.main.old.FusekiTestAuth;
 import org.apache.jena.jdbc.JdbcCompatibility ;
 import org.apache.jena.jdbc.connections.JenaConnection ;
 import org.apache.jena.jdbc.utils.TestUtils ;
+import org.apache.jena.query.Dataset ;
+import org.apache.jena.riot.web.HttpOp;
+import org.apache.jena.sparql.core.DatasetGraph ;
+import org.apache.jena.system.Txn;
+import org.eclipse.jetty.security.SecurityHandler;
 import org.junit.After ;
 import org.junit.AfterClass ;
 import org.junit.BeforeClass ;
 import org.junit.Ignore;
-
-import com.hp.hpl.jena.query.Dataset ;
-import com.hp.hpl.jena.sparql.core.DatasetGraph ;
-import com.hp.hpl.jena.sparql.core.DatasetGraphFactory ;
-import com.hp.hpl.jena.sparql.modify.request.Target ;
-import com.hp.hpl.jena.sparql.modify.request.UpdateDrop ;
-import com.hp.hpl.jena.update.Update ;
-import com.hp.hpl.jena.update.UpdateExecutionFactory ;
-import com.hp.hpl.jena.update.UpdateProcessor ;
 
 /**
  * Tests for the {@link RemoteEndpointConnection} where we use HTTP
@@ -56,9 +50,7 @@ public class TestRemoteEndpointConnectionWithAuth extends AbstractRemoteEndpoint
 
     private static String USER = "test";
     private static String PASSWORD = "letmein";
-    private static File realmFile;
-    private static SPARQLServer server;
-    private static HttpAuthenticator authenticator;
+    private static HttpClient client;
 
     /**
      * Setup for the tests by allocating a Fuseki instance to work with
@@ -66,33 +58,21 @@ public class TestRemoteEndpointConnectionWithAuth extends AbstractRemoteEndpoint
      */
     @BeforeClass
     public static void setup() throws IOException {
-        authenticator = new SimpleAuthenticator(USER, PASSWORD.toCharArray());
+        SecurityHandler sh = FusekiTestAuth.makeSimpleSecurityHandler("/*", USER, PASSWORD);
+        FusekiTestAuth.setupServer(true, sh);
         
-        realmFile = File.createTempFile("realm", ".properties");
-
-        FileWriter writer = new FileWriter(realmFile);
-        writer.write(USER + ": " + PASSWORD + ", fuseki\n");
-        writer.close();
-
-        DatasetGraph dsg = DatasetGraphFactory.createMem();
-        // This must agree with ServerTest
-        ServerConfig conf = FusekiConfig.defaultConfiguration(ServerTest.datasetPath, dsg, true, false);
-        conf.port = ServerTest.port;
-        conf.pagesPort = ServerTest.port;
-        conf.authConfigFile = realmFile.getAbsolutePath();
-
-        server = new SPARQLServer(conf);
-        server.start();
-    }
+        BasicCredentialsProvider credsProv = new BasicCredentialsProvider();
+        credsProv.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(USER, PASSWORD));
+        client = HttpClients.custom().setDefaultCredentialsProvider(credsProv).build();
+   }
 
     /**
-     * Clean up after each test by resetting the Fuseki instance
+     * Clean up after each test by resetting the data
      */
     @After
     public void cleanupTest() {
-        Update clearRequest = new UpdateDrop(Target.ALL) ;
-        UpdateProcessor proc = UpdateExecutionFactory.createRemote(clearRequest, ServerTest.serviceUpdate, authenticator) ;
-        proc.execute() ;
+        DatasetGraph dsg = FusekiTestAuth.getDataset();
+        Txn.executeWrite(dsg, ()->dsg.clear());
     }
 
     /**
@@ -100,8 +80,8 @@ public class TestRemoteEndpointConnectionWithAuth extends AbstractRemoteEndpoint
      */
     @AfterClass
     public static void cleanup() {
-        server.stop();
-        realmFile.delete();
+        FusekiTestAuth.teardownServer();
+        HttpOp.setDefaultHttpClient(HttpOp.createPoolingHttpClient());
     }
 
     @Override
@@ -113,17 +93,17 @@ public class TestRemoteEndpointConnectionWithAuth extends AbstractRemoteEndpoint
 
     @Override
     protected JenaConnection getConnection() throws SQLException {
-        return new RemoteEndpointConnection(ServerTest.serviceQuery, ServerTest.serviceUpdate, null, null, null, null,
-                authenticator, JenaConnection.DEFAULT_HOLDABILITY,
+        return new RemoteEndpointConnection(FusekiTestAuth.serviceQuery(), FusekiTestAuth.serviceUpdate(), null, null, null, null,
+                client, JenaConnection.DEFAULT_HOLDABILITY,
                 JdbcCompatibility.DEFAULT, null, null);
     }
 
     @Override
     protected JenaConnection getConnection(Dataset ds) throws SQLException {
         // Set up the dataset
-        TestUtils.copyToRemoteDataset(ds, ServerTest.serviceREST, authenticator);
-        return new RemoteEndpointConnection(ServerTest.serviceQuery, ServerTest.serviceUpdate, null, null, null, null,
-                authenticator, JenaConnection.DEFAULT_HOLDABILITY,
+        TestUtils.copyToRemoteDataset(ds, FusekiTestAuth.serviceGSP(), client);
+        return new RemoteEndpointConnection(FusekiTestAuth.serviceQuery(), FusekiTestAuth.serviceUpdate(), null, null, null, null,
+                client, JenaConnection.DEFAULT_HOLDABILITY,
                 JdbcCompatibility.DEFAULT, null, null);
     }
 }

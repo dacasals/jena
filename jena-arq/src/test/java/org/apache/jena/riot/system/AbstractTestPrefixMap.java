@@ -18,8 +18,8 @@
 
 package org.apache.jena.riot.system;
 
-import org.apache.jena.atlas.junit.BaseTest ;
-import org.apache.jena.atlas.lib.StrUtils ;
+import static org.junit.Assert.*;
+
 import org.apache.jena.iri.IRIFactory ;
 import org.junit.Test ;
 
@@ -27,8 +27,8 @@ import org.junit.Test ;
  * Abstract tests for {@link PrefixMap} implementations
  * 
  */
-public abstract class AbstractTestPrefixMap extends BaseTest {
-    protected IRIFactory factory = IRIFactory.iriImplementation();
+public abstract class AbstractTestPrefixMap {
+    protected IRIFactory factory = IRIResolver.iriFactory();
 
     /**
      * Gets the prefix map implementation to test, each call should result in a
@@ -46,7 +46,6 @@ public abstract class AbstractTestPrefixMap extends BaseTest {
         assertEquals(0, pmap.size()) ;
         assertTrue(pmap.getMapping().isEmpty()) ;
         assertTrue(pmap.getMappingCopy().isEmpty()) ;
-        assertTrue(pmap.getMappingCopyStr().isEmpty()) ;
     }
     
     @Test
@@ -56,10 +55,9 @@ public abstract class AbstractTestPrefixMap extends BaseTest {
         pmap.add("", "http://example/") ;
         assertFalse(pmap.isEmpty()) ;
         assertEquals(1, pmap.size()) ;
-        assertTrue(pmap.contains("")) ;
+        assertTrue(pmap.containsPrefix("")) ;
         assertTrue(pmap.getMapping().containsKey("")) ;
         assertTrue(pmap.getMappingCopy().containsKey("")) ;
-        assertTrue(pmap.getMappingCopyStr().containsKey("")) ;
     }
 
     @Test
@@ -68,8 +66,8 @@ public abstract class AbstractTestPrefixMap extends BaseTest {
         PrefixMap pmap = getPrefixMap();
         pmap.add("", "http://example/") ;
         pmap.add("org", "http://example.org/") ;
-        assertTrue(pmap.contains("")) ;
-        assertTrue(pmap.contains("org")) ;
+        assertTrue(pmap.containsPrefix("")) ;
+        assertTrue(pmap.containsPrefix("org")) ;
         assertFalse(pmap.isEmpty()) ;
         assertEquals(2, pmap.size()) ;
     }
@@ -83,8 +81,8 @@ public abstract class AbstractTestPrefixMap extends BaseTest {
         PrefixMap pmap2 = getPrefixMap();
         pmap2.putAll(pmap1) ;
 
-        assertTrue(pmap2.contains("")) ;
-        assertTrue(pmap2.contains("org")) ;
+        assertTrue(pmap2.containsPrefix("")) ;
+        assertTrue(pmap2.containsPrefix("org")) ;
         assertFalse(pmap2.isEmpty()) ;
         assertEquals(2, pmap2.size()) ;
     }
@@ -293,6 +291,15 @@ public abstract class AbstractTestPrefixMap extends BaseTest {
         pmTest("http://example/a", "q1:");
     }
 
+    @Test
+    public void prefixMap_abbrev_20() {
+        PrefixMap pmap = PrefixMapFactory.create();
+        pmap.add("ex", "http://example/");
+        pmap.delete("ex");
+        String x = pmap.abbreviate("http://example/s");
+        assertNull(x);
+    }
+
     public void pmTest(String iriStr, String... expected) {
         PrefixMap pm = create();
         String x = pm.abbreviate(iriStr);
@@ -306,7 +313,7 @@ public abstract class AbstractTestPrefixMap extends BaseTest {
             if (possible.equals(x))
                 return;
         }
-        fail("Expected one of " + StrUtils.strjoin(" , ", expected) + " but got " + x);
+        fail("Expected one of " + String.join(" , ", expected) + " but got " + x);
     }
 
     /**
@@ -320,7 +327,7 @@ public abstract class AbstractTestPrefixMap extends BaseTest {
      *            URI
      */
     protected void add(PrefixMap pmap, String prefix, String uri) {
-        pmap.add(prefix, factory.create(uri));
+        pmap.add(prefix, uri);
     }
 
 }

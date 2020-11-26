@@ -25,8 +25,7 @@ import java.sql.SQLException;
 import org.apache.jena.jdbc.JdbcCompatibility;
 import org.apache.jena.jdbc.connections.DatasetConnection;
 import org.apache.jena.jdbc.tdb.metadata.TDBDatasetMetadata;
-
-import com.hp.hpl.jena.query.Dataset;
+import org.apache.jena.query.Dataset ;
 
 /**
  * Represents a dataset connection backed by a TDB dataset
@@ -41,7 +40,7 @@ public class TDBConnection extends DatasetConnection {
      * @param ds Dataset
      * @param holdability Result Set holdability
      * @param autoCommit Auto-commit mode
-     * @param compatibilityLevel JDBC compatability level, see {@link JdbcCompatibility}
+     * @param compatibilityLevel JDBC compatibility level, see {@link JdbcCompatibility}
      * @throws SQLException
      */
     public TDBConnection(Dataset ds, int holdability, boolean autoCommit, int compatibilityLevel) throws SQLException {
@@ -50,7 +49,7 @@ public class TDBConnection extends DatasetConnection {
     }
 
     @Override
-    public DatabaseMetaData getMetaData() throws SQLException {
+    public DatabaseMetaData getMetaData() {
         return this.metadata;
     }
 

@@ -18,35 +18,30 @@
 
 package org.apache.jena.atlas.data;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.io.File ;
-import java.util.ArrayList ;
-import java.util.Arrays ;
-import java.util.Iterator ;
-import java.util.List ;
-import java.util.Random ;
+import java.util.*;
 
-import junit.framework.TestCase ;
-
-import org.apache.jena.atlas.data.DistinctDataNet ;
-import org.apache.jena.atlas.data.ThresholdPolicyCount ;
 import org.apache.jena.atlas.iterator.Iter ;
-import org.junit.Test ;
+import org.apache.jena.datatypes.xsd.XSDDatatype ;
+import org.apache.jena.graph.NodeFactory ;
+import org.apache.jena.query.SortCondition ;
 import org.apache.jena.riot.system.SerializationFactoryFinder ;
-import com.hp.hpl.jena.datatypes.xsd.XSDDatatype ;
-import com.hp.hpl.jena.graph.NodeFactory ;
-import com.hp.hpl.jena.query.SortCondition ;
-import com.hp.hpl.jena.sparql.core.Var ;
-import com.hp.hpl.jena.sparql.engine.binding.Binding ;
-import com.hp.hpl.jena.sparql.engine.binding.BindingComparator ;
-import com.hp.hpl.jena.sparql.engine.binding.BindingFactory ;
-import com.hp.hpl.jena.sparql.engine.binding.BindingMap ;
-import com.hp.hpl.jena.sparql.resultset.ResultSetCompare ;
-import com.hp.hpl.jena.sparql.sse.Item ;
-import com.hp.hpl.jena.sparql.sse.SSE ;
-import com.hp.hpl.jena.sparql.sse.builders.BuilderBinding ;
-import com.hp.hpl.jena.sparql.util.NodeUtils ;
+import org.apache.jena.sparql.core.Var ;
+import org.apache.jena.sparql.engine.binding.Binding ;
+import org.apache.jena.sparql.engine.binding.BindingComparator ;
+import org.apache.jena.sparql.engine.binding.BindingFactory ;
+import org.apache.jena.sparql.engine.binding.BindingMap ;
+import org.apache.jena.sparql.resultset.ResultSetCompare ;
+import org.apache.jena.sparql.sse.Item ;
+import org.apache.jena.sparql.sse.SSE ;
+import org.apache.jena.sparql.sse.builders.BuilderBinding ;
+import org.apache.jena.sparql.util.NodeUtils ;
+import org.junit.Test ;
 
-public class TestDistinctDataNet extends TestCase
+public class TestDistinctDataNet
 {
     private static final String LETTERS = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM";
     Random random = new Random();
@@ -97,7 +92,7 @@ public class TestDistinctDataNet extends TestCase
         }
         
         assertEquals(control.size(), distinct.size());
-        assertTrue(ResultSetCompare.equalsByTest(control, distinct, NodeUtils.sameTerm));
+        assertTrue(ResultSetCompare.equalsByTest(control, distinct, NodeUtils.sameNode));
     }
     
     @Test
@@ -144,7 +139,7 @@ public class TestDistinctDataNet extends TestCase
         }
         
         assertEquals(control.size(), distinct.size());
-        assertTrue(ResultSetCompare.equalsByTest(control, distinct, NodeUtils.sameTerm));
+        assertTrue(ResultSetCompare.equalsByTest(control, distinct, NodeUtils.sameNode));
     }
     
     @Test
@@ -208,7 +203,7 @@ public class TestDistinctDataNet extends TestCase
     
     private void testDiff(String first, String second, String expected)
     {
-        DistinctDataNet.SortedDiffIterator<String> sdi = DistinctDataNet.SortedDiffIterator.create(
+        DistinctDataNet.SortedDiffIterator.create(
                 Arrays.asList(first.split(" ")).iterator(),
                 Arrays.asList(second.split(" ")).iterator());
         
@@ -269,16 +264,16 @@ public class TestDistinctDataNet extends TestCase
     private Binding randomBinding(Var[] vars)
     {
         BindingMap binding = BindingFactory.create();
-        binding.add(vars[0], NodeFactory.createAnon());
+        binding.add(vars[0], NodeFactory.createBlankNode());
         binding.add(vars[1], NodeFactory.createURI(randomURI()));
         binding.add(vars[2], NodeFactory.createURI(randomURI()));
         binding.add(vars[3], NodeFactory.createLiteral(randomString(20)));
-        binding.add(vars[4], NodeFactory.createAnon());
+        binding.add(vars[4], NodeFactory.createBlankNode());
         binding.add(vars[5], NodeFactory.createURI(randomURI()));
         binding.add(vars[6], NodeFactory.createURI(randomURI()));
         binding.add(vars[7], NodeFactory.createLiteral(randomString(5)));
         binding.add(vars[8], NodeFactory.createLiteral("" + random.nextInt(), XSDDatatype.XSDinteger));
-        binding.add(vars[9], NodeFactory.createAnon());
+        binding.add(vars[9], NodeFactory.createBlankNode());
         return binding;
     }
 

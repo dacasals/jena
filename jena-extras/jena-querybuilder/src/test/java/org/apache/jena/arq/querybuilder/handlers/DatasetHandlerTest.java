@@ -23,14 +23,12 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.jena.arq.querybuilder.handlers.DatasetHandler;
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.NodeFactory ;
+import org.apache.jena.query.Query ;
+import org.apache.jena.sparql.core.Var ;
 import org.junit.Before;
 import org.junit.Test;
-
-import com.hp.hpl.jena.graph.Node;
-import com.hp.hpl.jena.graph.NodeFactory;
-import com.hp.hpl.jena.query.Query;
-import com.hp.hpl.jena.sparql.core.Var;
 
 public class DatasetHandlerTest extends AbstractHandlerTest {
 	private Query query;
@@ -84,7 +82,7 @@ public class DatasetHandlerTest extends AbstractHandlerTest {
 
 	@Test
 	public void setVarsFromNamed() {
-		Map<Var, Node> values = new HashMap<Var, Node>();
+		Map<Var, Node> values = new HashMap<>();
 		handler.fromNamed("?foo");
 		handler.from("?bar");
 		values.put(Var.alloc("foo"),
@@ -97,7 +95,7 @@ public class DatasetHandlerTest extends AbstractHandlerTest {
 
 	@Test
 	public void setVarsFrom() {
-		Map<Var, Node> values = new HashMap<Var, Node>();
+		Map<Var, Node> values = new HashMap<>();
 		handler.fromNamed("?foo");
 		handler.from("?bar");
 		values.put(Var.alloc("bar"),
@@ -110,7 +108,7 @@ public class DatasetHandlerTest extends AbstractHandlerTest {
 
 	@Test
 	public void setVarsBoth() {
-		Map<Var, Node> values = new HashMap<Var, Node>();
+		Map<Var, Node> values = new HashMap<>();
 		handler.fromNamed("?foo");
 		handler.from("?bar");
 		values.put(Var.alloc("bar"),

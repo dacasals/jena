@@ -18,65 +18,44 @@
 
 package org.apache.jena.fuseki.servlets;
 
-import java.io.IOException ;
+import java.io.IOException;
 
-import javax.servlet.* ;
-import javax.servlet.http.HttpServletRequest ;
-import javax.servlet.http.HttpServletResponse ;
+import javax.servlet.*;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
-import org.apache.jena.fuseki.Fuseki ;
-import org.apache.jena.fuseki.server.DataAccessPointRegistry ;
-import org.slf4j.Logger ;
+import org.apache.jena.fuseki.Fuseki;
+import org.apache.jena.fuseki.server.Dispatcher;
+import org.slf4j.Logger;
 
-/** Look at all requests and see if they match a registered dataset name; 
+/** Look at all requests and see if they match a registered dataset name;
  * if they do, pass down to the uber servlet, which can dispatch any request
- * for any service. 
+ * for any service.
  */
 public class FusekiFilter implements Filter {
-    private static Logger log = Fuseki.serverLog ;
-    private static SPARQL_UberServlet überServlet = new SPARQL_UberServlet.AccessByConfig() ;
-    
+    private static Logger log = Fuseki.serverLog;
+
     @Override
-    public void init(FilterConfig filterConfig) throws ServletException {
-//        log.info("Filter: ["+Utils.className(this)+"] ServletContextName = "+filterConfig.getServletContext().getServletContextName()) ;
-//        log.info("Filter: ["+Utils.className(this)+"] ContextPath        = "+filterConfig.getServletContext().getContextPath()) ;
+    public void init(FilterConfig filterConfig) {
+//        log.info("Filter: ["+Utils.className(this)+"] ServletContextName = "+filterConfig.getServletContext().getServletContextName());
+//        log.info("Filter: ["+Utils.className(this)+"] ContextPath        = "+filterConfig.getServletContext().getContextPath());
     }
 
-    private static final boolean LogFilter = false ;     // Development debugging (can be excessive!)
-    
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
         throws IOException, ServletException {
         try {
-            HttpServletRequest req = (HttpServletRequest)request ;
-            HttpServletResponse resp = (HttpServletResponse)response ;
+            HttpServletRequest req = (HttpServletRequest)request;
+            HttpServletResponse resp = (HttpServletResponse)response;
 
-            // Handle context path
-            String uri = ActionLib.actionURI(req) ;
-            String datasetUri = ActionLib.mapActionRequestToDataset(uri) ;
+            boolean handled = Dispatcher.dispatch(req, resp);
+            if ( handled )
+                return;
+        } catch (Throwable ex) {
+            log.info("Filter: unexpected exception: "+ex.getMessage(),ex);
+        }
 
-            // is it a long running operation?
-            // (this could be a separate filter)
-            
-            if ( LogFilter ) {
-                log.info("Filter: Request URI = "+req.getRequestURI()) ;
-                log.info("Filter: Action URI  = "+uri) ;
-                log.info("Filter: Dataset URI = "+datasetUri) ;
-            }
-            
-            if ( datasetUri != null ) {        
-                if ( DataAccessPointRegistry.get().isRegistered(datasetUri) ) {
-                    if ( LogFilter )
-                        log.info("Filter: dispatch") ;
-                    überServlet.doCommon(req, resp) ;
-                    return ;
-                }
-            }
-        } catch (Exception ex) {}
-        
-        if ( LogFilter )
-            log.info("Filter: pass to chain") ;
-        // Not found - continue. 
+        // Not found - continue.
         chain.doFilter(request, response);
     }
 

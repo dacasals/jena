@@ -17,21 +17,20 @@
 -->
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-
+  
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.apache.jena</groupId>
     <artifactId>apache-jena-osgi</artifactId>
-    <version>2.13.1-SNAPSHOT</version>
+    <version>3.16.0-SNAPSHOT</version>
   </parent>
-  <artifactId>jena-osgi</artifactId>
+  <artifactId>jena-osgi</artifactId>  
   <packaging>bundle</packaging>
   <name>Apache Jena - OSGi bundle</name>
   <description>
     Embedding the main Jena modules (iri/core/arq/tdb) in a single OSGi bundle.
   </description>
-
-
+  
   <!--
        Most of the job is done by maven-bundle-plugin (see below).
        It inspects the embedded/shadowed class files from jena-* to
@@ -77,57 +76,85 @@
     <dependency>
       <groupId>org.apache.jena</groupId>
       <artifactId>jena-arq</artifactId>
-      <version>2.13.1-SNAPSHOT</version>
+      <version>3.16.0-SNAPSHOT</version>
       <scope>provided</scope>
       <exclusions>
-	<!-- These are all embedded within httpclient-osgi -->
-	<exclusion>
-	  <groupId>org.apache.httpcomponents</groupId>
-	  <artifactId>httpclient</artifactId>
-	</exclusion>
-	<exclusion>
-	  <groupId>commons-codec</groupId>
-	  <artifactId>commons-codec</artifactId>
-	</exclusion>
-	<exclusion>
-	  <groupId>org.apache.httpcomponents</groupId>
-	  <artifactId>httpmime</artifactId>
-	</exclusion>
-	<exclusion>
-	  <groupId>org.apache.httpcomponents</groupId>
-	  <artifactId>httpclient-cache</artifactId>
-	</exclusion>
-	<exclusion>
-	  <groupId>org.apache.httpcomponents</groupId>
-	  <artifactId>fluent-hc</artifactId>
-	</exclusion>
+        <!-- These are all embedded within httpclient-osgi -->
+        <exclusion>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpclient</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>commons-codec</groupId>
+          <artifactId>commons-codec</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpmime</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpclient-cache</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>fluent-hc</artifactId>
+        </exclusion>
       </exclusions>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.apache.jena</groupId>
+      <artifactId>jena-core</artifactId>
+      <version>3.16.0-SNAPSHOT</version>
+      <scope>provided</scope>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.apache.jena</groupId>
+      <artifactId>jena-rdfconnection</artifactId>
+      <version>3.16.0-SNAPSHOT</version>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.apache.jena</groupId>
-      <artifactId>jena-core</artifactId>
-      <version>2.13.1-SNAPSHOT</version>
+      <artifactId>jena-shaded-guava</artifactId>
+      <version>3.16.0-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
+
     <dependency>
       <groupId>org.apache.jena</groupId>
-      <artifactId>jena-shaded-guava</artifactId>
-      <version>2.13.1-SNAPSHOT</version>
+      <artifactId>jena-commonsrdf</artifactId>
+      <version>3.16.0-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.apache.jena</groupId>
       <artifactId>jena-tdb</artifactId>
-      <version>1.1.3-SNAPSHOT</version>
+      <version>3.16.0-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.apache.jena</groupId>
+      <artifactId>jena-tdb2</artifactId>
+      <version>3.16.0-SNAPSHOT</version>
+      <scope>provided</scope>
+    </dependency>
+    <!--
+    NOTE: Also update 
+    src/main/resources/META-INF/services/org.apache.jena.sys.JenaSubsystemLifecycle
+    to the concatenation of the different Jena modules' JenaSubsystemLifecycle
+    (order does not matter). See JENA-1139 for details.
+    -->
+
+    <dependency>
+      <groupId>org.apache.jena</groupId>
       <artifactId>jena-iri</artifactId>
-      <version>1.1.3-SNAPSHOT</version>
+      <version>3.16.0-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
 
@@ -135,35 +162,35 @@
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpclient-osgi</artifactId>
-      <version>${ver.httpclient}</version>
+      <version>${ver.httpclient-osgi}</version>
       <exclusions>
-	<!-- These are all embedded within httpclient-osgi -->
-	<exclusion>
-	  <groupId>org.apache.httpcomponents</groupId>
-	  <artifactId>httpclient</artifactId>
-	</exclusion>
-	<exclusion>
-	  <groupId>commons-codec</groupId>
-	  <artifactId>commons-codec</artifactId>
-	</exclusion>
-	<exclusion>
-	  <groupId>org.apache.httpcomponents</groupId>
-	  <artifactId>httpmime</artifactId>
-	</exclusion>
-	<exclusion>
-	  <groupId>org.apache.httpcomponents</groupId>
-	  <artifactId>httpclient-cache</artifactId>
-	</exclusion>
-	<exclusion>
-	  <groupId>org.apache.httpcomponents</groupId>
-	  <artifactId>fluent-hc</artifactId>
-	</exclusion>
+        <!-- These are all embedded within httpclient-osgi -->
+        <exclusion>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpclient</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>commons-codec</groupId>
+          <artifactId>commons-codec</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpmime</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpclient-cache</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>fluent-hc</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpcore-osgi</artifactId>
-      <version>${ver.httpcore}</version> 
+      <version>${ver.httpcore-osgi}</version> 
       <exclusions>
         <exclusion>
           <groupId>org.apache.httpcomponents</groupId>
@@ -212,6 +239,15 @@
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
     </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-rdf-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.osgi</groupId>
+      <artifactId>org.osgi.core</artifactId>
+      <version>5.0.0</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -223,11 +259,32 @@
         <extensions>true</extensions>
         <configuration>
           <instructions>
-            <Export-Package>com.hp.hpl.jena.*,!org.apache.jena.ext.*,org.apache.jena.*</Export-Package>
-            <Embed-Dependency>artifactId=jena*;inline=true,artifactId=xercesImpl;inline=true,artifactId=xml-apis;inline=true</Embed-Dependency>
+            <Export-Package>org.apache.jena.*,!org.apache.jena.ext.*</Export-Package>            
+            <Embed-Dependency>artifactId=jena*;inline=true</Embed-Dependency>
             <Embed-Transitive>true</Embed-Transitive>
-            <Import-Package>!sun.io,!org.apache.avalon.framework.logger,!com.ibm.uvm.tools,!com.sun.jdmk.comm,!org.apache.log,!org.apache.xml.*,!org.apache.xerces.*,!org.apache.jena.ext.*,sun.misc;resolution:=optional,*</Import-Package>
+            <Import-Package>
+              org.osgi.framework.*,
+              !sun.io,
+              !org.apache.avalon.framework.logger,
+              !com.ibm.uvm.tools,
+              !com.sun.jdmk.comm,
+              !org.apache.log,
+              !org.apache.jena.ext.*,
+              !org.checkerframework.checker.*,
+              !com.google.errorprone.annotations.*,
+              !com.google.appengine.api,
+              !com.google.apphosting.api,
+              org.apache.logging.*;resolution:=optional,
+              sun.misc;resolution:=optional,
+              *
+            </Import-Package>
+            <!--
+            <Import-Package>org.osgi.framework.*,!sun.io,!org.apache.avalon.framework.logger,!com.ibm.uvm.tools,!com.sun.jdmk.comm,!org.apache.log,!org.apache.xml.*,!org.apache.jena.ext.*,sun.misc;resolution:=optional,*</Import-Package>
+            -->
             <Private-Package>org.apache.jena.ext.*</Private-Package>
+            <Bundle-Activator>org.apache.jena.osgi.Activator</Bundle-Activator>
+            <Provide-Capability>osgi.serviceloader; osgi.serviceloader=org.apache.commons.rdf.api.RDF</Provide-Capability>
+            <Require-Capability>osgi.extender; filter:="(osgi.extender=osgi.serviceloader.registrar)";resolution:=optional</Require-Capability>
           </instructions>
         </configuration>
       </plugin>

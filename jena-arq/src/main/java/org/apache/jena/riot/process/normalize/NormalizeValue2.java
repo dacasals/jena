@@ -21,10 +21,9 @@ package org.apache.jena.riot.process.normalize;
 import static org.apache.jena.atlas.lib.Chars.CH_DOT ;
 import static org.apache.jena.atlas.lib.Chars.CH_MINUS ;
 import static org.apache.jena.atlas.lib.Chars.CH_PLUS ;
-
-import com.hp.hpl.jena.datatypes.RDFDatatype ;
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.graph.NodeFactory ;
+import org.apache.jena.datatypes.RDFDatatype ;
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.NodeFactory ;
 
 class NormalizeValue2
 {
@@ -120,39 +119,31 @@ class NormalizeValue2
     
     // --- Working versions 
     
-    static DatatypeHandler dtInteger = new DatatypeHandler() {
-        @Override
-        public Node handle(Node node, String lexicalForm, RDFDatatype datatype)
-        {
-            char[] chars = lexicalForm.toCharArray() ;
-            if ( chars.length == 0 )
-                // Illegal lexical form.
-                return node ;
-            stripLeadingPlus(chars) ;
-            stripLeadingZeros(chars) ;
-            String lex2 = rebuild(chars) ;
-            if ( lex2 == null )
-                return node ;
-            return NodeFactory.createLiteral(lex2, datatype) ;
-        }
+    static DatatypeHandler dtInteger = (Node node, String lexicalForm, RDFDatatype datatype) -> {
+        char[] chars = lexicalForm.toCharArray() ;
+        if ( chars.length == 0 )
+            // Illegal lexical form.
+            return node ;
+        stripLeadingPlus(chars) ;
+        stripLeadingZeros(chars) ;
+        String lex2 = rebuild(chars) ;
+        if ( lex2 == null )
+            return node ;
+        return NodeFactory.createLiteral(lex2, datatype) ;
     } ;
 
-    static DatatypeHandler dtDecimal = new DatatypeHandler() {
-        @Override
-        public Node handle(Node node, String lexicalForm, RDFDatatype datatype)
-        {
-            // Need to force "0."
-            char[] chars = lexicalForm.toCharArray() ;
-            if ( chars.length == 0 )
-                // Illegal lexical form.
-                return node ;
-            stripLeadingPlus(chars) ;
-            stripLeadingZeros(chars) ;
-            stripTrailingZeros(chars) ;
-            String lex2 = rebuild(chars) ;
-            if ( lex2 == null )
-                return node ;
-            return NodeFactory.createLiteral(lex2, datatype) ;
-        }
+    static DatatypeHandler dtDecimal = (Node node, String lexicalForm, RDFDatatype datatype) -> {
+        // Need to force "0."
+        char[] chars = lexicalForm.toCharArray() ;
+        if ( chars.length == 0 )
+            // Illegal lexical form.
+            return node ;
+        stripLeadingPlus(chars) ;
+        stripLeadingZeros(chars) ;
+        stripTrailingZeros(chars) ;
+        String lex2 = rebuild(chars) ;
+        if ( lex2 == null )
+            return node ;
+        return NodeFactory.createLiteral(lex2, datatype) ;
     } ;
 }

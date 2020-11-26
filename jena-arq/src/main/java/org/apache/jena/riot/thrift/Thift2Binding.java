@@ -24,20 +24,19 @@ import java.util.Iterator ;
 import java.util.List ;
 
 import org.apache.jena.atlas.iterator.IteratorSlotted ;
+import org.apache.jena.graph.Node ;
 import org.apache.jena.riot.thrift.wire.RDF_DataTuple ;
 import org.apache.jena.riot.thrift.wire.RDF_Term ;
 import org.apache.jena.riot.thrift.wire.RDF_VAR ;
 import org.apache.jena.riot.thrift.wire.RDF_VarTuple ;
+import org.apache.jena.sparql.core.Var ;
+import org.apache.jena.sparql.engine.binding.Binding ;
+import org.apache.jena.sparql.engine.binding.BindingFactory ;
+import org.apache.jena.sparql.engine.binding.BindingMap ;
 import org.apache.thrift.TException ;
 import org.apache.thrift.protocol.TProtocol ;
 import org.apache.thrift.transport.TIOStreamTransport ;
 import org.apache.thrift.transport.TTransportException ;
-
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.sparql.core.Var ;
-import com.hp.hpl.jena.sparql.engine.binding.Binding ;
-import com.hp.hpl.jena.sparql.engine.binding.BindingFactory ;
-import com.hp.hpl.jena.sparql.engine.binding.BindingMap ;
 
 /** Converted from SPARQL result set encoded in Thrift to Bindings */
 public class Thift2Binding extends IteratorSlotted<Binding> implements Iterator<Binding> {
@@ -65,16 +64,13 @@ public class Thift2Binding extends IteratorSlotted<Binding> implements Iterator<
         RDF_VarTuple vrow = new RDF_VarTuple() ;
         try { vrow.read(protocol) ; }
         catch (TException e) { TRDF.exception(e) ; }
-        // ** Java8
-//        vrow.getVars().forEach(rv -> {
-//            String vn = rv.getName() ;
-//            Var v = Var.alloc(rv.getName()) ;
-//            varNames.add(vn) ;
-//        }) ;
-        for ( RDF_VAR rv : vrow.getVars() ) {
-            String vn = rv.getName() ;
-            Var v = Var.alloc(rv.getName()) ;
-            varNames.add(vn) ;
+        if ( vrow.getVars() != null ) {
+            // It can be null if there are no variables and both the encoder
+            // and the allocation above used RDF_VarTuple().
+            for ( RDF_VAR rv : vrow.getVars() ) {
+                String vn = rv.getName() ;
+                varNames.add(vn) ;
+            }
         }
         vars = Var.varList(varNames) ;
     }
@@ -82,7 +78,6 @@ public class Thift2Binding extends IteratorSlotted<Binding> implements Iterator<
     public List<Var> getVars()              { return vars ; }
 
     public List<String> getVarNames()       { return varNames ; }
-
     
     @Override
     protected Binding moveToNext() {

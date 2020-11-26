@@ -18,22 +18,14 @@
 package org.apache.jena.arq.querybuilder.rewriters;
 
 import java.util.Map;
-import com.hp.hpl.jena.graph.Node;
-import com.hp.hpl.jena.sparql.core.Var;
-import com.hp.hpl.jena.sparql.expr.NodeValue;
-import com.hp.hpl.jena.sparql.expr.nodevalue.NodeValueBoolean;
-import com.hp.hpl.jena.sparql.expr.nodevalue.NodeValueDT;
-import com.hp.hpl.jena.sparql.expr.nodevalue.NodeValueDecimal;
-import com.hp.hpl.jena.sparql.expr.nodevalue.NodeValueDouble;
-import com.hp.hpl.jena.sparql.expr.nodevalue.NodeValueDuration;
-import com.hp.hpl.jena.sparql.expr.nodevalue.NodeValueFloat;
-import com.hp.hpl.jena.sparql.expr.nodevalue.NodeValueInteger;
-import com.hp.hpl.jena.sparql.expr.nodevalue.NodeValueNode;
-import com.hp.hpl.jena.sparql.expr.nodevalue.NodeValueString;
-import com.hp.hpl.jena.sparql.expr.nodevalue.NodeValueVisitor;
+
+import org.apache.jena.graph.Node ;
+import org.apache.jena.sparql.core.Var ;
+import org.apache.jena.sparql.expr.NodeValue ;
+import org.apache.jena.sparql.expr.nodevalue.* ;
 
 /**
- * A rewriter that implements NoveValueVisitor
+ * A rewriter that implements NodeValueVisitor
  *
  */
 class NodeValueRewriter extends AbstractRewriter<NodeValue> implements
@@ -49,48 +41,59 @@ class NodeValueRewriter extends AbstractRewriter<NodeValue> implements
 
 	@Override
 	public void visit(NodeValueBoolean nv) {
-		push(new NodeValueBoolean(nv.getBoolean(), changeNode(nv.getNode())));
+		push(new NodeValueBoolean(nv.getBoolean(), changeNode(nv.asNode())));
 	}
 
 	@Override
 	public void visit(NodeValueDecimal nv) {
-		push(new NodeValueDecimal(nv.getDecimal(), changeNode(nv.getNode())));
+		push(new NodeValueDecimal(nv.getDecimal(), changeNode(nv.asNode())));
 	}
 
 	@Override
 	public void visit(NodeValueDouble nv) {
-		push(new NodeValueDouble(nv.getDouble(), changeNode(nv.getNode())));
+		push(new NodeValueDouble(nv.getDouble(), changeNode(nv.asNode())));
 	}
 
 	@Override
 	public void visit(NodeValueFloat nv) {
-		push(new NodeValueFloat(nv.getFloat(), changeNode(nv.getNode())));
+		push(new NodeValueFloat(nv.getFloat(), changeNode(nv.asNode())));
 	}
 
 	@Override
 	public void visit(NodeValueInteger nv) {
-		push(new NodeValueInteger(nv.getInteger(), changeNode(nv.getNode())));
+		push(new NodeValueInteger(nv.getInteger(), changeNode(nv.asNode())));
 	}
 
 	@Override
 	public void visit(NodeValueNode nv) {
-		push(new NodeValueNode(changeNode(nv.getNode())));
+		push(new NodeValueNode(changeNode(nv.asNode())));
 	}
 
 	@Override
 	public void visit(NodeValueString nv) {
-		push(new NodeValueString(nv.getString(), changeNode(nv.getNode())));
+		push(new NodeValueString(nv.getString(), changeNode(nv.asNode())));
 	}
+
+    @Override
+    public void visit(NodeValueSortKey nv) {
+    	push(new NodeValueSortKey(nv.getString(), nv.getCollation(), changeNode(nv.asNode())));
+    }
 
 	@Override
 	public void visit(NodeValueDT nv) {
 		push(new NodeValueDT(nv.getDateTime().toXMLFormat(),
-				changeNode(nv.getNode())));
+				changeNode(nv.asNode())));
 	}
 
 	@Override
 	public void visit(NodeValueDuration nodeValueDuration) {
 		push(new NodeValueDuration(nodeValueDuration.getDuration(),
-				changeNode(nodeValueDuration.getNode())));
+				changeNode(nodeValueDuration.asNode())));
+	}
+
+	@Override
+	public void visit(NodeValueLang nv) {
+		
+		push( new NodeValueLang( changeNode(nv.asNode() )));
 	}
 }

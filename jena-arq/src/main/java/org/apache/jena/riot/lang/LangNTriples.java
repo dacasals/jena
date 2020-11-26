@@ -18,6 +18,8 @@
 
 package org.apache.jena.riot.lang;
 
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.Triple ;
 import org.apache.jena.riot.Lang ;
 import org.apache.jena.riot.RDFLanguages ;
 import org.apache.jena.riot.system.ParserProfile ;
@@ -28,9 +30,6 @@ import org.apache.jena.riot.tokens.Tokenizer ;
 import org.slf4j.Logger ;
 import org.slf4j.LoggerFactory ;
 
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.graph.Triple ;
-
 /**
  * N-Triples.
  * 
@@ -40,10 +39,7 @@ public final class LangNTriples extends LangNTuple<Triple>
 {
     private static Logger messageLog = LoggerFactory.getLogger("N-Triples") ;
     
-    public LangNTriples(Tokenizer tokens,
-                        ParserProfile profile,
-                        StreamRDF dest)
-    {
+    public LangNTriples(Tokenizer tokens, ParserProfile profile, StreamRDF dest) {
         super(tokens, profile, dest) ;
     }
     
@@ -52,53 +48,25 @@ public final class LangNTriples extends LangNTuple<Triple>
 
     /** Method to parse the whole stream of triples, sending each to the sink */ 
     @Override
-    protected final void runParser()
-    {
-        while(hasNext())
-        {
-            Triple x = parseOne() ;
+    protected final void runParser() {
+        while (hasNext()) {
+            Triple x = parseOne();
             if ( x != null )
-                dest.triple(x) ;
+                dest.triple(x);
         }
     }
-    
-    @Override
-    protected final Triple parseOne() 
-    { 
-        Token sToken = nextToken() ;
-        if ( sToken.isEOF() )
-            exception(sToken, "Premature end of file: %s", sToken) ;
-        
-        Token pToken = nextToken() ;
-        if ( pToken.isEOF() )
-            exception(pToken, "Premature end of file: %s", pToken) ;
-        
-        Token oToken = nextToken() ;
-        if ( oToken.isEOF() )
-            exception(oToken, "Premature end of file: %s", oToken) ;
 
-        // Check in createTriple - but this is cheap so do it anyway.
-        checkIRIOrBNode(sToken) ;
-        checkIRI(pToken) ;
-        checkRDFTerm(oToken) ;
-        Token x = nextToken() ;
-        
-        if ( x.getType() != TokenType.DOT )
-            exception(x, "Triple not terminated by DOT: %s", x) ;
-//        Node s = X ;
-//        Node p = X ;
-//        Node o = X ;
-//        return T ;
-        
-        Node s = tokenAsNode(sToken) ;
-        Node p = tokenAsNode(pToken) ;
-        Node o = tokenAsNode(oToken) ;
-        return profile.createTriple(s, p, o, sToken.getLine(), sToken.getColumn()) ;
-    }
-    
     @Override
-    protected final Node tokenAsNode(Token token)
-    {
-        return profile.create(null, token) ;
+    protected final Triple parseOne() {
+        Triple triple = parseTriple();
+        Token x = nextToken();
+        if ( x.getType() != TokenType.DOT )
+            exception(x, "Triple not terminated by DOT: %s", x);
+        return triple;
+    }
+
+    @Override
+    protected final Node tokenAsNode(Token token) {
+        return profile.create(null, token);
     }
 }

@@ -18,17 +18,19 @@
 
 package org.apache.jena.riot.lang;
 
+import static org.junit.Assert.assertTrue;
+
 import java.io.InputStream ;
 import java.util.Arrays ;
 
 import org.apache.jena.atlas.io.IO ;
-import org.apache.jena.atlas.junit.BaseTest ;
+import org.apache.jena.rdf.model.Model ;
 import org.apache.jena.riot.RDFDataMgr ;
 import org.apache.jena.riot.ReaderRIOT ;
-import org.apache.jena.riot.system.ErrorHandler ;
-import org.apache.jena.riot.system.ErrorHandlerFactory ;
-import org.apache.jena.riot.system.StreamRDF ;
-import org.apache.jena.riot.system.StreamRDFLib ;
+import org.apache.jena.riot.system.*;
+import org.apache.jena.sparql.core.DatasetGraph ;
+import org.apache.jena.sparql.core.DatasetGraphFactory ;
+import org.apache.jena.sparql.util.IsoMatcher ;
 import org.junit.Assert ;
 import org.junit.Test ;
 import org.junit.runner.RunWith ;
@@ -36,13 +38,8 @@ import org.junit.runners.Parameterized ;
 import org.junit.runners.Parameterized.Parameter ;
 import org.junit.runners.Parameterized.Parameters ;
 
-import com.hp.hpl.jena.rdf.model.Model ;
-import com.hp.hpl.jena.sparql.core.DatasetGraph ;
-import com.hp.hpl.jena.sparql.core.DatasetGraphFactory ;
-import com.hp.hpl.jena.sparql.util.IsoMatcher ;
-
 @RunWith(Parameterized.class)
-public class TestTriXReader extends BaseTest {
+public class TestTriXReader {
     
     static String DIR = "testing/RIOT/Lang/TriX" ;
     
@@ -66,7 +63,10 @@ public class TestTriXReader extends BaseTest {
 //                  //{ "trix-ex-2.trix", null },  // Contains <integer> 
                   { DIR+"/trix-ex-3.trix", null },
                   { DIR+"/trix-ex-4.trix", null },
-                  { DIR+"/trix-ex-5.trix", null }
+                  { DIR+"/trix-ex-5.trix", null },
+                  // W3C DTD
+                  { DIR+"/trix-w3c-1.trix", DIR+"/trix-w3c-1.nq" },
+                  { DIR+"/trix-w3c-2.trix", DIR+"/trix-w3c-2.nq" }
                   });
     }
     
@@ -78,9 +78,9 @@ public class TestTriXReader extends BaseTest {
     
     @Test
     public void trix_direct() {
-        ReaderRIOT r = new ReaderTriX() ;
+        ReaderRIOT r = new ReaderTriX(RiotLib.dftProfile(), ErrorHandlerFactory.errorHandlerNoWarnings);
         InputStream in = IO.openFile(fInput) ;
-        DatasetGraph dsg = DatasetGraphFactory.createMem() ;
+        DatasetGraph dsg = DatasetGraphFactory.create() ;
         //StreamRDF stream = StreamRDFLib.writer(System.out) ;
         StreamRDF stream = StreamRDFLib.dataset(dsg) ;
         stream.start();

@@ -20,29 +20,27 @@ package examples;
 
 import org.apache.jena.atlas.lib.StrUtils ;
 import org.apache.jena.atlas.logging.LogCtl ;
+import org.apache.jena.query.* ;
 import org.apache.jena.query.text.EntityDefinition ;
 import org.apache.jena.query.text.TextDatasetFactory ;
-import org.apache.jena.query.text.TextQuery ;
+import org.apache.jena.query.text.TextIndexConfig;
+import org.apache.jena.rdf.model.Model ;
 import org.apache.jena.riot.RDFDataMgr ;
+import org.apache.jena.sparql.util.QueryExecUtils ;
+import org.apache.jena.vocabulary.RDFS ;
+import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory ;
-import org.apache.lucene.store.RAMDirectory ;
 import org.slf4j.Logger ;
 import org.slf4j.LoggerFactory ;
-
-import com.hp.hpl.jena.query.* ;
-import com.hp.hpl.jena.rdf.model.Model ;
-import com.hp.hpl.jena.sparql.util.QueryExecUtils ;
-import com.hp.hpl.jena.vocabulary.RDFS ;
 
 /** Build a text search dataset */
 public class JenaTextExample1
 {
-    static { LogCtl.setLog4j() ; }
+    static { LogCtl.setLogging(); }
     static Logger log = LoggerFactory.getLogger("JenaTextExample") ;
     
     public static void main(String ... argv)
     {
-        TextQuery.init();
         Dataset ds = createCode() ;
         //Dataset ds = createAssembler() ;
         loadData(ds , "data.ttl") ;
@@ -56,16 +54,17 @@ public class JenaTextExample1
         // Here , in-memory base data and in-memeory Lucene index
 
         // Base data
-        Dataset ds1 = DatasetFactory.createMem() ; 
+        Dataset ds1 = DatasetFactory.create() ; 
 
         // Define the index mapping 
-        EntityDefinition entDef = new EntityDefinition("uri", "text", RDFS.label.asNode()) ;
+        EntityDefinition entDef = new EntityDefinition("uri", "text");
+        entDef.setPrimaryPredicate(RDFS.label.asNode());
 
         // Lucene, in memory.
-        Directory dir =  new RAMDirectory();
+        Directory dir =  new ByteBuffersDirectory();
         
         // Join together into a dataset
-        Dataset ds = TextDatasetFactory.createLucene(ds1, dir, entDef, null) ;
+        Dataset ds = TextDatasetFactory.createLucene(ds1, dir, new TextIndexConfig(entDef)) ;
         
         return ds ;
     }

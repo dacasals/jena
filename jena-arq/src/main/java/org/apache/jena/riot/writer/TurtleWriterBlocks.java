@@ -19,11 +19,11 @@
 package org.apache.jena.riot.writer;
 
 import org.apache.jena.atlas.io.IndentedWriter ;
+import org.apache.jena.graph.Graph ;
 import org.apache.jena.riot.system.PrefixMap ;
-import org.apache.jena.riot.system.StreamOps ;
+import org.apache.jena.riot.system.StreamRDFOps ;
 import org.apache.jena.riot.system.StreamRDF ;
-
-import com.hp.hpl.jena.graph.Graph ;
+import org.apache.jena.sparql.util.Context ;
 
 /** Turtle writer that streams - print in blocks of triples formatted
  *  by adjacent same subject.
@@ -31,11 +31,10 @@ import com.hp.hpl.jena.graph.Graph ;
 public class TurtleWriterBlocks extends TurtleWriterBase
 {
     @Override
-    protected void output(IndentedWriter out, Graph graph, PrefixMap prefixMap, String baseURI) {
-        StreamRDF dest = new WriterStreamRDFBlocks(out) ;
+    protected void output(IndentedWriter out, Graph graph, PrefixMap prefixMap, String baseURI, Context context) {
+        StreamRDF dest = new WriterStreamRDFBlocks(out, context) ;
         dest.start() ;
-        dest.base(baseURI) ;
-        StreamOps.sendGraphToStream(graph, dest, prefixMap) ;
+        StreamRDFOps.sendGraphToStream(graph, dest, baseURI, prefixMap) ;
         dest.finish() ;
     }
 }

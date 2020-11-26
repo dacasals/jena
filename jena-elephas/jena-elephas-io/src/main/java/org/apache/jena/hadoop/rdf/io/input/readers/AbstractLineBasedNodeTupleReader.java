@@ -20,6 +20,7 @@ package org.apache.jena.hadoop.rdf.io.input.readers;
 
 import java.io.IOException;
 import java.util.Iterator;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -37,7 +38,10 @@ import org.apache.jena.hadoop.rdf.io.HadoopIOConstants;
 import org.apache.jena.hadoop.rdf.io.RdfIOConstants;
 import org.apache.jena.hadoop.rdf.io.input.util.RdfIOUtils;
 import org.apache.jena.hadoop.rdf.types.AbstractNodeTupleWritable;
-import org.apache.jena.riot.system.ParserProfile;
+import org.apache.jena.riot.lang.LabelToNode;
+import org.apache.jena.riot.system.*;
+import org.apache.jena.riot.tokens.Tokenizer;
+import org.apache.jena.riot.tokens.TokenizerText;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,11 +69,11 @@ public abstract class AbstractLineBasedNodeTupleReader<TValue, T extends Abstrac
     private LongWritable key = null;
     private Text value = null;
     private T tuple = null;
-    private ParserProfile profile = null;
+    private ParserProfile maker = null;
     private boolean ignoreBadTuples = true;
 
     @Override
-    public final void initialize(InputSplit genericSplit, TaskAttemptContext context) throws IOException, InterruptedException {
+    public final void initialize(InputSplit genericSplit, TaskAttemptContext context) throws IOException {
         LOG.debug("initialize({}, {})", genericSplit, context);
 
         // Assuming file split
@@ -77,8 +81,13 @@ public abstract class AbstractLineBasedNodeTupleReader<TValue, T extends Abstrac
             throw new IOException("This record reader only supports FileSplit inputs");
         FileSplit split = (FileSplit) genericSplit;
 
-        // Configuration
-        profile = RdfIOUtils.createParserProfile(context, split.getPath());
+        // Intermediate : RDFParser but need to make a Iterator<Quad/Triple>
+        LabelToNode labelToNode = RdfIOUtils.createLabelToNode(context, split.getPath());
+        maker = new ParserProfileStd(RiotLib.factoryRDF(labelToNode), 
+                                     ErrorHandlerFactory.errorHandlerStd, 
+                                     IRIResolver.create(), PrefixMapFactory.createForInput(), 
+                                     null, true, false); 
+        
         Configuration config = context.getConfiguration();
         this.ignoreBadTuples = config.getBoolean(RdfIOConstants.INPUT_IGNORE_BAD_TUPLES, true);
         if (this.ignoreBadTuples)
@@ -124,7 +133,7 @@ public abstract class AbstractLineBasedNodeTupleReader<TValue, T extends Abstrac
         // This is to do with how line reader reads lines and how
         // NLineInputFormat will provide the split information to use
         if (skipFirstLine) {
-            start += in.readLine(new Text(), 0, (int) Math.min((long) Integer.MAX_VALUE, end - start));
+            start += in.readLine(new Text(), 0, (int) Math.min(Integer.MAX_VALUE, end - start));
         }
         this.pos = start;
     }
@@ -134,11 +143,21 @@ public abstract class AbstractLineBasedNodeTupleReader<TValue, T extends Abstrac
      * 
      * @param line
      *            Line
-     * @param profile
-     *            Parser profile
+     * @param builder
+     *            Parser setup.
      * @return Iterator
      */
-    protected abstract Iterator<TValue> getIterator(String line, ParserProfile profile);
+    protected abstract Iterator<TValue> getIterator(String line, ParserProfile maker);
+    
+    /** Create a tokenizer for a line
+     * @param line
+     *          Content
+     * @return Tokenizer
+     */
+    protected Tokenizer getTokenizer(String line) {
+        return TokenizerText.fromString(line);
+    }
+
 
     /**
      * Creates an instance of a writable tuple from the given tuple value
@@ -150,7 +169,7 @@ public abstract class AbstractLineBasedNodeTupleReader<TValue, T extends Abstrac
     protected abstract T createInstance(TValue tuple);
 
     @Override
-    public final boolean nextKeyValue() throws IOException, InterruptedException {
+    public final boolean nextKeyValue() throws IOException {
         // Reuse key for efficiency
         if (key == null) {
             key = new LongWritable();
@@ -190,7 +209,7 @@ public abstract class AbstractLineBasedNodeTupleReader<TValue, T extends Abstrac
 
             // Attempt to read the tuple from current line
             try {
-                Iterator<TValue> iter = this.getIterator(value.toString(), profile);
+                Iterator<TValue> iter = this.getIterator(value.toString(), maker);
                 if (iter.hasNext()) {
                     tuple = this.createInstance(iter.next());
 
@@ -225,19 +244,19 @@ public abstract class AbstractLineBasedNodeTupleReader<TValue, T extends Abstrac
     }
 
     @Override
-    public LongWritable getCurrentKey() throws IOException, InterruptedException {
+    public LongWritable getCurrentKey() {
         LOG.debug("getCurrentKey() --> {}", key);
         return key;
     }
 
     @Override
-    public T getCurrentValue() throws IOException, InterruptedException {
+    public T getCurrentValue() {
         LOG.debug("getCurrentValue() --> {}", tuple);
         return tuple;
     }
 
     @Override
-    public float getProgress() throws IOException, InterruptedException {
+    public float getProgress() {
         float progress = 0.0f;
         if (start != end) {
             if (end == Long.MAX_VALUE) {

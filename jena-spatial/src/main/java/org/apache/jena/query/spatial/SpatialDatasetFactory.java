@@ -18,19 +18,17 @@
 
 package org.apache.jena.query.spatial;
 
+import org.apache.jena.query.Dataset ;
+import org.apache.jena.query.DatasetFactory ;
 import org.apache.jena.query.spatial.assembler.SpatialVocab;
+import org.apache.jena.sparql.core.DatasetGraph ;
+import org.apache.jena.sparql.core.assembler.AssemblerUtils ;
+import org.apache.jena.sys.JenaSystem ;
 import org.apache.lucene.store.Directory;
-import org.apache.solr.client.solrj.SolrServer;
-
-import com.hp.hpl.jena.query.Dataset;
-import com.hp.hpl.jena.query.DatasetFactory;
-import com.hp.hpl.jena.sparql.core.DatasetGraph;
-import com.hp.hpl.jena.sparql.core.assembler.AssemblerUtils;
-import com.hp.hpl.jena.sparql.util.Context;
 
 public class SpatialDatasetFactory
 {
-    static { SpatialQuery.init(); }
+    static { JenaSystem.init(); }
     
     /** Use an assembler file to build a dataset with spatial search capabilities */ 
     public static Dataset create(String assemblerFile)
@@ -43,7 +41,7 @@ public class SpatialDatasetFactory
     {
         DatasetGraph dsg = base.asDatasetGraph() ;
         dsg = create(dsg, textIndex) ;
-        return DatasetFactory.create(dsg) ;
+        return DatasetFactory.wrap(dsg) ;
     }
 
 
@@ -53,8 +51,6 @@ public class SpatialDatasetFactory
         SpatialDocProducer producer = new SpatialDocProducerTriples(spatialIndex) ;
         DatasetGraph dsgt = new DatasetGraphSpatial(dsg, spatialIndex, producer) ;
         // Also set on dsg
-        Context c = dsgt.getContext() ;
-        
         dsgt.getContext().set(SpatialQuery.spatialIndex, spatialIndex) ;
         return dsgt ;
 
@@ -81,25 +77,5 @@ public class SpatialDatasetFactory
         return create(base, index) ; 
     }
 
-    /** Create a Solr TextIndex */ 
-    public static SpatialIndex createSolrIndex(SolrServer server, EntityDefinition entMap)
-    {
-        SpatialIndex index = new SpatialIndexSolr(server, entMap) ;
-        return index ; 
-    }
-
-    /** Create a text-indexed dataset, using Solr */ 
-    public static Dataset createSolrIndex(Dataset base, SolrServer server, EntityDefinition entMap)
-    {
-        SpatialIndex index = createSolrIndex(server, entMap) ;
-        return create(base, index) ; 
-    }
-
-    /** Create a text-indexed dataset, using Solr */ 
-    public static DatasetGraph createSolrIndex(DatasetGraph base, SolrServer server, EntityDefinition entMap)
-    {
-        SpatialIndex index = createSolrIndex(server, entMap) ;
-        return create(base, index) ; 
-    }
 }
 

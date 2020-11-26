@@ -25,14 +25,12 @@ import org.apache.jena.jdbc.JdbcCompatibility;
 import org.apache.jena.jdbc.connections.AbstractJenaConnectionTests;
 import org.apache.jena.jdbc.connections.DatasetConnection;
 import org.apache.jena.jdbc.connections.JenaConnection;
-import org.apache.jena.jdbc.tdb.connections.TDBConnection;
 import org.apache.jena.jdbc.utils.TestUtils;
+import org.apache.jena.query.Dataset ;
+import org.apache.jena.tdb.TDBFactory ;
+import org.apache.jena.tdb.base.file.Location ;
+import org.apache.jena.tdb.sys.TDBInternal;
 import org.junit.After;
-
-import com.hp.hpl.jena.query.Dataset;
-import com.hp.hpl.jena.tdb.StoreConnection;
-import com.hp.hpl.jena.tdb.TDBFactory;
-import com.hp.hpl.jena.tdb.base.file.Location;
 
 /**
  * Tests for the {@link DatasetConnection} backed by a purely in-memory testing
@@ -46,7 +44,7 @@ public class TestTdbMemConnection extends AbstractJenaConnectionTests {
      */
     @After
     public void cleanupTest() {
-        StoreConnection.expel(Location.mem(), true);
+        TDBInternal.expel(Location.mem(), true);
     }
 
     @Override

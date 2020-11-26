@@ -18,13 +18,13 @@
 
 package org.apache.jena.riot.lang;
 
-import java.util.concurrent.atomic.AtomicLong ;
+import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.jena.riot.out.NodeToLabel ;
+import org.apache.jena.graph.Node;
+import org.apache.jena.graph.NodeFactory;
+import org.apache.jena.riot.out.NodeToLabel;
 
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.graph.NodeFactory ;
-import com.hp.hpl.jena.rdf.model.AnonId ;
+
 
 /** Allocate blank nodes according to the label given.
  *  The reverse operation is {@link NodeToLabel#createBNodeByLabelAsGiven()}
@@ -36,24 +36,24 @@ import com.hp.hpl.jena.rdf.model.AnonId ;
 
 public class BlankNodeAllocatorLabel implements BlankNodeAllocator
 {
-    private AtomicLong counter = new AtomicLong(0) ;
+    private AtomicLong counter = new AtomicLong(0);
     
     public BlankNodeAllocatorLabel()  {}
 
     @Override
-    public void reset()         { counter = new AtomicLong(0) ; }
+    public void reset()         { counter = new AtomicLong(0); }
 
     @Override
-    public Node alloc(String label) { return create(label) ; }
+    public Node alloc(String label) { return create(label); }
     
     @Override
     public Node create() {
-        long x = counter.getAndIncrement() ;
-        Node n = create("@" + x) ;
-        return n ;
+        long x = counter.getAndIncrement();
+        Node n = create("@" + x);
+        return n;
     }
     
     private Node create(String label) {
-        return NodeFactory.createAnon(new AnonId(label)) ;
+        return NodeFactory.createBlankNode(label);
     }
 }

@@ -18,85 +18,81 @@
 
 package org.apache.jena.fuseki.servlets;
 
-import java.io.IOException ;
+import static java.lang.String.format;
+import java.io.IOException;
 
-import javax.servlet.http.HttpServletResponse ;
-import javax.servlet.http.HttpServletResponseWrapper ;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpServletResponseWrapper;
 
-import org.apache.jena.atlas.logging.Log ;
+import org.apache.jena.atlas.logging.Log;
 
 /** Intercepting wrapper so we can track the response settings for logging purposes */
 
 public class HttpServletResponseTracker extends HttpServletResponseWrapper
 {
-    private final HttpAction action ;
+    private final HttpAction action;
 
-    public HttpServletResponseTracker(HttpAction action, HttpServletResponse response)
-    {
-        super(response) ;
-        this.action = action ;
+    public HttpServletResponseTracker(HttpAction action, HttpServletResponse response) {
+        super(response);
+        this.action = action;
     }
 
     @Override
-    public void sendError(int sc, String msg) throws IOException
-    {
-        action.statusCode = sc ;
-        action.message = msg ;
-        super.sendError(sc, msg) ;
+    public void sendError(int sc, String msg) throws IOException {
+        action.statusCode = sc;
+        action.message = msg;
+        super.sendError(sc, msg);
     }
 
     @Override
-    public void sendError(int sc) throws IOException
-    {
-        action.statusCode = sc ;
-        action.message = null ;
-        super.sendError(sc) ;
+    public void sendError(int sc) throws IOException {
+        action.statusCode = sc;
+        action.message = null;
+        super.sendError(sc);
     }
 
     @Override
-    public void setHeader(String name, String value)
-    {
-        super.setHeader(name, value) ;
-        action.headers.put(name, value) ;
+    public void setHeader(String name, String value) {
+        super.setHeader(name, value);
+        action.headers.put(name, value);
     }
 
     @Override
-    public void addHeader(String name, String value)
-    {
-        Log.warn(this, "Unexpected addHeader - not recorded in log") ;
-        super.addHeader(name, value) ;
+    public void addHeader(String name, String value) {
+        // Fuseki only uses setHeader.
+        // This is assumption checking code.
+        // (No design reason why Fuseki can't use multiple headers.)
+        Log.warn(this, format("addHeader(%s: %s) : Expected only setHeader - header not in response", name, value));
+        super.addHeader(name, value);
     }
+
     @Override
-    public void setStatus(int sc) 
-    {
-        action.statusCode = sc ;
-        action.message = null ;
-        super.setStatus(sc) ;
+    public void setStatus(int sc) {
+        action.statusCode = sc;
+        action.message = null;
+        super.setStatus(sc);
     }
 
     @Override
     @Deprecated
-    public void setStatus(int sc, String sm)
-    {
-        action.statusCode = sc ;
-        action.message = sm ;
-        super.setStatus(sc, sm) ;
+    public void setStatus(int sc, String sm) {
+        action.statusCode = sc;
+        action.message = sm;
+        super.setStatus(sc, sm);
     }
 
     @Override
-    public void setContentLength(int len)
-    {
-        action.contentLength = len ;
-        super.setContentLength(len) ;
+    public void setContentLength(int len) {
+        action.responseContentLength = len;
+        super.setContentLength(len);
     }
 
     @Override
-    public void setContentType(String type)
-    {
-        action.contentType = type ;
-        super.setContentType(type) ;
+    public void setContentType(String type) {
+        action.responseContentType = type;
+        super.setContentType(type);
     }
-      
+
       // From HttpServletResponse
 //      public void addCookie(Cookie cookie) {}
 //      public boolean containsHeader(String name) {}
@@ -113,12 +109,12 @@ public class HttpServletResponseTracker extends HttpServletResponseWrapper
 //      public void addHeader(String name, String value)
 //      public void setIntHeader(String name, int value) {}
 //      public void addIntHeader(String name, int value) {}
-//      public void setStatus(int sc) 
+//      public void setStatus(int sc)
 //      public void setStatus(int sc, String sm)
 //      public void sendRedirect(String location) throws IOException {}
 //      public void setDateHeader(String name, long date) {}
 //      public void addDateHeader(String name, long date) {}
-        
+
         // From ServletResponse.
 //         public ServletResponse getResponse() {}
 //         public void setResponse(ServletResponse response) {}

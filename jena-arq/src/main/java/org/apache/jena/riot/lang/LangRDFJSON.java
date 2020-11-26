@@ -19,6 +19,9 @@
 package org.apache.jena.riot.lang;
 
 import org.apache.jena.atlas.json.io.parser.TokenizerJSON ;
+import org.apache.jena.datatypes.TypeMapper ;
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.Triple ;
 import org.apache.jena.riot.Lang ;
 import org.apache.jena.riot.RDFLanguages ;
 import org.apache.jena.riot.system.ParserProfile ;
@@ -27,10 +30,6 @@ import org.apache.jena.riot.tokens.Token ;
 import org.apache.jena.riot.tokens.TokenType ;
 import org.apache.jena.riot.tokens.Tokenizer ;
 
-import com.hp.hpl.jena.datatypes.TypeMapper ;
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.graph.Triple ;
-
 /**
  * RDF-JSON.
  *
@@ -38,13 +37,12 @@ import com.hp.hpl.jena.graph.Triple ;
  */
 public class LangRDFJSON extends LangBase
 {
-
 	public LangRDFJSON(Tokenizer tokenizer, ParserProfile profile, StreamRDF dest)
 	{
 		super(tokenizer, profile, dest) ;
 		if (!(tokenizer instanceof TokenizerJSON))
 		{
-			throw new IllegalArgumentException("Tokenizer for the RDF/JSON parser must be an instance of org.openjena.atlas.json.io.parser.TokenizerJSON") ;
+			throw new IllegalArgumentException("Tokenizer for the RDF/JSON parser must be an instance of "+TokenizerJSON.class.getName()) ;
 		}
 	}
 
@@ -442,13 +440,13 @@ public class LangRDFJSON extends LangBase
 
     private boolean isPropertyName()
 	{
-		return lookingAt(TokenType.STRING1) || lookingAt(TokenType.STRING2);
+		return lookingAt(TokenType.STRING);
 	}
 
     private Token checkValidForObjectProperty()
     {
     	Token t = null;
-    	if (lookingAt(TokenType.STRING1) || lookingAt(TokenType.STRING2))
+    	if (lookingAt(TokenType.STRING) )
     		t = nextToken();
     	else
     		exception(peekToken(), "JSON Values given for properties for an Object must be Strings") ;

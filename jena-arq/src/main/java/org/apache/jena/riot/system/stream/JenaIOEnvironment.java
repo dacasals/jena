@@ -20,16 +20,15 @@ package org.apache.jena.riot.system.stream;
 
 import java.util.StringTokenizer ;
 
+import org.apache.jena.JenaRuntime ;
 import org.apache.jena.atlas.web.TypedInputStream ;
+import org.apache.jena.rdf.model.* ;
 import org.apache.jena.riot.adapters.AdapterFileManager ;
+import org.apache.jena.shared.JenaException ;
+import org.apache.jena.util.FileUtils ;
+import org.apache.jena.vocabulary.LocationMappingVocab ;
 import org.slf4j.Logger ;
 import org.slf4j.LoggerFactory ;
-
-import com.hp.hpl.jena.JenaRuntime ;
-import com.hp.hpl.jena.rdf.model.* ;
-import com.hp.hpl.jena.shared.JenaException ;
-import com.hp.hpl.jena.util.FileUtils ;
-import com.hp.hpl.jena.vocabulary.LocationMappingVocab ;
 
 /** Code for using the general facilities of the location mapper/ filemanager subsystem
  *  and set up for Jena usage. e.g. find a location mapper with RDf description. 
@@ -57,8 +56,8 @@ public class JenaIOEnvironment
     
     /** The default path for searching for the location mapper */
     public static final String DEFAULT_PATH =
-        "location-mapping.ttl;location-mapping.rdf;location-mapping.n3;"+
-        "etc/location-mapping.rdf;etc/location-mapping.n3;etc/location-mapping.ttl" ;
+        "location-mapping.ttl;location-mapping.rdf;"+
+        "etc/location-mapping.rdf;etc/location-mapping.ttl" ;
     public static final String GlobalMapperSystemProperty1 = "http://jena.hpl.hp.com/2004/08/LocationMap" ;
     public static final String GlobalMapperSystemProperty2 = "LocationMap" ;
 
@@ -75,7 +74,7 @@ public class JenaIOEnvironment
         return s_globalMapperPath ;
     }
 
-    /** Set the global lcoation mapper. (as returned by get())
+    /** Set the global location mapper. (as returned by get())
      * If called before any call to get(), then the usual default global location mapper is not created 
      * @param globalLocationMapper
      */

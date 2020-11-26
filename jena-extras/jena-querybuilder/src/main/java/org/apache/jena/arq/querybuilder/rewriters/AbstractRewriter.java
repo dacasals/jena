@@ -23,15 +23,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Stack;
 
-import com.hp.hpl.jena.graph.Node;
-import com.hp.hpl.jena.graph.Triple;
-import com.hp.hpl.jena.sparql.core.TriplePath;
-import com.hp.hpl.jena.sparql.core.Var;
-import com.hp.hpl.jena.sparql.core.VarExprList;
-import com.hp.hpl.jena.sparql.engine.binding.Binding;
-import com.hp.hpl.jena.sparql.engine.binding.BindingHashMap;
-import com.hp.hpl.jena.sparql.expr.Expr;
-import com.hp.hpl.jena.sparql.util.ExprUtils;
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.Triple ;
+import org.apache.jena.sparql.core.TriplePath ;
+import org.apache.jena.sparql.core.Var ;
+import org.apache.jena.sparql.core.VarExprList ;
+import org.apache.jena.sparql.engine.binding.Binding ;
+import org.apache.jena.sparql.engine.binding.BindingHashMap ;
+import org.apache.jena.sparql.expr.Expr ;
+import org.apache.jena.sparql.util.ExprUtils ;
 
 /**
  * The base class for rewriters.
@@ -44,7 +44,7 @@ public class AbstractRewriter<T> {
 	// The map of variables to nodes.
 	protected final Map<Var, Node> values;
 	// A stack used in processing.
-	private final Stack<T> result = new Stack<T>();
+	private final Stack<T> result = new Stack<>();
 
 	/**
 	 * Constructor
@@ -119,16 +119,21 @@ public class AbstractRewriter<T> {
 
 	/**
 	 * If the node is a variable perform any necessary rewrite, otherwise return the node.
-	 * @param n The node to to rewrite.
-	 * @return the rewriten node.
+	 * @param n The node to rewrite.
+	 * @return the rewritten node.
 	 */
 	protected final Node changeNode(Node n) {
+		if (n == null)
+		{
+			return n;
+		}
 		if (n.isVariable()) {
 			Var v = Var.alloc(n);
 
 			if (values.containsKey(v)) {
 				return values.get(v);
 			}
+			return v;
 		}
 		return n;
 	}
@@ -140,7 +145,7 @@ public class AbstractRewriter<T> {
 	 * @return The list of nodes.
 	 */
 	protected final List<Node> changeNodes(List<Node> src) {
-		List<Node> lst = new ArrayList<Node>();
+		List<Node> lst = new ArrayList<>();
 		for (Node t : src) {
 			lst.add(changeNode(t));
 		}
@@ -153,7 +158,7 @@ public class AbstractRewriter<T> {
 	 * @return The list of rewritten triples.
 	 */
 	public final List<Triple> rewrite(List<Triple> src) {
-		List<Triple> lst = new ArrayList<Triple>();
+		List<Triple> lst = new ArrayList<>();
 		for (Triple t : src) {
 			lst.add(rewrite(t));
 		}
@@ -180,7 +185,7 @@ public class AbstractRewriter<T> {
 	/**
 	 * Rewrite a variable expression list.
 	 * @param lst The variable expression list.
-	 * @return the rewritten variable expresson list.
+	 * @return the rewritten variable expression list.
 	 */
 	public final VarExprList rewrite(VarExprList lst) {
 

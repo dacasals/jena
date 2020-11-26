@@ -20,11 +20,9 @@ package org.apache.jena.arq.querybuilder.handlers;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.jena.arq.querybuilder.handlers.PrologHandler;
+import org.apache.jena.query.Query ;
 import org.junit.Before;
 import org.junit.Test;
-
-import com.hp.hpl.jena.query.Query;
 
 public class PrologHandlerTest extends AbstractHandlerTest {
 
@@ -41,14 +39,14 @@ public class PrologHandlerTest extends AbstractHandlerTest {
 	public void testAddPrefixString() {
 		handler.addPrefix("pfx", "uri");
 		String[] lst = byLine(query.toString());
-		assertContainsRegex(PREFIX+"pfx:"+SPACE+node("uri"), lst);
+		assertContainsRegex(PREFIX+"pfx:"+SPACE+uri("uri"), lst);
 	}
 
 	@Test
 	public void testAddPrefixStringWithColon() {
 		handler.addPrefix("pfx:", "uri");
 		String[] lst = byLine(query.toString());
-		assertContainsRegex(PREFIX+"pfx:"+SPACE+node("uri"), lst);
+		assertContainsRegex(PREFIX+"pfx:"+SPACE+uri("uri"), lst);
 	}
 	
 	@Test
@@ -62,24 +60,24 @@ public class PrologHandlerTest extends AbstractHandlerTest {
 
 	@Test
 	public void testAddPrefixes() {
-		Map<String, String> map = new HashMap<String, String>();
+		Map<String, String> map = new HashMap<>();
 		map.put("pfx", "uri");
 		map.put("pfx2", "uri2");
 		handler.addPrefixes(map);
 		String[] lst = byLine(query.toString());
-		assertContainsRegex(PREFIX+"pfx:"+SPACE+node("uri"), lst);
-		assertContainsRegex(PREFIX+"pfx2:"+SPACE+node("uri2"), lst);
+		assertContainsRegex(PREFIX+"pfx:"+SPACE+uri("uri"), lst);
+		assertContainsRegex(PREFIX+"pfx2:"+SPACE+uri("uri2"), lst);
 	}
 
 	@Test
 	public void testAddPrefixesWithColon() {
-		Map<String, String> map = new HashMap<String, String>();
+		Map<String, String> map = new HashMap<>();
 		map.put("pfx:", "uri");
 		map.put("pfx2", "uri2");
 		handler.addPrefixes(map);
 		String[] lst = byLine(query.toString());
-		assertContainsRegex(PREFIX+"pfx:"+SPACE+node("uri"), lst);
-		assertContainsRegex(PREFIX+"pfx2:"+SPACE+node("uri2"), lst);
+		assertContainsRegex(PREFIX+"pfx:"+SPACE+uri("uri"), lst);
+		assertContainsRegex(PREFIX+"pfx2:"+SPACE+uri("uri2"), lst);
 	}
 	
 	@Test

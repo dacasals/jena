@@ -20,10 +20,10 @@ package org.apache.jena.riot.writer;
 
 import org.apache.jena.atlas.io.IndentedWriter ;
 import org.apache.jena.riot.system.PrefixMap ;
-import org.apache.jena.riot.system.StreamOps ;
+import org.apache.jena.riot.system.StreamRDFOps ;
 import org.apache.jena.riot.system.StreamRDF ;
-
-import com.hp.hpl.jena.sparql.core.DatasetGraph ;
+import org.apache.jena.sparql.core.DatasetGraph ;
+import org.apache.jena.sparql.util.Context ;
 
 /** TriG writer that writes quads one per line
  *  in TriG form with prefixes and short form literals (e.g. integers) 
@@ -32,11 +32,10 @@ import com.hp.hpl.jena.sparql.core.DatasetGraph ;
 public class TriGWriterFlat extends TriGWriterBase
 {
     @Override
-    protected void output(IndentedWriter iOut, DatasetGraph datasetGraph, PrefixMap prefixMap, String baseURI) {
-        StreamRDF dest = new WriterStreamRDFFlat(iOut) ;
+    protected void output(IndentedWriter iOut, DatasetGraph datasetGraph, PrefixMap prefixMap, String baseURI, Context context) {
+        StreamRDF dest = new WriterStreamRDFFlat(iOut, context) ;
         dest.start() ;
-        dest.base(baseURI) ;
-        StreamOps.sendDatasetToStream(datasetGraph, dest, prefixMap) ;
+        StreamRDFOps.sendDatasetToStream(datasetGraph, dest, baseURI, prefixMap) ;
         dest.finish() ;
     }
 }

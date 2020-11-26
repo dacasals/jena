@@ -18,39 +18,36 @@
 
 package org.apache.jena.riot.thrift;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.io.ByteArrayInputStream ;
 import java.io.ByteArrayOutputStream ;
 import java.util.Iterator ;
 
-import org.apache.jena.atlas.iterator.Filter ;
 import org.apache.jena.atlas.iterator.Iter ;
-import org.apache.jena.atlas.junit.BaseTest ;
 import org.apache.jena.atlas.lib.StrUtils ;
+import org.apache.jena.graph.Graph ;
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.Triple ;
 import org.apache.jena.riot.Lang ;
 import org.apache.jena.riot.RDFDataMgr ;
-import org.apache.jena.riot.RIOT ;
-import org.apache.jena.riot.system.StreamOps ;
+import org.apache.jena.riot.system.StreamRDFOps ;
 import org.apache.jena.riot.system.StreamRDF ;
 import org.apache.jena.riot.system.StreamRDFLib ;
 import org.apache.jena.riot.system.StreamRDFWriter ;
-import org.junit.BeforeClass ;
+import org.apache.jena.sparql.core.DatasetGraph ;
+import org.apache.jena.sparql.core.DatasetGraphFactory ;
+import org.apache.jena.sparql.core.Quad ;
+import org.apache.jena.sparql.graph.GraphFactory ;
+import org.apache.jena.sparql.sse.SSE ;
+import org.apache.jena.sparql.util.IsoMatcher ;
 import org.junit.Test ;
 
-import com.hp.hpl.jena.graph.Graph ;
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.graph.Triple ;
-import com.hp.hpl.jena.sparql.core.DatasetGraph ;
-import com.hp.hpl.jena.sparql.core.DatasetGraphFactory ;
-import com.hp.hpl.jena.sparql.core.Quad ;
-import com.hp.hpl.jena.sparql.graph.GraphFactory ;
-import com.hp.hpl.jena.sparql.sse.SSE ;
-import com.hp.hpl.jena.sparql.util.IsoMatcher ;
-
-public class TestStreamRDFThrift extends BaseTest {
+public class TestStreamRDFThrift {
 
     private static final String DIR = TS_RDFThrift.TestingDir ;
-    
-    @BeforeClass public static void beforeClassInit() { RIOT.init(); }
     
     static String gs = StrUtils.strjoinNL(
         "(graph",
@@ -78,7 +75,7 @@ public class TestStreamRDFThrift extends BaseTest {
     @Test public void graph_01() {
         ByteArrayOutputStream out = new ByteArrayOutputStream() ;
         StreamRDF stream = BinRDF.streamToOutputStream(out, true) ; // With values.
-        StreamOps.graphToStream(graph, stream) ;
+        StreamRDFOps.graphToStream(graph, stream) ;
         
         byte[] bytes = out.toByteArray() ;
         ByteArrayInputStream in = new ByteArrayInputStream(bytes) ;
@@ -88,7 +85,14 @@ public class TestStreamRDFThrift extends BaseTest {
         BinRDF.inputStreamToStream(in, stream2) ;
         
         //assertTrue(graph.isIsomorphicWith(g2)) ;
-        boolean b = IsoMatcher.isomorphic(graph, g2) ; //****
+        boolean b = IsoMatcher.isomorphic(graph, g2) ;
+        if ( !b ) {
+            RDFDataMgr.write(System.out, graph, Lang.TTL);
+            System.out.println("---------");
+            RDFDataMgr.write(System.out, g2, Lang.TTL);
+            System.out.println("=========");
+        }
+        
         assertTrue(b) ;
         
         // Stronger - same bNodes.
@@ -97,7 +101,7 @@ public class TestStreamRDFThrift extends BaseTest {
 
     @Test public void graph_02() {
         ByteArrayOutputStream out = new ByteArrayOutputStream() ;
-        StreamRDFWriter.write(out, graph, Lang.RDFTHRIFT) ;
+        StreamRDFWriter.write(out, graph, Lang.RDFTHRIFT, null) ;
 
         byte[] bytes = out.toByteArray() ;
         ByteArrayInputStream in = new ByteArrayInputStream(bytes) ;
@@ -120,18 +124,18 @@ public class TestStreamRDFThrift extends BaseTest {
         DatasetGraph dsg1 = datasetGraph ;
         ByteArrayOutputStream out = new ByteArrayOutputStream() ;
         StreamRDF stream = BinRDF.streamToOutputStream(out) ;
-        StreamOps.datasetToStream(dsg1, stream) ;
+        StreamRDFOps.datasetToStream(dsg1, stream) ;
         
         byte[] bytes = out.toByteArray() ;
         ByteArrayInputStream in = new ByteArrayInputStream(bytes) ;
-        DatasetGraph dsg2 = DatasetGraphFactory.createMem() ;
+        DatasetGraph dsg2 = DatasetGraphFactory.create() ;
         StreamRDF stream2 = StreamRDFLib.dataset(dsg2) ;
         BinRDF.inputStreamToStream(in, stream2) ;
         
         boolean b = IsoMatcher.isomorphic(dsg1, dsg2) ;
         assertTrue(b) ;
         // Stronger - same bNode and same as in original data.
-        Node obj = Iter.first(dsg1.listGraphNodes(), filterBlankNode) ;
+        Node obj = Iter.first(dsg1.listGraphNodes(), Node::isBlank) ;
         termAsObject(dsg1, obj) ;
     }
 
@@ -142,7 +146,7 @@ public class TestStreamRDFThrift extends BaseTest {
         
         byte[] bytes = out.toByteArray() ;
         ByteArrayInputStream in = new ByteArrayInputStream(bytes) ;
-        DatasetGraph dsg2 = DatasetGraphFactory.createMem() ;
+        DatasetGraph dsg2 = DatasetGraphFactory.create() ;
         
         StreamRDF stream2 = StreamRDFLib.dataset(dsg2) ;
         BinRDF.inputStreamToStream(in, stream2) ;
@@ -150,7 +154,7 @@ public class TestStreamRDFThrift extends BaseTest {
         boolean b = IsoMatcher.isomorphic(dsg1, dsg2) ;
         assertTrue(b) ;
         // Stronger - same bNode and same as in original data.
-        Node obj = Iter.first(dsg1.listGraphNodes(), filterBlankNode) ;
+        Node obj = Iter.first(dsg1.listGraphNodes(), Node::isBlank) ;
         termAsObject(dsg1, obj) ;
     }
     
@@ -174,13 +178,6 @@ public class TestStreamRDFThrift extends BaseTest {
         }
         fail("Failed to find "+term) ;
     }
-    
-    static Filter<Node> filterBlankNode = new Filter<Node>() {
-        @Override
-        public boolean accept(Node item) {
-            return item.isBlank() ;
-        }
-    } ;
     
     // ** Java8
 //    public static <T> Stream<T> stream(Iterator<? extends T> iterator) {

@@ -20,108 +20,138 @@ package org.apache.jena.riot;
 
 import java.io.* ;
 import java.util.Iterator ;
+import java.util.Objects ;
 
-import org.apache.jena.atlas.io.IO ;
+import org.apache.jena.atlas.iterator.IteratorResourceClosing ;
 import org.apache.jena.atlas.web.ContentType ;
 import org.apache.jena.atlas.web.TypedInputStream ;
-import org.apache.jena.riot.system.RiotLib ;
-import org.apache.jena.riot.system.StreamRDF ;
-import org.apache.jena.riot.system.StreamRDFLib ;
+import org.apache.jena.graph.Graph ;
+import org.apache.jena.graph.Triple ;
+import org.apache.jena.query.Dataset ;
+import org.apache.jena.query.DatasetFactory ;
+import org.apache.jena.rdf.model.Model ;
+import org.apache.jena.rdf.model.ModelFactory ;
+import org.apache.jena.riot.lang.PipedQuadsStream ;
+import org.apache.jena.riot.lang.PipedRDFIterator ;
+import org.apache.jena.riot.lang.PipedTriplesStream ;
+import org.apache.jena.riot.lang.RiotParsers;
+import org.apache.jena.riot.system.*;
 import org.apache.jena.riot.system.stream.StreamManager ;
 import org.apache.jena.riot.writer.NQuadsWriter ;
 import org.apache.jena.riot.writer.NTriplesWriter ;
+import org.apache.jena.sparql.core.DatasetGraph ;
+import org.apache.jena.sparql.core.DatasetGraphFactory ;
+import org.apache.jena.sparql.core.Quad ;
+import org.apache.jena.sparql.graph.GraphFactory ;
+import org.apache.jena.sparql.util.Context ;
+import org.apache.jena.sparql.util.Symbol ;
+import org.apache.jena.sys.JenaSystem ;
 import org.slf4j.Logger ;
 import org.slf4j.LoggerFactory ;
 
-import com.hp.hpl.jena.graph.Graph ;
-import com.hp.hpl.jena.graph.Triple ;
-import com.hp.hpl.jena.query.Dataset ;
-import com.hp.hpl.jena.query.DatasetFactory ;
-import com.hp.hpl.jena.rdf.model.Model ;
-import com.hp.hpl.jena.rdf.model.ModelFactory ;
-import com.hp.hpl.jena.sparql.core.DatasetGraph ;
-import com.hp.hpl.jena.sparql.core.DatasetGraphFactory ;
-import com.hp.hpl.jena.sparql.core.Quad ;
-import com.hp.hpl.jena.sparql.graph.GraphFactory ;
-import com.hp.hpl.jena.sparql.util.Context ;
-import com.hp.hpl.jena.sparql.util.Symbol ;
-import com.hp.hpl.jena.sparql.util.Utils ;
-
-/** <p>General purpose reader framework for RDF (triples and quads) syntaxes.</p>   
- *  <ul>
- *  <li>HTTP Content negotiation</li>
- *  <li>File type hint by the extension</li>
- *  <li>Application language hint</li>
- *  </ul>
+/**
  * <p>
- *  It also provides a way to lookup names in different
- *  locations and to remap URIs to other URIs. 
- *  </p>
- *  <p>
- *  Extensible - a new syntax can be added to the framework. 
- *  </p>
- *  <p>Operations fall into the following categories:</p>
- *  <ul>
- *  <li>{@code read}    -- Read data from a location into a Model/Dataset etc</li>
- *  <li>{@code loadXXX} -- Read data and return an in-memory object holding the data.</li>
- *  <li>{@code parse}   -- Read data and send to an {@link StreamRDF}</li>
- *  <li>{@code open}    -- Open a typed input stream to the location, using any alternative locations</li>
- *  <li>{@code write}   -- Write Model/Dataset etc</li> 
- *  <li>{@code create}  -- Create a reader or writer explicitly</li> 
- *  </ul> 
+ * General purpose reader framework for RDF (triples and quads) syntaxes.
+ * </p>
+ * <ul>
+ * <li>HTTP Content negotiation</li>
+ * <li>File type hint by the extension</li>
+ * <li>Application language hint</li>
+ * </ul>
+ * <p>
+ * It also provides a way to lookup names in different locations and to remap URIs to
+ * other URIs.
+ * </p>
+ * <p>
+ * Extensible - a new syntax can be added to the framework.
+ * </p>
+ * <p>
+ * Operations fall into the following categories:
+ * </p>
+ * <ul>
+ * <li>{@code read} -- Read data from a location into a Model, Dataset, etc. The
+ * methods in this class treat all types of Model in the same way. For behavior
+ * specific to a subtype of Model, use the methods of that specific class.</li>
+ * <li>{@code loadXXX} -- Read data and return an in-memory object holding the
+ * data.</li>
+ * <li>{@code parse} -- Read data and send to an {@link StreamRDF}</li>
+ * <li>{@code open} -- Open a typed input stream to the location, using any
+ * alternative locations</li>
+ * <li>{@code write} -- Write Model/Dataset etc</li>
+ * <li>{@code create} -- Create a reader or writer explicitly</li>
+ * </ul>
+ * <p>
+ * {@code RDFDataMgr} provides single functions for many of the common application
+ * patterns. It is built on top of {@link RDFParser} for reading and
+ * {@link RDFWriter} for output. Each of these classes has an associated builder that
+ * provides complete control over the parsing process. For example, to translate
+ * language tags to lower case on input:
+ *
+ * <pre>
+ *     RDFParser.create()
+ *         .source("myData.ttl")
+ *         .langTagLowerCase()
+ *         .parse(graph);
+ * </pre>
+ *
+ * or to have Turtle written with {@code BASE} and {@code PREFIX} rather than
+ * {@code @base} and {@code @prefix} (both are legal Turtle):
+ * <pre>
+ *     RDFWriter.create()
+ *         .set(RIOT.symTurtleDirectiveStyle, "rdf11")
+ *         .source(model)
+ *         .output(System.out);
+ * </pre>
  */
 
 public class RDFDataMgr
 {
-    static { RIOT.init() ; }
-    /* Maybe:
-     * static for global (singleton) and locally tailored. 
-     */
-    
-    static Logger log = LoggerFactory.getLogger(RDFDataMgr.class) ;
-    private static String riotBase = "http://jena.apache.org/riot/" ;
-    
-	private static String StreamManagerSymbolStr = riotBase+"streamManager" ;
-	public static Symbol streamManagerSymbol = Symbol.create(riotBase+"streamManager") ;
+    static { JenaSystem.init() ; }
 
-    /** Read triples into a Model from the given location. 
-     *  The syntax is detemined from input source URI (content negotiation or extension). 
+    static Logger log = LoggerFactory.getLogger(RDFDataMgr.class) ;
+
+    /** @deprecated Use {@link SysRIOT#sysStreamManager} */
+    @Deprecated
+    public static Symbol streamManagerSymbol = SysRIOT.sysStreamManager;
+
+    /** Read triples into a Model from the given location.
+     *  The syntax is determined from input source URI (content negotiation or extension).
      * @param model Destination for the RDF read.
      * @param uri   URI to read from (includes file: and a plain file name).
      * @throws RiotNotFoundException if the location is not found - the model is unchanged.
-     * @see #read(Model,String,Lang,Context) 
+     * @see #read(Model,String,Lang,Context)
      */
     public static void read(Model model, String uri)                    { read(model.getGraph(), uri) ; }
-    
-    /** Read triples into a Model from the given location. 
-     *  The syntax is detemined from input source URI (content negotiation or extension). 
+
+    /** Read triples into a Model from the given location.
+     *  The syntax is determined from input source URI (content negotiation or extension).
      * @param graph Destination for the RDF read.
      * @param uri   URI to read from (includes file: and a plain file name).
      * @throws RiotNotFoundException if the location is not found - the graph is unchanged.
-     * @see #read(Graph,String,Lang,Context) 
+     * @see #read(Graph,String,Lang,Context)
      */
-    public static void read(Graph graph, String uri)                    { read(graph, uri, null, null, null) ; }
+    public static void read(Graph graph, String uri)                    { read(graph, uri, defaultBase(uri), defaultLang(uri), (Context)null) ; }
 
-    /** Read triples into a Model from the given location, with a hint of the language (MIME type) 
+    /** Read triples into a Model from the given location, with a hint of the language (MIME type)
      * @param model     Destination for the RDF read.
      * @param uri       URI to read from (includes file: and a plain file name).
      * @param hintLang  Hint for the syntax.
      * @throws RiotNotFoundException if the location is not found - the model is unchanged.
-     * @see #read(Model,String,String,Lang,Context) 
+     * @see #read(Model,String,String,Lang,Context)
      */
-    public static void read(Model model, String uri, Lang hintLang)    { read(model.getGraph(), uri, hintLang) ; } 
-    
-    /** Read triples into a Model from the given location, with a hint of the language (MIME type or short name) 
+    public static void read(Model model, String uri, Lang hintLang)    { read(model.getGraph(), uri, hintLang) ; }
+
+    /** Read triples into a Model from the given location, with a hint of the language (MIME type or short name)
      * @param graph     Destination for the RDF read.
      * @param uri       URI to read from (includes file: and a plain file name).
      * @param hintLang  Hint for the syntax.
      * @throws RiotNotFoundException if the location is not found - the graph is unchanged.
-     * @see #read(Graph,String,Lang,Context) 
+     * @see #read(Graph,String,Lang,Context)
      */
-    public static void read(Graph graph, String uri, Lang hintLang)    { read(graph, uri, hintLang, null) ; }
-    
-    /** Read triples into a Model from the given location, with hint of language and with some parameters for the reader 
-     * @see #read(Model,String,String,Lang,Context) 
+    public static void read(Graph graph, String uri, Lang hintLang)    { read(graph, uri, hintLang, (Context)null) ; }
+
+    /** Read triples into a Model from the given location, with hint of language and with some parameters for the reader
+     * @see #read(Model,String,String,Lang,Context)
      * Throws parse errors depending on the language and reader; the model may be partially updated.
      * @param model     Destination for the RDF read.
      * @param uri       URI to read from (includes file: and a plain file name).
@@ -130,60 +160,68 @@ public class RDFDataMgr
      * @throws RiotNotFoundException if the location is not found - the model is unchanged.
      */
     public static void read(Model model, String uri, String base, Lang hintLang) { read(model.getGraph(), uri, base, hintLang) ; }
-    
-    /** Read triples into a Model from the given location, with hint of language and the with some parameters for the reader 
-     * @see #read(Graph,String,String,Lang,Context) 
-     * Throws parse errors depending on the language and reader; the Model model may be partially updated.
+
+    /** Read triples into a Model from the given location, with hint of language and the with some parameters for the reader
+     * @see #read(Graph,String,String,Lang,Context)
+     * Throws parse errors depending on the language and reader; the model may be partially updated.
      * @param graph     Destination for the RDF read.
      * @param uri       URI to read from (includes file: and a plain file name).
      * @param base      Base URI (defaults to uri).
      * @param hintLang  Hint for the syntax
      * @throws RiotNotFoundException if the location is not found - the graph is unchanged.
      */
-    public static void read(Graph graph, String uri, String base, Lang hintLang) { read(graph, uri, base, hintLang, null) ; }
-    
+    public static void read(Graph graph, String uri, String base, Lang hintLang) { read(graph, uri, base, hintLang, (Context)null) ; }
+
     /** Read triples into a Model from the given location, with some parameters for the reader
-     * @see #read(Model,String,String,Lang,Context) 
+     * @see #read(Model,String,String,Lang,Context)
      * @param model     Destination for the RDF read
      * @param uri       URI to read from (includes file: and a plain file name).
      * @param context   Content object to control reading process.
      * @throws RiotNotFoundException if the location is not found - the model is unchanged.
-     */ 
-    public static void read(Model model, String uri, Context context)   { read(model.getGraph(), uri, context) ; }
-    
-    /** Read triples into a Model from the given location, with some parameters for the reader
-     * @see #read(Graph,String,String,Lang,Context) 
-     * @param graph     Destination for the RDF read
-     * @param uri       URI to read from (includes file: and a plain file name).
-     * @param context   Content object to control reading process.
-     * @throws RiotNotFoundException if the location is not found - the graph is unchanged.
-     */ 
-    public static void read(Graph graph, String uri, Context context)   { read(graph, uri, null, context) ; }
-    
-    /** Read triples into a Model from the given location, with hint of language and the with some parameters for the reader 
-     * @see #read(Model,String,String,Lang,Context) 
-     * @param model     Destination for the RDF read
-     * @param uri       URI to read from (includes file: and a plain file name).
-     * @param hintLang  Hint for the syntax
-     * @param context   Content object to control reading process.
-     * @throws RiotNotFoundException if the location is not found - the model is unchanged.
+     * @deprecated To be removed.  Use {@code RDFParser.create().context(context)...}
      */
+    @Deprecated
+    public static void read(Model model, String uri, Context context)   { read(model.getGraph(), uri, context) ; }
+
+    /** Read triples into a Model from the given location, with some parameters for the reader
+     * @see #read(Graph,String,String,Lang,Context)
+     * @param graph     Destination for the RDF read
+     * @param uri       URI to read from (includes file: and a plain file name).
+     * @param context   Content object to control reading process.
+     * @throws RiotNotFoundException if the location is not found - the graph is unchanged.
+     * @deprecated To be removed.  Use {@code RDFParser.create().context(context)...}
+     */
+    @Deprecated
+    public static void read(Graph graph, String uri, Context context)   { read(graph, uri, defaultLang(uri), context) ; }
+
+    /** Read triples into a Model from the given location, with hint of language and the with some parameters for the reader
+     * @see #read(Model,String,String,Lang,Context)
+     * @param model     Destination for the RDF read
+     * @param uri       URI to read from (includes file: and a plain file name).
+     * @param hintLang  Hint for the syntax
+     * @param context   Content object to control reading process.
+     * @throws RiotNotFoundException if the location is not found - the model is unchanged.
+     * @deprecated To be removed.  Use {@code RDFParser.create().context(context)...}
+     */
+    @Deprecated
     public static void read(Model model, String uri, Lang hintLang, Context context)
-    { read(model, uri, uri, hintLang, context) ; }
-    
-    /** Read triples into a Model from the given location, with hint of language and with some parameters for the reader 
-     * @see #read(Graph,String,String,Lang,Context) 
+    { read(model, uri, defaultBase(uri), hintLang, context) ; }
+
+    /** Read triples into a Model from the given location, with hint of language and with some parameters for the reader
+     * @see #read(Graph,String,String,Lang,Context)
      * @param graph     Destination for the RDF read
      * @param uri       URI to read from (includes file: and a plain file name).
      * @param hintLang  Hint for the syntax
      * @param context   Content object to control reading process.
      * @throws RiotNotFoundException if the location is not found - the graph is unchanged.
-    */
+     * @deprecated To be removed.  Use {@code RDFParser.create().context(context)...}
+     */
+    @Deprecated
     public static void read(Graph graph, String uri, Lang hintLang, Context context)
-    { read(graph, uri, uri, hintLang, context) ; }
-    
-    /** Read triples into a Model from the given location, with hint of language 
-     * and with some parameters for the reader. 
+    { read(graph, uri, defaultBase(uri), hintLang, context) ; }
+
+    /** Read triples into a Model from the given location, with hint of language
+     * and with some parameters for the reader.
      * Throws parse errors depending on the language and reader; the model may be partially updated.
      * @param model     Destination for the RDF read.
      * @param uri       URI to read from (includes file: and a plain file name).
@@ -191,11 +229,13 @@ public class RDFDataMgr
      * @param hintLang  Hint for the syntax
      * @param context   Content object to control reading process.
      * @throws RiotNotFoundException if the location is not found - the model is unchanged.
+     * @deprecated To be removed.  Use {@code RDFParser.create().context(context)...}
      */
+    @Deprecated
     public static void read(Model model, String uri, String base, Lang hintLang, Context context)
 	{ read(model.getGraph(), uri, base, hintLang, context) ; }
 
-    /** Read triples into a Model from the given location, with hint of language and the with some parameters for the reader 
+    /** Read triples into a Model from the given location, with hint of language and the with some parameters for the reader
      * Throws parse errors depending on the language and reader; the graph may be partially updated.
      * @param graph     Destination for the RDF read.
      * @param uri       URI to read from (includes file: and a plain file name).
@@ -203,40 +243,42 @@ public class RDFDataMgr
      * @param hintLang  Hint for the syntax
      * @param context   Content object to control reading process.
      * @throws RiotNotFoundException if the location is not found - the model is unchanged.
+     * @deprecated To be removed.  Use {@code RDFParser.create().context(context)...}
      */
+    @Deprecated
     public static void read(Graph graph, String uri, String base, Lang hintLang, Context context)
     {
         StreamRDF dest = StreamRDFLib.graph(graph) ;
-        parse(dest, uri, base, hintLang, context) ;
+        parseFromURI(dest, uri, base, hintLang, context) ;
     }
 
     /** Read triples into a Model with bytes from an InputStream.
      *  A base URI and a syntax can be provided.
-     *  The base URI defualts to "no base" in which case the data should have no relative URIs.
-     *  The lang gives the syntax of the stream. 
+     *  The base URI defaults to "no base" in which case the data should have no relative URIs.
+     *  The lang gives the syntax of the stream.
      * @param model     Destination for the RDF read.
      * @param in        InputStream
      * @param lang      Language syntax
      */
     public static void read(Model model, InputStream in, Lang lang)    { read(model.getGraph(), in, lang) ; }
-        
+
     /** Read triples into a Model with bytes from an InputStream.
      *  A base URI and a syntax can be provided.
-     *  The base URI defualts to "no base" in which case the data should have no relative URIs.
-     *  The lang gives the syntax of the stream. 
+     *  The base URI defaults to "no base" in which case the data should have no relative URIs.
+     *  The lang gives the syntax of the stream.
      * @param graph     Destination for the RDF read.
      * @param in        InputStream
      * @param lang      Language syntax
      */
-    public static void read(Graph graph, InputStream in, Lang lang)    { read(graph, in, null, lang) ; }
+    public static void read(Graph graph, InputStream in, Lang lang)    { read(graph, in, defaultBase(), lang) ; }
 
     /** Read triples into a Model with bytes from an InputStream.
      *  A base URI and a syntax can be provided.
-     *  The base URI defualts to "no base" in which case the data should have no relative URIs.
-     *  The lang gives the syntax of the stream. 
+     *  The base URI defaults to "no base" in which case the data should have no relative URIs.
+     *  The lang gives the syntax of the stream.
      * @param model     Destination for the RDF read.
      * @param in        InputStream
-     * @param base      Base URI 
+     * @param base      Base URI
      * @param lang      Language syntax
      */
     public static void read(Model model, InputStream in, String base, Lang lang)
@@ -244,17 +286,17 @@ public class RDFDataMgr
 
     /** Read triples into a Model with bytes from an InputStream.
      *  A base URI and a syntax can be provided.
-     *  The base URI defualts to "no base" in which case the data should have no relative URIs.
-     *  The lang gives the syntax of the stream. 
+     *  The base URI defaults to "no base" in which case the data should have no relative URIs.
+     *  The lang gives the syntax of the stream.
      * @param graph     Destination for the RDF read.
      * @param in        InputStream
-     * @param base      Base URI 
+     * @param base      Base URI
      * @param lang      Language syntax
      */
-    public static void read(Graph graph, InputStream in, String base, Lang lang)
-    {
+    public static void read(Graph graph, InputStream in, String base, Lang lang) {
+        Objects.requireNonNull(in, "InputStream is null") ;
         StreamRDF dest = StreamRDFLib.graph(graph) ;
-        process(dest, new TypedInputStream(in), base, lang, null) ;
+        parseFromInputStream(dest, in, base, lang, null) ;
     }
 
     /** Read triples into a model with chars from an Reader.
@@ -263,12 +305,12 @@ public class RDFDataMgr
      * @deprecated     Use an InputStream or StringReader.
      * @param model     Destination for the RDF read.
      * @param in        Reader
-     * @param base      Base URI 
+     * @param base      Base URI
      * @param lang      Language syntax
      */
     @Deprecated
-    public static void read(Model model, Reader in, String base, Lang lang)
-    {
+    public static void read(Model model, Reader in, String base, Lang lang) {
+        Objects.requireNonNull(in, "Reader is null") ;
         read(model.getGraph(), in, base,  lang) ;
     }
 
@@ -278,260 +320,234 @@ public class RDFDataMgr
      * @deprecated     Use an InputStream or StringReader.
      * @param graph     Destination for the RDF read.
      * @param in        Reader
-     * @param base      Base URI 
+     * @param base      Base URI
      * @param lang      Language syntax
      */
     @Deprecated
-    public static void read(Graph graph, Reader in, String base, Lang lang)
-    {
+    public static void read(Graph graph, Reader in, String base, Lang lang) {
         StreamRDF dest = StreamRDFLib.graph(graph) ;
-        process(dest, in, base, lang, null) ;
+        parseFromReader(dest, in, base, lang, null) ;
     }
 
     /** Read triples into a model with chars from a StringReader.
      * @param model     Destination for the RDF read.
      * @param in        InputStream
-     * @param base      Base URI 
+     * @param base      Base URI
      * @param lang      Language syntax
      */
-    public static void read(Model model, StringReader in, String base, Lang lang)
-    {
+    public static void read(Model model, StringReader in, String base, Lang lang) {
         Graph g = model.getGraph() ;
         StreamRDF dest = StreamRDFLib.graph(g) ;
-        process(dest, in, base, lang, null) ;
+        parseFromReader(dest, in, base, lang, (Context)null) ;
     }
 
     /** Read triples into a model with chars from a StringReader.
      * @param graph     Destination for the RDF read.
      * @param in        InputStream
-     * @param base      Base URI 
+     * @param base      Base URI
      * @param lang      Language syntax
      */
-    public static void read(Graph graph, StringReader in, String base, Lang lang)
-    {
+    public static void read(Graph graph, StringReader in, String base, Lang lang) {
         StreamRDF dest = StreamRDFLib.graph(graph) ;
-        process(dest, in, base, lang, null) ;
+        parseFromReader(dest, in, base, lang, (Context)null) ;
     }
-    
-    private static Model createModel() { return ModelFactory.createDefaultModel() ; } 
-    private static Graph createGraph() { return GraphFactory.createDefaultGraph() ; } 
-    private static Dataset createDataset() { return DatasetFactory.createMem() ; } 
-    private static DatasetGraph createDatasetGraph() { return DatasetGraphFactory.createMem() ; }
-    
+
+    private static Model createModel()                  { return ModelFactory.createDefaultModel() ; }
+    private static Graph createGraph()                  { return GraphFactory.createDefaultGraph() ; }
+    private static Dataset createDataset()              { return DatasetFactory.createTxnMem() ; }
+    private static DatasetGraph createDatasetGraph()    { return DatasetGraphFactory.createTxnMem() ; }
+
     // Load:
     /** Create a memory Model and read in some data
-     * @see #read(Model,String) 
-     */ 
-    public static Model loadModel(String uri)
-    { 
+     * @see #read(Model,String)
+     */
+    public static Model loadModel(String uri) {
         Model m = createModel() ;
         read(m, uri) ;
         return m ;
     }
 
     /** Create a memory Model and read in some data
-     * @see #read(Model,String,Lang) 
+     * @see #read(Model,String,Lang)
      */
-    public static Model loadModel(String uri, Lang lang)
-	{
+    public static Model loadModel(String uri, Lang lang) {
 		Model m = createModel() ;
         read(m, uri,lang) ;
         return m ;
 	}
 
-    //public static Model loadModel(String uri, String base) { return null ; } 
-    //public static Model loadModel(String uri, String base, Lang lang) { return null ; } 
-
     /** Create a memory Graph and read in some data
-     * @see #read(Graph,String) 
-     */ 
-    public static Graph loadGraph(String uri)
-	{ 
+     * @see #read(Graph,String)
+     */
+    public static Graph loadGraph(String uri) {
         Graph g = createGraph() ;
         read(g, uri) ;
         return g ;
     }
 
 	/** Create a memory Graph and read in some data
-     * @see #read(Graph,String,Lang) 
-     */ 
-    public static Graph loadGraph(String uri, Lang lang)
-	{ 
+     * @see #read(Graph,String,Lang)
+     */
+    public static Graph loadGraph(String uri, Lang lang) {
         Graph g = createGraph() ;
         read(g, uri, lang) ;
         return g ;
     }
 
-//  public static Graph loadGraph(String uri, String base) { return null ; } 
-//  public static Graph loadGraph(String uri, String base, Lang lang) { return null ; } 
+//  public static Graph loadGraph(String uri, String base) { return null ; }
+//  public static Graph loadGraph(String uri, String base, Lang lang) { return null ; }
 
 	/** Create a memory Dataset and read in some data
-     * @see #read(Dataset,String) 
-     */ 
-    public static Dataset loadDataset(String uri)
-	{ 
+     * @see #read(Dataset,String)
+     */
+    public static Dataset loadDataset(String uri) {
         Dataset ds = createDataset() ;
         read(ds, uri) ;
         return ds ;
     }
 
 	/** Create a memory Dataset and read in some data
-     * @see #read(Dataset,String,Lang) 
+     * @see #read(Dataset,String,Lang)
      */
-    public static Dataset loadDataset(String uri, Lang lang)
-	{
+    public static Dataset loadDataset(String uri, Lang lang) {
         Dataset ds = createDataset() ;
         read(ds, uri, lang) ;
         return ds ;
 	}
 
-//    public static Dataset loadDataset(String uri, String base) { return null ; } 
-//    public static Dataset loadDataset(String uri, String base, Lang lang) { return null ; } 
-//    public static Dataset loadDataset(String uri, String base, Lang lang, Context context) { return null ; } 
-
 	/** Create a memory DatasetGraph and read in some data
-     * @see #read(DatasetGraph,String) 
-     */ 
-    public static DatasetGraph loadDatasetGraph(String uri)
-	{
+     * @see #read(DatasetGraph,String)
+     */
+    public static DatasetGraph loadDatasetGraph(String uri)	{
 		DatasetGraph ds = createDatasetGraph() ;
         read(ds, uri) ;
         return ds ;
 	}
 	/** Create a memory DatasetGraph and read in some data
-     * @see #read(DatasetGraph,String,Lang) 
+     * @see #read(DatasetGraph,String,Lang)
      */
-    public static DatasetGraph loadDatasetGraph(String uri, Lang lang)
-	{
+    public static DatasetGraph loadDatasetGraph(String uri, Lang lang) {
 		DatasetGraph ds = createDatasetGraph() ;
         read(ds, uri, lang) ;
-        return ds ;	
+        return ds ;
 	}
 
-//    public static DatasetGraph loadDatasetGraph(String uri, String base) { return null ; } 
-//    public static DatasetGraph loadDatasetGraph(String uri, String base, Lang lang) { return null ; } 
-//    public static DatasetGraph loadDatasetGraph(String uri, String base, Lang lang, Context context) { return null ; } 
-    
     /** Read quads or triples into a Dataset from the given location, with hint of language.
-     * @see #read(Dataset, String, String, Lang, Context) 
+     * @see #read(Dataset, String, String, Lang, Context)
      * @param dataset   Destination
      * @param uri       URI to read from (includes file: and a plain file name).
      */
-    public static void read(Dataset dataset, String uri)
-    {
+    public static void read(Dataset dataset, String uri) {
         read(dataset.asDatasetGraph(), uri) ;
     }
 
     /** Read quads or triples into a Dataset from the given location, with hint of language.
-     * @see #read(DatasetGraph, String, String, Lang, Context) 
+     * @see #read(DatasetGraph, String, String, Lang, Context)
      * @param dataset   Destination
      * @param uri       URI to read from (includes file: and a plain file name).
      */
-    public static void read(DatasetGraph dataset, String uri)
-    {
-        read(dataset, uri, null) ;
+    public static void read(DatasetGraph dataset, String uri) {
+        read(dataset, uri, defaultLang(uri)) ;
     }
 
     /** Read quads or triples into a Dataset from the given location, with hint of language.
-     * @see #read(Dataset, String, String, Lang, Context) 
+     * @see #read(Dataset, String, String, Lang, Context)
      * @param dataset   Destination
      * @param uri       URI to read from (includes file: and a plain file name).
      * @param hintLang  Language syntax
      */
-    public static void read(Dataset dataset, String uri, Lang hintLang)
-    {
+    public static void read(Dataset dataset, String uri, Lang hintLang) {
         read(dataset.asDatasetGraph(), uri, hintLang) ;
     }
 
     /** Read quads or triples into a Dataset from the given location, with hint of language.
-     * @see #read(DatasetGraph, String, String, Lang, Context) 
+     * @see #read(DatasetGraph, String, String, Lang, Context)
      * @param dataset   Destination
      * @param uri       URI to read from (includes file: and a plain file name).
      * @param hintLang  Language syntax
      */
-    public static void read(DatasetGraph dataset, String uri, Lang hintLang)
-    {
-        read(dataset, uri, hintLang, null) ;
+    public static void read(DatasetGraph dataset, String uri, Lang hintLang) {
+        read(dataset, uri, hintLang, (Context)null) ;
     }
 
     /** Read quads or triples into a Dataset from the given location, with hint of language.
-     * @see #read(Dataset, String, String, Lang, Context) 
+     * @see #read(Dataset, String, String, Lang, Context)
      * @param dataset   Destination
      * @param uri       URI to read from (includes file: and a plain file name).
      * @param base      Base URI (defaults to uri).
      * @param hintLang  Language syntax
      */
-    public static void read(Dataset dataset, String uri, String base, Lang hintLang)
-    {
+    public static void read(Dataset dataset, String uri, String base, Lang hintLang) {
         read(dataset.asDatasetGraph(), uri, base, hintLang) ;
     }
 
     /** Read quads or triples into a Dataset from the given location, with hint of language.
-     * @see #read(DatasetGraph, String, String, Lang, Context) 
+     * @see #read(DatasetGraph, String, String, Lang, Context)
      * @param dataset   Destination
      * @param uri       URI to read from (includes file: and a plain file name).
      * @param base      Base URI (defaults to uri).
      * @param hintLang  Language syntax
      */
-    public static void read(DatasetGraph dataset, String uri, String base, Lang hintLang)
-    {
-        read(dataset, uri, base, hintLang, null) ;
+    public static void read(DatasetGraph dataset, String uri, String base, Lang hintLang) {
+        read(dataset, uri, base, hintLang, (Context)null) ;
     }
 
 
-    /** Read quads or triples into a Dataset from the given location. 
-     * @see #read(Dataset, String, String, Lang, Context) 
+    /** Read quads or triples into a Dataset from the given location.
+     * @see #read(Dataset, String, String, Lang, Context)
      * @param dataset   Destination
      * @param uri       URI to read from (includes file: and a plain file name).
      * @param hintLang  Language syntax
+     * @deprecated To be removed.  Use {@code RDFParser.create().context(context)...}
      */
-    public static void read(Dataset dataset, String uri, Lang hintLang, Context context)
-    {
+    @Deprecated
+    public static void read(Dataset dataset, String uri, Lang hintLang, Context context) {
         read(dataset.asDatasetGraph(), uri, hintLang, context) ;
     }
-    
-    /** Read quads or triples into a Dataset from the given location. 
-     * @see #read(DatasetGraph, String, String, Lang, Context) 
+
+    /** Read quads or triples into a Dataset from the given location.
+     * @see #read(DatasetGraph, String, String, Lang, Context)
      * @param dataset   Destination
      * @param uri       URI to read from (includes file: and a plain file name).
      * @param hintLang  Language syntax
+     * @deprecated To be removed.  Use {@code RDFParser.create().context(context)...}
      */
-    public static void read(DatasetGraph dataset, String uri, Lang hintLang, Context context)
-    {
-        read(dataset, uri, uri, hintLang, context) ;
+    @Deprecated
+    public static void read(DatasetGraph dataset, String uri, Lang hintLang, Context context) {
+        read(dataset, uri, defaultBase(uri), hintLang, context) ;
     }
-    
+
     /** Read quads or triples into a Dataset from the given location.
-     * @see #read(Dataset, String, String, Lang, Context) 
+     * @see #read(Dataset, String, String, Lang, Context)
      * @param dataset   Destination
      * @param uri       URI to read from (includes file: and a plain file name).
      * @param base      Base URI (defaults to uri).
      * @param hintLang  Language syntax
 	 * @param context   Context for the reader
 	 * @throws RiotNotFoundException if the location is not found - the dataset is unchanged.
-	 * Throws parse errors depending on the language and reader; the dataset may be partially updated. 
-	 */ 
-
-    public static void read(Dataset dataset, String uri, String base, Lang hintLang, Context context)
-    {
-		read(dataset.asDatasetGraph(), uri, uri, hintLang, context) ;
+	 * Throws parse errors depending on the language and reader; the dataset may be partially updated.
+     * @deprecated To be removed.  Use {@code RDFParser.create().context(context)...}
+     */
+    @Deprecated
+    public static void read(Dataset dataset, String uri, String base, Lang hintLang, Context context) {
+		read(dataset.asDatasetGraph(), uri, defaultBase(uri), hintLang, context) ;
     }
 
     /** Read quads or triples into a Dataset from the given location.
-     * @see #read(Dataset, String, String, Lang, Context) 
+     * @see #read(Dataset, String, String, Lang, Context)
      * @param dataset   Destination
      * @param uri       URI to read from (includes file: and a plain file name).
      * @param base      Base URI (defaults to uri).
      * @param hintLang  Language syntax
 	 * @param context   Context for the reader
 	 * @throws RiotNotFoundException if the location is not found - the dataset is unchanged.
-	 * Throws parse errors depending on the language and reader; the dataset may be partially updated. 
-	 */ 
-
-    public static void read(DatasetGraph dataset, String uri, String base, Lang hintLang, Context context)
-    {
+	 * Throws parse errors depending on the language and reader; the dataset may be partially updated.
+     * @deprecated To be removed.  Use {@code RDFParser.create().context(context)...}
+     */
+    @Deprecated
+    public static void read(DatasetGraph dataset, String uri, String base, Lang hintLang, Context context) {
         StreamRDF sink = StreamRDFLib.dataset(dataset) ;
-        parse(sink, uri, base, hintLang, context) ;
+        parseFromURI(sink, uri, base, hintLang, context) ;
     }
 
     /** Read quads or triples into a dataset with bytes from an input stream.
@@ -539,44 +555,41 @@ public class RDFDataMgr
      * @param in        InputStream
      * @param lang      Language syntax
      */
-    public static void read(Dataset dataset, InputStream in, Lang lang)
-    {
+    public static void read(Dataset dataset, InputStream in, Lang lang) {
         read(dataset.asDatasetGraph(), in, lang) ;
     }
-    
+
     /** Read quads or triples into a dataset with bytes from an input stream.
      * @param dataset   Destination
      * @param in        InputStream
      * @param lang      Language syntax
      */
-    public static void read(DatasetGraph dataset, InputStream in, Lang lang)
-    {
-        read(dataset, in, null, lang) ;
+    public static void read(DatasetGraph dataset, InputStream in, Lang lang) {
+        read(dataset, in, defaultBase(), lang) ;
     }
-    
+
     /** Read quads or triples into a dataset with bytes from an input stream.
      * @param dataset   Destination
      * @param in        InputStream
      * @param base      Base URI
      * @param lang      Language syntax
      */
-    public static void read(Dataset dataset, InputStream in, String base, Lang lang)
-    {
-        read(dataset.asDatasetGraph(), in, base, lang) ; 
+    public static void read(Dataset dataset, InputStream in, String base, Lang lang) {
+        read(dataset.asDatasetGraph(), in, base, lang) ;
     }
-    
+
     /** Read quads or triples into a dataset with bytes from an input stream.
      * @param dataset   Destination
      * @param in        InputStream
      * @param base      Base URI
      * @param lang      Language syntax
      */
-    public static void read(DatasetGraph dataset, InputStream in, String base, Lang lang)
-    {
+    public static void read(DatasetGraph dataset, InputStream in, String base, Lang lang) {
+        Objects.requireNonNull(in, "InputStream is null") ;
         StreamRDF dest = StreamRDFLib.dataset(dataset) ;
-        process(dest, new TypedInputStream(in), base, lang, null) ;
+        parseFromInputStream(dest, in, base, lang, (Context)null) ;
     }
-    
+
     /** Read quads into a dataset with chars from an Reader.
      * Use java.io.Readers is not encouraged - use with a StringReader is the primary use case.
      * For files, open a {@link java.io.FileInputStream} to ensure correct character set handling.
@@ -587,8 +600,8 @@ public class RDFDataMgr
      * @deprecated use an InputStream or a StringReader.
      */
     @Deprecated
-    public static void read(Dataset dataset, Reader in, String base, Lang lang)
-    {
+    public static void read(Dataset dataset, Reader in, String base, Lang lang) {
+        Objects.requireNonNull(in, "Java Reader is null") ;
 		read(dataset.asDatasetGraph(), in, base, lang) ;
     }
 
@@ -602,10 +615,9 @@ public class RDFDataMgr
      * @deprecated use an InputStream or a StringReader.
      */
     @Deprecated
-    public static void read(DatasetGraph dataset, Reader in, String base, Lang lang)
-    {
+    public static void read(DatasetGraph dataset, Reader in, String base, Lang lang) {
         StreamRDF dest = StreamRDFLib.dataset(dataset) ;
-        process(dest, in, base, lang, null) ;
+        parseFromReader(dest, in, base, lang, (Context)null) ;
     }
 
     /** Read quads into a dataset with chars from a StringReader.
@@ -616,8 +628,7 @@ public class RDFDataMgr
      * @param base      Base URI
      * @param lang      Language syntax
      */
-    public static void read(Dataset dataset, StringReader in, String base, Lang lang)
-    {
+    public static void read(Dataset dataset, StringReader in, String base, Lang lang) {
         read(dataset.asDatasetGraph(), in, base, lang) ;
     }
 
@@ -629,41 +640,44 @@ public class RDFDataMgr
      * @param base      Base URI
      * @param lang      Language syntax
      */
-    public static void read(DatasetGraph dataset, StringReader in, String base, Lang lang)
-    {
+    public static void read(DatasetGraph dataset, StringReader in, String base, Lang lang) {
         StreamRDF dest = StreamRDFLib.dataset(dataset) ;
-        process(dest, in, base, lang, null) ;
+        parseFromReader(dest, in, base, lang, (Context)null) ;
     }
 
     /** Read RDF data.
+     * Use {@code RDFParser.source(uri).parse(sink)}
      * @param sink     Destination for the RDF read.
-     * @param uri       URI to read from (includes file: and a plain file name).
+     * @param uri      URI to read from (includes file: and a plain file name).
      */
-    public static void parse(StreamRDF sink, String uri)
-    {
-        parse(sink, uri, null) ;
+    //@deprecated     Use {@code RDFParser.source(uri).parse(sink)}
+    //@Deprecated
+    public static void parse(StreamRDF sink, String uri) {
+        parse(sink, uri, defaultLang(uri)) ;
     }
 
     /** Read RDF data.
+     * Use {@code RDFParser.source(uri).lang(hintLang).parse(sink)}
      * @param sink      Destination for the RDF read.
      * @param uri       URI to read from (includes file: and a plain file name).
      * @param lang      Hint for the syntax
      */
-    public static void parse(StreamRDF sink, String uri, Lang lang)
-    {
-        parse(sink, uri, lang, null) ;
+    //* @deprecated     Use {@code RDFParser.source(uri).lang(hintLang).parse(sink)}
+    //@Deprecated
+    public static void parse(StreamRDF sink, String uri, Lang lang) {
+        parse(sink, uri, lang, (Context)null) ;
     }
-
 
     /** Read RDF data.
      * @param sink     Destination for the RDF read.
      * @param uri       URI to read from (includes file: and a plain file name).
      * @param hintLang  Hint for the syntax
      * @param context   Content object to control reading process.
+     * @deprecated To be removed.  Use {@code RDFParser.source(uri).lang(hintLang).context(context).parse(sink)}
      */
-    public static void parse(StreamRDF sink, String uri, Lang hintLang, Context context)
-    {
-        parse(sink, uri, uri, hintLang, context) ;
+    @Deprecated
+    public static void parse(StreamRDF sink, String uri, Lang hintLang, Context context) {
+        parse(sink, uri, defaultBase(uri), hintLang, context) ;
     }
 
     /** Read RDF data.
@@ -671,31 +685,57 @@ public class RDFDataMgr
      * @param uri       URI to read from (includes file: and a plain file name).
      * @param base      Base URI (defaults to uri).
      * @param hintLang  Hint for the syntax
-     * @param context   Content object to control reading process.
+     * @deprecated To be removed.  Use {@code RDFParser.source(uri).base(base)...}
      */
-    public static void parse(StreamRDF sink, String uri, String base, Lang hintLang, Context context)
-    {
+    @Deprecated
+    public static void parse(StreamRDF sink, String uri, String base, Lang hintLang) {
+        parse(sink, uri, base, hintLang, (Context)null) ;
+    }
+
+    /** Read RDF data.
+     * @param sink      Destination for the RDF read.
+     * @param uri       URI to read from (includes file: and a plain file name).
+     * @param base      Base URI (defaults to uri).
+     * @param hintLang  Hint for the syntax
+     * @param context   Content object to control reading process.
+     * @deprecated     To be removed.  Use {@code RDFParser.source(uri).lang(hintLang).base(base).context(context).parse(sink)}
+     */
+    @Deprecated
+    public static void parse(StreamRDF sink, String uri, String base, Lang hintLang, Context context) {
         if ( uri == null )
             throw new IllegalArgumentException("URI to read from is null") ;
         if ( base == null )
             base = SysRIOT.chooseBaseIRI(uri) ;
         if ( hintLang == null )
             hintLang = RDFLanguages.filenameToLang(uri) ;
-        TypedInputStream in = open(uri, context) ;
-        if ( in == null )
-            throw new RiotException("Not found: "+uri) ;
-        process(sink, in, base, hintLang, context) ;
-        IO.close(in) ;
+        parseFromURI(sink, uri, base, hintLang, context);
     }
 
+    // TODO Deprecate this?
     /** Read RDF data.
+     *  Use {@code RDFParser.source(in).lang(lang).parse(sink)}
      * @param sink      Destination for the RDF read.
      * @param in        Bytes to read.
      * @param lang      Syntax for the stream.
      */
-    public static void parse(StreamRDF sink, InputStream in, Lang lang)
-    {
-        parse(sink, in, null, lang, null) ;  
+    //@deprecated     To be removed.  Use {@code RDFParser.source(in).lang(lang).parse(sink)}
+    //@Deprecated
+    public static void parse(StreamRDF sink, InputStream in, Lang lang) {
+        parseFromInputStream(sink, in, defaultBase(), lang, (Context)null) ;
+    }
+
+    // TODO Deprecate this?
+    /** Read RDF data.
+     * Use {@code RDFParser.source(in).lang(lang).base(base).parse(sink)}
+     * @param sink      Destination for the RDF read.
+     * @param in        Bytes to read.
+     * @param base      Base URI (defaults to uri).
+     * @param hintLang  Hint for the syntax
+     */
+    //@deprecated     To be removed.  Use {@code RDFParser.source(in).lang(lang).base(base).parse(sink)}
+    //@Deprecated
+    public static void parse(StreamRDF sink, InputStream in, String base, Lang hintLang) {
+        parseFromInputStream(sink, in, base, hintLang, null) ;
     }
 
     /** Read RDF data.
@@ -703,10 +743,33 @@ public class RDFDataMgr
      * @param in        Bytes to read.
      * @param base      Base URI (defaults to uri).
      * @param hintLang  Hint for the syntax
+     * @param context   Content object to control reading process.
+     * @deprecated     To be removed.  Use {@code RDFParser.source(in).base(base).lang(hintLang).context(context).parse(sink)}
      */
-    public static void parse(StreamRDF sink, InputStream in, String base, Lang hintLang)
-    {
-        parse(sink, in, base, hintLang, null) ;  
+    @Deprecated
+    public static void parse(StreamRDF sink, InputStream in, String base, Lang hintLang, Context context) {
+        parseFromInputStream(sink, in, base, hintLang, context) ;
+    }
+
+    /** Read RDF data.
+     * @param sink      Destination for the RDF read.
+     * @param in        StringReader
+     * @param lang      Syntax for the stream.
+     * @deprecated     To be removed. Use {@code RDFParser.create().source(in).lang(hintLang)...}
+     */
+    public static void parse(StreamRDF sink, StringReader in, Lang lang) {
+        parse(sink, in, defaultBase(), lang, (Context)null) ;
+    }
+
+    /** Read RDF data.
+     * @param sink      Destination for the RDF read.
+     * @param in        Reader
+     * @param base      Base URI (defaults to uri).
+     * @param hintLang  Hint for the syntax
+     * @deprecated     To be removed. Use {@code RDFParser.create().source(in).base(base).lang(hintLang).parse(sink)}
+     */
+    public static void parse(StreamRDF sink, StringReader in, String base, Lang hintLang) {
+        parse(sink, in, base, hintLang, (Context)null) ;
     }
 
     /** Read RDF data.
@@ -715,20 +778,22 @@ public class RDFDataMgr
      * @param base      Base URI (defaults to uri).
      * @param hintLang  Hint for the syntax
      * @param context   Content object to control reading process.
+     * @deprecated     To be removed. Use {@code RDFParser.create().source(in).base(base).lang(hintLang).context(context).pase(sink)}
      */
-    public static void parse(StreamRDF sink, StringReader in, String base, Lang hintLang, Context context)
-    {
-        process(sink, in, base, hintLang, context) ;
+    @Deprecated
+    public static void parse(StreamRDF sink, StringReader in, String base, Lang hintLang, Context context) {
+        parseFromReader(sink, in, base, hintLang, context) ;
     }
 
     /** Read RDF data.
      * @param sink      Destination for the RDF read.
-     * @param in        StringReader
+     * @param in        Reader
      * @param lang      Syntax for the stream.
+     * @deprecated     To be removed. An {@code InputStream} or {@code StringReader} is preferable. Use {@code RDFParser.create().source(in).lang(hintLang).parse()}
      */
-    public static void parse(StreamRDF sink, StringReader in, Lang lang)
-    {
-        parse(sink, in, null, lang, null) ;  
+    @Deprecated
+    public static void parse(StreamRDF sink, Reader in, Lang lang) {
+        parse(sink, in, defaultBase(), lang, (Context)null) ;
     }
 
     /** Read RDF data.
@@ -736,10 +801,11 @@ public class RDFDataMgr
      * @param in        Reader
      * @param base      Base URI (defaults to uri).
      * @param hintLang  Hint for the syntax
+     * @deprecated     To be removed. An {@code InputStream} or {@code StringReader} is preferable. Use {@code RDFParser.create().source(in).lang(hintLang).context(context).parse(sink)}
      */
-    public static void parse(StreamRDF sink, StringReader in, String base, Lang hintLang)
-    {
-        parse(sink, in, base, hintLang, null) ;  
+    @Deprecated
+    public static void parse(StreamRDF sink, Reader in, String base, Lang hintLang) {
+        parse(sink, in, base, hintLang, (Context)null) ;
     }
 
     /** Read RDF data.
@@ -748,58 +814,21 @@ public class RDFDataMgr
      * @param base      Base URI (defaults to uri).
      * @param hintLang  Hint for the syntax
      * @param context   Content object to control reading process.
-     * @deprecated     Use an InputStream or a StringReader. 
+     * @deprecated     To be removed. An {@code InputStream} or {@code StringReader} is preferable. Use {@code RDFParser.create().source(in).lang(hintLang).base(base).context(context).parse(sink)}
      */
     @Deprecated
-    public static void parse(StreamRDF sink, Reader in, String base, Lang hintLang, Context context)
-    {
-        process(sink, in, base, hintLang, context) ;
+    public static void parse(StreamRDF sink, Reader in, String base, Lang hintLang, Context context) {
+        parseFromReader(sink, in, base, hintLang, context) ;
     }
 
     /** Read RDF data.
      * @param sink      Destination for the RDF read.
-     * @param in        Reader
-     * @param lang      Syntax for the stream.
-     * @deprecated     Use an InputStream or a StringReader. 
+     * @param in        Bytes to read. This must include the content type.
+     * @deprecated     To be removed. Use an {@code InputStream} and {@code RDFParser.source(in).lang(hintLang).parse(sink)}
      */
     @Deprecated
-    public static void parse(StreamRDF sink, Reader in, Lang lang)
-    {
-        parse(sink, in, null, lang, null) ;  
-    }
-
-    /** Read RDF data.
-     * @param sink      Destination for the RDF read.
-     * @param in        Reader
-     * @param base      Base URI (defaults to uri).
-     * @param hintLang  Hint for the syntax
-     * @deprecated     Use an InputStream or a StringReader. 
-     */
-    @Deprecated
-    public static void parse(StreamRDF sink, Reader in, String base, Lang hintLang)
-    {
-        parse(sink, in, base, hintLang, null) ;  
-    }
-
-    /** Read RDF data.
-     * @param sink      Destination for the RDF read.
-     * @param in        Bytes to read.
-     * @param base      Base URI (defaults to uri).
-     * @param hintLang  Hint for the syntax
-     * @param context   Content object to control reading process.
-     */
-    public static void parse(StreamRDF sink, InputStream in, String base, Lang hintLang, Context context)
-    {
-        process(sink, new TypedInputStream(in), base, hintLang, context) ;
-    }
-
-    /** Read RDF data.
-     * @param sink      Destination for the RDF read.
-     * @param in        Bytes to read.  This must include the content type.
-     */
-    public static void parse(StreamRDF sink, TypedInputStream in)
-    {
-        parse(sink, in, (String)null) ;
+    public static void parse(StreamRDF sink, TypedInputStream in) {
+        parse(sink, in, defaultBase()) ;
     }
 
 
@@ -807,10 +836,11 @@ public class RDFDataMgr
      * @param sink      Destination for the RDF read.
      * @param in        Bytes to read.
      * @param base      Base URI
+     * @deprecated     To be removed. Use an {@code InputStream} and {@code RDFParser.source(in).base(base).lang(lang).parse(sink)}
      */
-    public static void parse(StreamRDF sink, TypedInputStream in, String base)
-    {
-        parse(sink, in, base, (Context)null) ;
+    @Deprecated
+    public static void parse(StreamRDF sink, TypedInputStream in, String base) {
+        parse(sink, in, base, (Context)null);
     }
 
     /** Read RDF data.
@@ -818,175 +848,153 @@ public class RDFDataMgr
      * @param in        Bytes to read.
      * @param base      Base URI
      * @param context   Content object to control reading process.
+     * @deprecated To be removed. Use {@code RDFParser.source(in).lang(lang).base(base).context(context).parse(sink)}
      */
-    public static void parse(StreamRDF sink, TypedInputStream in, String base, Context context)
-    {
+    @Deprecated
+    public static void parse(StreamRDF sink, TypedInputStream in, String base, Context context) {
+        Objects.requireNonNull(in, "TypedInputStream is null") ;
         Lang hintLang = RDFLanguages.contentTypeToLang(in.getMediaType()) ;
-        process(sink, new TypedInputStream(in), base, hintLang, context) ;
+        processFromTypedInputStream(sink, in, base, hintLang, context) ;
     }
 
     /** Open a stream to the destination (URI or filename)
      * Performs content negotiation, including looking at file extension.
      * @param filenameOrURI
-     * @return TypedInputStream 
+     * @return TypedInputStream
      */
     public static TypedInputStream open(String filenameOrURI)
     { return open(filenameOrURI, (Context)null) ; }
-    
+
     /** Open a stream to the destination (URI or filename)
-     * Performs content negotiation, including looking at file extension. 
+     * Performs content negotiation, including looking at file extension.
      * @param filenameOrURI
      * @param context
      * @return TypedInputStream
      */
-    public static TypedInputStream open(String filenameOrURI, Context context)
-    {
-        StreamManager sMgr = StreamManager.get() ;
-        if ( context != null )
-        {
-            try { sMgr = (StreamManager)context.get(streamManagerSymbol, context) ; }
-            catch (ClassCastException ex) 
-            { log.warn("Context symbol '"+streamManagerSymbol+"' is not a "+Utils.classShortName(StreamManager.class)) ; }
-        }
-        
+    public static TypedInputStream open(String filenameOrURI, Context context) {
+        StreamManager sMgr = StreamManager.get(context) ;
         return open(filenameOrURI, sMgr) ;
     }
-    
+
     /** Open a stream to the destination (URI or filename)
-     * Performs content negotiation, including looking at file extension. 
+     * Performs content negotiation, including looking at file extension.
      * @param filenameOrURI
      * @param streamManager
      * @return TypedInputStream
      */
-    public static TypedInputStream open(String filenameOrURI, StreamManager streamManager)
-    {
+    public static TypedInputStream open(String filenameOrURI, StreamManager streamManager) {
         TypedInputStream in = streamManager.open(filenameOrURI) ;
-            
         if ( in == null )
-        {
-            if ( log.isDebugEnabled() )
-                //log.debug("Found: "+filenameOrURI+" ("+loc.getName()+")") ;
-                log.debug("Not Found: "+filenameOrURI) ;
             throw new RiotNotFoundException("Not found: "+filenameOrURI) ;
-            //return null ;
-        }
-        if ( log.isDebugEnabled() )
-            //log.debug("Found: "+filenameOrURI+" ("+loc.getName()+")") ;
-            log.debug("Found: "+filenameOrURI) ;
         return in ;
     }
-    
-    // -----
-    // Readers are algorithms and must be stateless (or they must create a per
-    // run instance of something) because they may be called concurrency from
-    // different threads. The Context Reader object gives the per-run
-    // configuration.
 
-    private static void process(StreamRDF destination, TypedInputStream in, String baseUri, Lang lang, Context context)
-    {
-        // Issue is whether lang overrides all.
-        // Not in the case of remote conneg, no file extension, when lang is default. 
-//        // ---- NEW
-//        if ( lang != null ) {
-//            ReaderRIOT reader = createReader(lang) ;
-//            if ( reader == null )
-//                throw new RiotException("No parser registered for language: "+lang.getLabel()) ;
-//            reader.read(in, baseUri, lang.getContentType(), destination, context) ;
-//            return ;
-//        }
-//        // ---- NEW
-        
-        ContentType ct = WebContent.determineCT(in.getContentType(), lang, baseUri) ;
-        if ( ct == null )
-            throw new RiotException("Failed to determine the content type: (URI="+baseUri+" : stream="+in.getContentType()+")") ;
+    // ----
+    // The ways to parse from 3 kinds of source: URI, InputStream and Reader.
 
-        ReaderRIOT reader = getReader(ct) ;
-        if ( reader == null )
-            throw new RiotException("No parser registered for content type: "+ct.getContentType()) ;
-        reader.read(in, baseUri, ct, destination, context) ;
-    }
-    
-    // java.io.Readers are NOT preferred.
-    private static void process(StreamRDF destination, Reader in, String baseUri, Lang lang, Context context )
-    {
-//        // ---- NEW
-//        if ( lang != null ) {
-//            ReaderRIOT reader = createReader(lang) ;
-//            if ( reader == null )
-//                throw new RiotException("No parser registered for language: "+lang.getLabel()) ;
-//            reader.read(in, baseUri, lang.getContentType(), destination, context) ;
-//            return ;
-//        }
-//        // ---- NEW
-
-        // Not as good as from an InputStream 
-        ContentType ct = WebContent.determineCT(null, lang, baseUri) ;
-        if ( ct == null )
-            throw new RiotException("Failed to determine the content type: (URI="+baseUri+" : hint="+lang+")") ;
-        ReaderRIOT reader = getReader(ct) ;
-        if ( reader == null )
-            throw new RiotException("No parser registered for content type: "+ct.getContentType()) ;
-        reader.read(in, baseUri, ct, destination, context) ;
+    private static void parseFromInputStream(StreamRDF destination, InputStream in, String baseUri, Lang lang, Context context) {
+        RDFParser.create()
+            .source(in)
+            .base(baseUri)
+            .lang(lang)
+            .context(context)
+            .parse(destination);
     }
 
-//    ///---- NEW / rewrite
-//    // Lang is definitive.  needs further consideration
-//    private static void process2(StreamRDF destination, TypedInputStream in, String uri, Lang givenLang, Context context)
-//    {
-//        Pair<Lang, ContentType> p = selectLang(in.getMediaType(), uri, givenLang, context) ;
-//        Lang lang = p.getLeft() ;
-//        ContentType ct = p.getRight() ;
-//
-//        if ( lang == null )
-//            throw new RiotException("Syntax not identified (URI="+uri+" : stream="+in.getContentType()+")") ;
-//
-//        ReaderRIOT reader = createReader(lang) ;
-//        if ( reader == null )
-//            throw new RiotException("No parser registered for lang: "+lang.getLabel()) ;
-//        reader.read(in, uri, ct, destination, context) ;
-//    }
-//
-//    private static Pair<Lang, ContentType> selectLang(ContentType ct, String uri, Lang lang, Context context) {
-//        if ( lang != null )
-//            return Pair.create(lang, lang.getContentType()) ;
-//
-//        Lang ctLang = RDFLanguages.contentTypeToLang(ct) ;
-//        if ( ctLang != null )
-//            return Pair.create(ctLang, ct) ;
-//
-//        Lang filenameLang = RDFLanguages.filenameToLang(uri) ;
-//        if ( filenameLang != null )
-//            return Pair.create(filenameLang, filenameLang.getContentType()) ;
-//        return null ;
-//    }
-//    ///---- NEW
+    @SuppressWarnings("deprecation")
+    private static void parseFromReader(StreamRDF destination, Reader in, String baseUri, Lang lang, Context context) {
+        RDFParser.create()
+            .source(in)
+            .base(baseUri)
+            .lang(lang)
+            .context(context)
+            .parse(destination);
+    }
 
-    /** 
-     * @see RDFLanguages#shortnameToLang  to go from Jena short name to {@link Lang}
-     * @see RDFLanguages#contentTypeToLang to go from content type to {@link Lang}
+
+    private static void parseFromURI(StreamRDF destination, String uri, String baseUri, Lang lang, Context context) {
+        RDFParser.create()
+            .source(uri)
+            .base(baseUri)
+            .lang(lang)
+            .context(context)
+            .parse(destination);
+    }
+
+    // ---- Support for RDFDataMgr.parse from a TypedInputStream only.
+    @Deprecated
+    private static void processFromTypedInputStream(StreamRDF sink, TypedInputStream in, String baseUri, Lang hintLang, Context context) {
+        // If the input stream comes with a content type, use that in preference to the hint (compatibility).
+        // Except for text/plain.
+        // Do here, which duplicates RDFParser, because "TypedInputStream" gets lost at RDFParser
+        if ( in.getContentType() != null ) {
+            // Special case of text/plain.
+            ContentType ct = WebContent.determineCT(in.getContentType(), hintLang, null);
+            Lang lang2 = RDFLanguages.contentTypeToLang(ct);
+            hintLang = lang2 ;
+        }
+        RDFParser.create()
+            .source(in)
+            .base(baseUri)
+            .lang(hintLang)
+            // We made the decision above.
+            .forceLang(hintLang)
+            .context(context)
+            .parse(sink);
+    }
+    // ---- Support for RDFDataMgr.parse only.
+
+    /**
+     * @deprecated Use {@link RDFParser#create}.
      */
-
+    @Deprecated
     public static ReaderRIOT createReader(Lang lang) {
-        if ( lang == null )
-            throw new NullPointerException("Argument lang can not be null in RDFDataMgr.createReader") ;   
-        ReaderRIOTFactory r = RDFParserRegistry.getFactory(lang) ;
-        if ( r == null )
-            return null ;
-        return r.create(lang) ;
-    }
-    
-    private static ReaderRIOT getReader(ContentType ct)
-    {
-        Lang lang = RDFLanguages.contentTypeToLang(ct) ;
-        if ( lang == null )
-            return null ;
-        ReaderRIOTFactory r = RDFParserRegistry.getFactory(lang) ;
-        if ( r == null )
-            return null ;
-        return r.create(lang) ;
+        return createReader(lang, RiotLib.profile(lang, null));
     }
 
-    /** Determine the Lang, given the URI target, any content type header string and a hint */ 
+    /**
+     * Create a {@link ReaderRIOT}.
+     * This operation
+     *
+     * @see RDFParser
+     * @see RDFParserBuilder
+     * @deprecated This operation exists to ease migration to using {@link RDFParser#create} for detailed setup.
+     */
+    @Deprecated
+    public static ReaderRIOT createReader(Lang lang, ParserProfile profile) {
+        Objects.requireNonNull(lang,"Argument lang can not be null in RDFDataMgr.createReader") ;
+        ReaderRIOTFactory r = RDFParserRegistry.getFactory(lang) ;
+        if ( r == null )
+            return null ;
+        return r.create(lang, profile) ;//, profile.getHandler());
+    }
+
+    // Operations to remove "null"s in the code.
+
+    /** Default base - no known URI. e.g. input streams */
+    private static String defaultBase() {
+        return null ;
+    }
+
+    /** Default base - URI present */
+    private static String defaultBase(String uri) {
+        return uri ;
+    }
+
+    /** Default lang - usually left as unknown so that extended content negotiation happens */
+    private static Lang defaultLang(String uri) {
+        return null;
+    }
+
+    /** Map {@link Lang} to {@link RDFFormat}, or throw an exception. */
+    private static RDFFormat langToFormatOrException(Lang lang) {
+        RDFFormat serialization = RDFWriterRegistry.defaultSerialization(lang);
+        if ( serialization == null )
+            throw new RiotException("No output format for "+lang) ;
+        return serialization ;
+    }
+
+    /** Determine the Lang, given the URI target, any content type header string and a hint */
     public static Lang determineLang(String target, String ctStr, Lang hintLang) {
         ContentType ct = WebContent.determineCT(ctStr, hintLang, target) ;
         if ( ct == null )
@@ -996,17 +1004,16 @@ public class RDFDataMgr
             return hintLang ;
         return lang ;
     }
-    
+
     // -------- WRITERS
-    
+
     /** Write the model to the output stream in the default serialization for the language.
      * @param out       OutputStream
      * @param model     Graph to write
-     * @param lang      Language for the seralization.
+     * @param lang      Language for the serialization.
      */
-    public static void write(OutputStream out, Model model, Lang lang)
-    {
-        write(out, model.getGraph(), lang) ;
+    public static void write(OutputStream out, Model model, Lang lang) {
+        write(out, model.getGraph(), lang);
     }
 
     /** Write the model to the output stream in the default serialization for the language.
@@ -1014,21 +1021,18 @@ public class RDFDataMgr
      * @param model         Model to write
      * @param serialization Serialization format
      */
-    public static void write(OutputStream out, Model model, RDFFormat serialization)
-    {
-        write(out, model.getGraph(), serialization) ;
+    public static void write(OutputStream out, Model model, RDFFormat serialization) {
+        write(out, model.getGraph(), serialization);
     }
-    
+
     /** Write the graph to the output stream in the default serialization for the language.
      * @param out           StringWriter
      * @param model         Model to write
      * @param lang          Serialization format
      */
-    public static void write(StringWriter out, Model model, Lang lang)
-    {
-        write(out, model.getGraph(), lang) ;
+    public static void write(StringWriter out, Model model, Lang lang) {
+        write(out, model.getGraph(), lang);
     }
-    
 
     /** Write the graph to the output stream in the default serialization for the language.
      * @param out           Writer
@@ -1037,9 +1041,8 @@ public class RDFDataMgr
      * @deprecated Use of writers is deprecated - use an OutputStream
      */
     @Deprecated
-    public static void write(Writer out, Model model, Lang lang)
-    {
-        write(out, model.getGraph(), lang) ;
+    public static void write(Writer out, Model model, Lang lang) {
+        write(out, model.getGraph(), lang);
     }
 
     /** Write the graph to the output stream in the default serialization for the language.
@@ -1047,9 +1050,8 @@ public class RDFDataMgr
      * @param model         Model to write
      * @param serialization Serialization format
      */
-    public static void write(StringWriter out, Model model, RDFFormat serialization)
-    {
-        write(out, model.getGraph(), serialization) ;
+    public static void write(StringWriter out, Model model, RDFFormat serialization) {
+        write(out, model.getGraph(), serialization);
     }
 
     /** Write the graph to the output stream in the default serialization for the language.
@@ -1059,20 +1061,18 @@ public class RDFDataMgr
      * @deprecated Use of writers is deprecated - use an OutputStream
      */
     @Deprecated
-    public static void write(Writer out, Model model, RDFFormat serialization)
-    {
-        write(out, model.getGraph(), serialization) ;
+    public static void write(Writer out, Model model, RDFFormat serialization) {
+        write(out, model.getGraph(), serialization);
     }
 
     /** Write the graph to the output stream in the default serialization for the language.
      * @param out       OutputStream
      * @param graph     Graph to write
-     * @param lang      Language for the seralization.
+     * @param lang      Language for the serialization.
      */
-    public static void write(OutputStream out, Graph graph, Lang lang)
-    {
-        RDFFormat serialization = RDFWriterRegistry.defaultSerialization(lang) ;
-        write(out, graph, serialization) ;
+    public static void write(OutputStream out, Graph graph, Lang lang) {
+        RDFFormat serialization = langToFormatOrException(lang);
+        write(out, graph, serialization);
     }
 
     /** Write the graph to the output stream in the default serialization for the language.
@@ -1080,9 +1080,8 @@ public class RDFDataMgr
      * @param graph         Graph to write
      * @param serialization Serialization format
      */
-    public static void write(OutputStream out, Graph graph, RDFFormat serialization)
-    {
-        write$(out, graph, serialization) ;
+    public static void write(OutputStream out, Graph graph, RDFFormat serialization) {
+        write$(out, graph, serialization);
     }
 
     /** Write the graph to the output stream in the default serialization for the language.
@@ -1090,10 +1089,9 @@ public class RDFDataMgr
      * @param graph         Graph to write
      * @param lang          Serialization format
      */
-    public static void write(StringWriter out, Graph graph, Lang lang)
-    {
+    public static void write(StringWriter out, Graph graph, Lang lang) {
         // Only known reasonable use of a Writer
-        write$(out, graph, RDFWriterRegistry.defaultSerialization(lang)) ;
+        write$(out, graph, langToFormatOrException(lang));
     }
 
     /** Write the graph to the output stream in the default serialization for the language.
@@ -1103,20 +1101,18 @@ public class RDFDataMgr
      * @deprecated Use of writers is deprecated - use an OutputStream
      */
     @Deprecated
-    public static void write(Writer out, Graph graph, Lang lang)
-    {
-        write$(out, graph, RDFWriterRegistry.defaultSerialization(lang)) ;
+    public static void write(Writer out, Graph graph, Lang lang) {
+        write$(out, graph, langToFormatOrException(lang));
     }
-    
+
     /** Write the graph to the output stream in the default serialization for the language.
      * @param out           OutputStream
      * @param graph         Graph to write
      * @param serialization Serialization format
      */
-    public static void write(StringWriter out, Graph graph, RDFFormat serialization)
-    {
+    public static void write(StringWriter out, Graph graph, RDFFormat serialization) {
         // Only known reasonable use of a Writer
-        write$(out, graph, serialization) ;
+        write$(out, graph, serialization);
     }
 
     /** Write the graph to the output stream in the default serialization for the language.
@@ -1126,19 +1122,17 @@ public class RDFDataMgr
      * @deprecated Use of writers is deprecated - use an OutputStream
      */
     @Deprecated
-    public static void write(Writer out, Graph graph, RDFFormat serialization)
-    {
-        write$(out, graph, serialization) ;
+    public static void write(Writer out, Graph graph, RDFFormat serialization) {
+        write$(out, graph, serialization);
     }
-    
+
     /** Write the Dataset to the output stream in the default serialization for the language.
      * @param out       OutputStream
      * @param dataset   Dataset to write
-     * @param lang      Language for the seralization.
+     * @param lang      Language for the serialization.
      */
-    public static void write(OutputStream out, Dataset dataset, Lang lang)
-    {
-        write(out, dataset.asDatasetGraph(), lang) ;
+    public static void write(OutputStream out, Dataset dataset, Lang lang) {
+        write(out, dataset.asDatasetGraph(), lang);
     }
 
     /** Write the graph to the output stream in the default serialization for the language.
@@ -1146,9 +1140,8 @@ public class RDFDataMgr
      * @param dataset       Dataset to write
      * @param serialization Serialization format
      */
-    public static void write(OutputStream out, Dataset dataset, RDFFormat serialization)
-    {
-        write(out, dataset.asDatasetGraph(), serialization) ;
+    public static void write(OutputStream out, Dataset dataset, RDFFormat serialization) {
+        write(out, dataset.asDatasetGraph(), serialization);
     }
 
     /** Write the graph to the output stream in the default serialization for the language.
@@ -1156,20 +1149,18 @@ public class RDFDataMgr
      * @param dataset       Dataset to write
      * @param serialization Serialization format
      */
-    public static void write(StringWriter out, Dataset dataset, RDFFormat serialization)
-    {
-        write$(out, dataset.asDatasetGraph(), serialization) ;
+    public static void write(StringWriter out, Dataset dataset, RDFFormat serialization) {
+        write$(out, dataset.asDatasetGraph(), serialization);
     }
 
     /** Write the graph to the output stream in the default serialization for the language.
      * @param out           StringWriter
      * @param dataset       Dataset to write
-     * @param lang      Language for the seralization.
+     * @param lang      Language for the serialization.
      */
-    public static void write(StringWriter out, Dataset dataset, Lang lang)
-    {
-        RDFFormat serialization = RDFWriterRegistry.defaultSerialization(lang) ;
-        write$(out, dataset.asDatasetGraph(), serialization) ;
+    public static void write(StringWriter out, Dataset dataset, Lang lang) {
+        RDFFormat serialization = langToFormatOrException(lang);
+        write$(out, dataset.asDatasetGraph(), serialization);
     }
 
     /** Write the graph to the output stream in the default serialization for the language.
@@ -1179,20 +1170,18 @@ public class RDFDataMgr
      * @deprecated Use of writers is deprecated - use an OutputStream
      */
     @Deprecated
-    public static void write(Writer out, Dataset dataset, RDFFormat serialization)
-    {
-        write$(out, dataset.asDatasetGraph(), serialization) ;
+    public static void write(Writer out, Dataset dataset, RDFFormat serialization) {
+        write$(out, dataset.asDatasetGraph(), serialization);
     }
 
     /** Write the DatasetGraph to the output stream in the default serialization for the language.
      * @param out       OutputStream
      * @param dataset   DatasetGraph to write
-     * @param lang      Language for the seralization.
+     * @param lang      Language for the serialization.
      */
-    public static void write(OutputStream out, DatasetGraph dataset, Lang lang)
-    {
-        RDFFormat serialization = RDFWriterRegistry.defaultSerialization(lang) ;
-        write(out, dataset, serialization) ;
+    public static void write(OutputStream out, DatasetGraph dataset, Lang lang) {
+        RDFFormat serialization = langToFormatOrException(lang);
+        write(out, dataset, serialization);
     }
 
     /** Write the graph to the output stream in the default serialization for the language.
@@ -1200,20 +1189,18 @@ public class RDFDataMgr
      * @param dataset       DatasetGraph to write
      * @param serialization Serialization format
      */
-    public static void write(OutputStream out, DatasetGraph dataset, RDFFormat serialization)
-    {
-        write$(out, dataset, serialization) ;
+    public static void write(OutputStream out, DatasetGraph dataset, RDFFormat serialization) {
+        write$(out, dataset, serialization);
     }
 
     /** Write the DatasetGraph to the output stream in the default serialization for the language.
      * @param out       StringWriter
      * @param dataset   DatasetGraph to write
-     * @param lang      Language for the seralization.
+     * @param lang      Language for the serialization.
      */
-    public static void write(StringWriter out, DatasetGraph dataset, Lang lang)
-    {
-        RDFFormat serialization = RDFWriterRegistry.defaultSerialization(lang) ;
-        write(out, dataset, serialization) ;
+    public static void write(StringWriter out, DatasetGraph dataset, Lang lang) {
+        RDFFormat serialization = langToFormatOrException(lang);
+        write(out, dataset, serialization);
     }
 
     /** Write the graph to the output stream in the default serialization for the language.
@@ -1221,9 +1208,8 @@ public class RDFDataMgr
      * @param dataset       DatasetGraph to write
      * @param serialization Serialization format
      */
-    public static void write(StringWriter out, DatasetGraph dataset, RDFFormat serialization)
-    {
-        write$(out, dataset, serialization) ;
+    public static void write(StringWriter out, DatasetGraph dataset, RDFFormat serialization) {
+        write$(out, dataset, serialization);
     }
 
     /** Write the graph to the output stream in the default serialization for the language.
@@ -1233,108 +1219,139 @@ public class RDFDataMgr
      * @deprecated Use of writers is deprecated - use an OutputStream
      */
     @Deprecated
-    public static void write(Writer out, DatasetGraph dataset, RDFFormat serialization)
-    {
-        write$(out, dataset, serialization) ;
+    public static void write(Writer out, DatasetGraph dataset, RDFFormat serialization) {
+        write$(out, dataset, serialization);
     }
 
     /** Write an iterator of triples (in N-Triples)
      * @param out
      * @param iterator
      */
-    public static void writeTriples(OutputStream out, Iterator<Triple> iterator)
-    {
-        NTriplesWriter.write(out, iterator) ;        
+    public static void writeTriples(OutputStream out, Iterator<Triple> iterator) {
+        NTriplesWriter.write(out, iterator);
     }
-    
 
     /** Write an iterator of quads (in N-Quads)
      * @param out
      * @param iterator
      */
-    public static void writeQuads(OutputStream out, Iterator<Quad> iterator)
-    {
-        NQuadsWriter.write(out, iterator) ;        
+    public static void writeQuads(OutputStream out, Iterator<Quad> iterator) {
+        NQuadsWriter.write(out, iterator);
     }
 
     /** Create a writer for an RDF language
-     * @param lang   Language for the seralization.
+     * @param lang   Language for the serialization.
      * @return WriterGraphRIOT
+     * @deprecated Use {@code RDFWriter.create().lang(Lang).source(graph).build()}
      */
-    
-    public static WriterGraphRIOT createGraphWriter(Lang lang)
-    {
-        RDFFormat serialization = RDFWriterRegistry.defaultSerialization(lang) ;
-        return createGraphWriter$(serialization) ;    
+    @Deprecated
+    public static WriterGraphRIOT createGraphWriter(Lang lang) {
+        RDFFormat serialization = langToFormatOrException(lang);
+        return createGraphWriter$(serialization);
+    }
+
+    /** Create a writer for an RDF language
+     * @param serialization Serialization format
+     * @return WriterGraphRIOT
+     * @deprecated Use {@code RDFWriter.create().format(serialization).source(graph).build()}
+     */
+    @Deprecated
+    public static WriterGraphRIOT createGraphWriter(RDFFormat serialization) {
+        return createGraphWriter$(serialization);
+    }
+
+    /** Create a writer for an RDF language
+     * @param lang   Language for the serialization.
+     * @return WriterGraphRIOT
+     * @deprecated Use {@code RDFWriter.create().lang(lang).source(datasetGraph).build()}
+     */
+    @Deprecated
+    public static WriterDatasetRIOT createDatasetWriter(Lang lang) {
+        RDFFormat serialization = langToFormatOrException(lang);
+        return createDatasetWriter$(serialization);
     }
 
     /** Create a writer for an RDF language
      * @param serialization Serialization format
      * @return WriterGraphRIOT
+     * @deprecated Use {@code RDFWriter.create().format(serialization).source(datasetGraph).build()}
      */
-    public static WriterGraphRIOT createGraphWriter(RDFFormat serialization)
-    {
-        return createGraphWriter$(serialization) ;    
+    @Deprecated
+    public static WriterDatasetRIOT createDatasetWriter(RDFFormat serialization) {
+        return createDatasetWriter$(serialization);
     }
 
-    /** Create a writer for an RDF language
-     * @param lang   Language for the seralization.
-     * @return WriterGraphRIOT
-     */
-    
-    public static WriterDatasetRIOT createDatasetWriter(Lang lang)
-    {
-        RDFFormat serialization = RDFWriterRegistry.defaultSerialization(lang) ;
-        return createDatasetWriter$(serialization) ;    
-    }
-    
-    /** Create a writer for an RDF language
-     * @param serialization Serialization format
-     * @return WriterGraphRIOT
-     */
-    public static WriterDatasetRIOT createDatasetWriter(RDFFormat serialization)
-    {
-        return createDatasetWriter$(serialization) ;    
-    }
-    
-    private static WriterGraphRIOT createGraphWriter$(RDFFormat serialization)
-    {
-        WriterGraphRIOTFactory wf = RDFWriterRegistry.getWriterGraphFactory(serialization) ;
+    private static WriterGraphRIOT createGraphWriter$(RDFFormat serialization) {
+        WriterGraphRIOTFactory wf = RDFWriterRegistry.getWriterGraphFactory(serialization);
         if ( wf == null )
-            throw new RiotException("No graph writer for "+serialization) ; 
-        return wf.create(serialization) ;
+            throw new RiotException("No graph writer for " + serialization);
+        return wf.create(serialization);
     }
 
-    private static WriterDatasetRIOT createDatasetWriter$(RDFFormat serialization)
-    {
-        WriterDatasetRIOTFactory wf = RDFWriterRegistry.getWriterDatasetFactory(serialization) ;
+    private static WriterDatasetRIOT createDatasetWriter$(RDFFormat serialization) {
+        WriterDatasetRIOTFactory wf = RDFWriterRegistry.getWriterDatasetFactory(serialization);
         if ( wf == null )
-            throw new RiotException("No dataset writer for "+serialization) ; 
-        return wf.create(serialization) ;
+            throw new RiotException("No dataset writer for " + serialization);
+        return wf.create(serialization);
     }
 
-    private static void write$(OutputStream out, Graph graph, RDFFormat serialization)
-    {
-        WriterGraphRIOT w = createGraphWriter$(serialization) ;
-        w.write(out, graph, RiotLib.prefixMap(graph), null, null) ;
+    private static void write$(OutputStream out, Graph graph, RDFFormat serialization) {
+        RDFWriter.create().format(serialization).source(graph).output(out);
     }
 
-    private static void write$(Writer out, Graph graph, RDFFormat serialization)
-    {
-        WriterGraphRIOT w = createGraphWriter$(serialization) ;
-        w.write(out, graph, RiotLib.prefixMap(graph), null, null) ;
+    @SuppressWarnings("deprecation")
+    private static void write$(Writer out, Graph graph, RDFFormat serialization) {
+        RDFWriter.create().format(serialization).source(graph).build().output(out);
     }
 
-    private static void write$(OutputStream out, DatasetGraph dataset, RDFFormat serialization)
-    {
-        WriterDatasetRIOT w = createDatasetWriter$(serialization) ;
-        w.write(out, dataset, RiotLib.prefixMap(dataset), null, null) ;
+    private static void write$(OutputStream out, DatasetGraph dataset, RDFFormat serialization) {
+        RDFWriter.create().format(serialization).source(dataset).output(out);
     }
 
-    private static void write$(Writer out, DatasetGraph dataset, RDFFormat serialization)
-    {
-        WriterDatasetRIOT w = createDatasetWriter$(serialization) ;
-        w.write(out, dataset, RiotLib.prefixMap(dataset), null, null) ;
+    @SuppressWarnings("deprecation")
+    private static void write$(Writer out, DatasetGraph dataset, RDFFormat serialization) {
+        RDFWriter.create().format(serialization).source(dataset).build().output(out);
+    }
+
+    /**
+     * Create an iterator over parsing of triples
+     * @param input Input Stream
+     * @param lang Language
+     * @param baseIRI Base IRI
+     * @return Iterator over the triples
+     */
+    public static Iterator<Triple> createIteratorTriples(InputStream input, Lang lang, String baseIRI) {
+        // Special case N-Triples, because the RIOT reader has a pull interface
+        if ( RDFLanguages.sameLang(RDFLanguages.NTRIPLES, lang) )
+            return new IteratorResourceClosing<>(RiotParsers.createIteratorNTriples(input, null), input);
+        // Otherwise, we have to spin up a thread to deal with it
+        PipedRDFIterator<Triple> it = new PipedRDFIterator<>();
+        PipedTriplesStream out = new PipedTriplesStream(it);
+        Thread t = new Thread(()->parseFromInputStream(out, input, baseIRI, lang, null)) ;
+        t.start();
+        return it;
+    }
+
+    /**
+     * Creates an iterator over parsing of quads
+     * @param input Input Stream
+     * @param lang Language
+     * @param baseIRI Base IRI
+     * @return Iterator over the quads
+     */
+    public static Iterator<Quad> createIteratorQuads(InputStream input, Lang lang, String baseIRI) {
+        // Special case N-Quads, because the RIOT reader has a pull interface
+        if ( RDFLanguages.sameLang(RDFLanguages.NQUADS, lang) ) {
+            return new IteratorResourceClosing<>(
+                RiotParsers.createIteratorNQuads(input, null, RiotLib.dftProfile()),
+                input);
+        }
+        // Otherwise, we have to spin up a thread to deal with it
+        final PipedRDFIterator<Quad> it = new PipedRDFIterator<>();
+        final PipedQuadsStream out = new PipedQuadsStream(it);
+
+        Thread t = new Thread(()->parseFromInputStream(out, input, baseIRI, lang, null)) ;
+        t.start();
+        return it;
     }
 }
-

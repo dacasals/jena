@@ -18,31 +18,17 @@
 
 package org.apache.jena.riot.lang ;
 
-import static org.apache.jena.riot.tokens.TokenType.COMMA ;
-import static org.apache.jena.riot.tokens.TokenType.DIRECTIVE ;
-import static org.apache.jena.riot.tokens.TokenType.DOT ;
-import static org.apache.jena.riot.tokens.TokenType.EOF ;
-import static org.apache.jena.riot.tokens.TokenType.IRI ;
-import static org.apache.jena.riot.tokens.TokenType.KEYWORD ;
-import static org.apache.jena.riot.tokens.TokenType.LBRACE ;
-import static org.apache.jena.riot.tokens.TokenType.LBRACKET ;
-import static org.apache.jena.riot.tokens.TokenType.LPAREN ;
-import static org.apache.jena.riot.tokens.TokenType.NODE ;
-import static org.apache.jena.riot.tokens.TokenType.PREFIXED_NAME ;
-import static org.apache.jena.riot.tokens.TokenType.RBRACKET ;
-import static org.apache.jena.riot.tokens.TokenType.RPAREN ;
-import static org.apache.jena.riot.tokens.TokenType.SEMICOLON ;
-import org.apache.jena.iri.IRI ;
-import org.apache.jena.riot.system.ParserProfile ;
-import org.apache.jena.riot.system.StreamRDF ;
+import static org.apache.jena.riot.tokens.TokenType.*;
+
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.NodeFactory ;
+import org.apache.jena.riot.system.ParserProfile;
+import org.apache.jena.riot.system.PrefixMap;
+import org.apache.jena.riot.system.StreamRDF;
 import org.apache.jena.riot.tokens.Token ;
 import org.apache.jena.riot.tokens.TokenType ;
 import org.apache.jena.riot.tokens.Tokenizer ;
-
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.graph.NodeFactory ;
-import com.hp.hpl.jena.sparql.graph.NodeConst ;
-import com.hp.hpl.jena.vocabulary.OWL ;
+import org.apache.jena.sparql.graph.NodeConst ;
 
 /** The main engine for all things Turtle-ish (Turtle, TriG). */
 public abstract class LangTurtleBase extends LangBase {
@@ -50,7 +36,7 @@ public abstract class LangTurtleBase extends LangBase {
     // Some predicates (if accepted)
     protected final static String  KW_A           = "a" ;
     protected final static String  KW_SAME_AS     = "=" ;
-    protected final static String  KW_LOG_IMPLIES = "=>" ;
+    //protected final static String  KW_LOG_IMPLIES = "=>" ;
     protected final static String  KW_TRUE        = "true" ;
     protected final static String  KW_FALSE       = "false" ;
 
@@ -59,16 +45,19 @@ public abstract class LangTurtleBase extends LangBase {
     // Current graph - null for default graph
     private Node                   currentGraph   = null ;
 
-    public final Node getCurrentGraph() {
+    protected final PrefixMap prefixMap;
+
+    protected final Node getCurrentGraph() {
         return currentGraph ;
     }
 
-    public final void setCurrentGraph(Node graph) {
+    protected final void setCurrentGraph(Node graph) {
         this.currentGraph = graph ;
     }
 
     protected LangTurtleBase(Tokenizer tokens, ParserProfile profile, StreamRDF dest) {
         super(tokens, profile, dest) ;
+        prefixMap = profile.getPrefixMap();
     }
 
     @Override
@@ -98,8 +87,8 @@ public abstract class LangTurtleBase extends LangBase {
     protected abstract void oneTopLevelElement() ;
 
     /**
-     * Emit a triple - nodes have been checked as has legality of node type in
-     * location
+     * Emit a triple - nodes have been checked as has legality of
+     * node type in location.
      */
     protected abstract void emit(Node subject, Node predicate, Node object) ;
 
@@ -128,7 +117,7 @@ public abstract class LangTurtleBase extends LangBase {
 
         if ( x.equals("base") ) {
             directiveBase() ;
-            if ( profile.isStrictMode() )
+            if ( isStrictMode )
                 // The line number is probably one ahead due to the newline
                 expect("Base directive not terminated by a dot", DOT) ;
             else
@@ -138,9 +127,9 @@ public abstract class LangTurtleBase extends LangBase {
 
         if ( x.equals("prefix") ) {
             directivePrefix() ;
-            if ( profile.isStrictMode() )
+            if ( isStrictMode )
                 // The line number is probably one ahead due to the newline
-                expect("Prefix directive not terminated by a dot", DOT) ;   
+                expect("Prefix directive not terminated by a dot", DOT) ;
             else
                 skipIf(DOT) ;
             return ;
@@ -151,35 +140,33 @@ public abstract class LangTurtleBase extends LangBase {
     protected final void directivePrefix() {
         // Raw - unresolved prefix name.
         if ( !lookingAt(PREFIXED_NAME) )
-            exception(peekToken(), "@prefix or PREFIX requires a prefix (found '" + peekToken() + "')") ;
+            exception(peekToken(), "PREFIX or @prefix requires a prefix (found '" + peekToken() + "')") ;
         if ( peekToken().getImage2().length() != 0 )
-            exception(peekToken(), "@prefix or PREFIX requires a prefix with no suffix (found '" + peekToken() + "')") ;
+            exception(peekToken(), "PREFIX or @prefix requires a prefix with no suffix (found '" + peekToken() + "')") ;
         String prefix = peekToken().getImage() ;
         nextToken() ;
         if ( !lookingAt(IRI) )
             exception(peekToken(), "@prefix requires an IRI (found '" + peekToken() + "')") ;
-        String iriStr = peekToken().getImage() ;
-        IRI iri = profile.makeIRI(iriStr, currLine, currCol) ;
-        profile.getPrologue().getPrefixMap().add(prefix, iri) ;
-        emitPrefix(prefix, iri.toString()) ;
+        String str = peekToken().getImage() ;
+        String iri = profile.resolveIRI(str, currLine, currCol) ;
+        prefixMap.add(prefix, iri) ;
+        emitPrefix(prefix, iri) ;
         nextToken() ;
     }
 
     protected final void directiveBase() {
         Token token = peekToken() ;
         if ( !lookingAt(IRI) )
-            exception(token, "@base requires an IRI (found '" + token + "')") ;
-        String baseStr = token.getImage() ;
-        IRI baseIRI = profile.makeIRI(baseStr, currLine, currCol) ;
-        emitBase(baseIRI.toString()) ;
+            exception(token, "BASE or @base requires an IRI (found '" + token + "')") ;
+        String str = token.getImage() ;
+        String baseIRI = profile.resolveIRI(str, currLine, currCol) ;
+        profile.setBaseIRI(baseIRI);
+        emitBase(baseIRI) ;
         nextToken() ;
-        profile.getPrologue().setBaseURI(baseIRI) ;
     }
 
-    
-
     // Unlike many operations in this parser suite
-    // this does not assume that we have definitely
+    // this does not assume that we are definitely
     // entering this state. It does checks and may
     // signal a parse exception.
 
@@ -193,7 +180,7 @@ public abstract class LangTurtleBase extends LangBase {
         }
 
         boolean maybeList = lookingAt(LPAREN) ;
-        
+
         // Turtle: TriplesSameSubject -> TriplesNode PropertyList?
         // TriG:   (blankNodePropertyList | collection) predicateObjectList? '.'
         //         labelOrSubject (wrappedGraph | predicateObjectList '.')
@@ -210,7 +197,7 @@ public abstract class LangTurtleBase extends LangBase {
             // There must be a predicate and object.
 
             // -- If strict turtle.
-            if ( profile.isStrictMode() && maybeList ) {
+            if ( isStrictMode && maybeList ) {
                 if ( peekPredicate() ) {
                     predicateObjectList(n) ;
                     expectEndOfTriples() ;
@@ -236,7 +223,88 @@ public abstract class LangTurtleBase extends LangBase {
             //exception(peekToken(), "Unexpected token : %s", peekToken()) ;
             return ;
         }
+
+        // <<>> subject position. Rule [10]
+        if ( lookingAt(LT2) ) {
+            Node subject = parseTripleTerm();
+            predicateObjectList(subject) ;
+            expectEndOfTriples() ;
+            return;
+        }
+
         exception(peekToken(), "Out of place: %s", peekToken()) ;
+    }
+
+    // Parse a << >> : RDF*
+    /* The Turtle grammar is:
+            tripleX ::= ’<<’ subjectX predicate objectX ’>>’
+            subjectX ::= iri | BlankNode | tripleX
+            objectX ::= iri | BlankNode | literal | tripleX
+            [10x]    subject ::= iri | BlankNode | collection | tripleX
+            [12x]    object ::= iri | BlankNode | collection | blankNodePropertyList | literal | tripleX
+       i.e. no compounds inside <<>>
+     */
+
+    // Assumes looking at << (LT2) on entry
+    // node() or nodeX
+    private Node parseTripleTerm() {
+        Token token = nextToken();
+        // subjectX()
+        Node s = subjectX();
+
+        Node p = predicate();  // predicate() == node();nextToken();
+        nextToken();
+
+        // objectX()
+        Node o = objectX();
+
+        if ( ! lookingAt(GT2) )
+            exception(peekToken(), "Expected >>, found %s", peekToken().text()) ;
+        nextToken();
+
+        // XXX Emit target triple. Need to suppress duplicates
+        //emitTriple(s, p, o);
+
+        return profile.createTripleNode(s, p, o, token.getLine(), token.getColumn());
+    }
+
+    private Node subjectX() {
+        Node node = nodeX("subject");
+        if ( node.isLiteral() )
+            exception(peekToken(), "Literal as subject in RDF* triple") ;
+        return node ;
+    }
+
+    private Node objectX() {
+        Node node = nodeX("object");
+        return node ;
+    }
+
+    // Does consume the token.
+    private Node nodeX(String posnLabel) {
+        if ( lookingAt(LT2) )
+            return parseTripleTerm();
+        
+        // ANON
+        // [14]     blankNodePropertyList   ::=     '[' predicateObjectList ']'
+        //    is at least one predicate /object.
+        // Method triplesNodeCompound ()-> triplesBlankNode(subject)
+        //    can cope with zero length, covering grammar token ANON and rule [7] predicateObjectList cases
+        // But here, in RDF*, only [] is legal.
+        if ( lookingAt(LBRACKET) ) {
+            nextToken();
+            Token t = peekToken();
+            if ( ! lookingAt(RBRACKET) )
+                exception(peekToken(), "Bad %s in RDF* triple after [, expected ]", posnLabel, peekToken().text()) ;
+            nextToken();
+            return profile.createBlankNode(currentGraph, t.getLine(), t.getColumn()) ;
+        }
+        
+        if ( ! lookingAt(NODE) )
+            exception(peekToken(), "Bad %s in RDF* triple", posnLabel, peekToken().text()) ;
+        Node node = node();
+        nextToken();
+        return node;
     }
 
     // Must be at least one triple.
@@ -254,17 +322,17 @@ public abstract class LangTurtleBase extends LangBase {
     // Differs between Turtle and TriG.
     // TriG, inside {} does not need the trailing DOT
     protected abstract void expectEndOfTriples() ;
-    
+
     // The DOT is required by Turtle (strictly).
     // It is not in N3 and SPARQL.
-    
+
     protected void expectEndOfTriplesTurtle() {
-        if ( profile.isStrictMode() )
+        if ( isStrictMode )
             expect("Triples not terminated by DOT", DOT) ;
         else
             expectOrEOF("Triples not terminated by DOT", DOT) ;
     }
-        
+
     protected final void predicateObjectList(Node subject) {
         predicateObjectItem(subject) ;
 
@@ -288,7 +356,7 @@ public abstract class LangTurtleBase extends LangBase {
         objectList(subject, predicate) ;
     }
 
-    static protected final Node nodeSameAs     = OWL.sameAs.asNode() ;
+    static protected final Node nodeSameAs     = NodeConst.nodeOwlSameAs ;
     static protected final Node nodeLogImplies = NodeFactory.createURI("http://www.w3.org/2000/10/swap/log#implies") ;
 
     /** Get predicate - maybe null for "illegal" */
@@ -296,16 +364,18 @@ public abstract class LangTurtleBase extends LangBase {
         Token t = peekToken() ;
 
         if ( t.hasType(TokenType.KEYWORD) ) {
-            boolean strict = profile.isStrictMode() ;
+            boolean strict = isStrictMode ;
             Token tErr = peekToken() ;
             String image = peekToken().getImage() ;
             if ( image.equals(KW_A) )
                 return NodeConst.nodeRDFType ;
+            // N3-isms
             if ( !strict && image.equals(KW_SAME_AS) )
                 return nodeSameAs ;
-            if ( !strict && image.equals(KW_LOG_IMPLIES) )
-                return NodeConst.nodeRDFType ;
-            exception(tErr, "Unrecognized: " + image) ;
+            // Relationship between two formulae in N3.
+//            if ( !strict && image.equals(KW_LOG_IMPLIES) )
+//                return log:implies;
+            exception(tErr, "Unrecognized keyword: " + image) ;
         }
 
         Node n = node() ;
@@ -314,17 +384,16 @@ public abstract class LangTurtleBase extends LangBase {
         return n ;
     }
 
-    /** Check raw token to see if it might be a predciate */
+    /** Check raw token to see if it might be a predicate */
     protected final boolean peekPredicate() {
         if ( lookingAt(TokenType.KEYWORD) ) {
             String image = peekToken().getImage() ;
-            boolean strict = profile.isStrictMode() ;
             if ( image.equals(KW_A) )
                 return true ;
-            if ( !strict && image.equals(KW_SAME_AS) )
+            if ( !isStrictMode && image.equals(KW_SAME_AS) )
                 return true ;
-            if ( !strict && image.equals(KW_LOG_IMPLIES) )
-                return true ;
+//            if ( !isStrictMode && image.equals(KW_LOG_IMPLIES) )
+//                return true ;
             return false ;
         }
         // if ( lookingAt(NODE) )
@@ -336,7 +405,11 @@ public abstract class LangTurtleBase extends LangBase {
         return false ;
     }
 
-    /** Maybe "null" for not-a-node. */
+    /** Create a Node for the current token.
+     *  Does not create nodes/triples for compound structures.
+     *  May return "null" for not-a-node.
+     *  Does not consume the token.
+     */
     protected final Node node() {
         // Token to Node
         Node n = tokenAsNode(peekToken()) ;
@@ -362,7 +435,7 @@ public abstract class LangTurtleBase extends LangBase {
     // A structure of triples that itself generates a node.
     // Special checks for [] and ().
 
-    protected final Node triplesNode() {
+    protected final Node triplesNode() { // == [12] object in the grammar.
         if ( lookingAt(NODE) ) {
             Node n = node() ;
             nextToken() ;
@@ -385,6 +458,9 @@ public abstract class LangTurtleBase extends LangBase {
             exception(tErr, "Unrecognized keyword: " + image) ;
         }
 
+        if ( lookingAt(LT2) )
+            return parseTripleTerm();
+
         return triplesNodeCompound() ;
     }
 
@@ -405,7 +481,7 @@ public abstract class LangTurtleBase extends LangBase {
             return triplesFormula() ;
         if ( lookingAt(LPAREN) )
             return triplesList() ;
-        exception(peekToken(), "Unrecognized: " + peekToken()) ;
+        exception(peekToken(), "Unrecognized (expected an RDF Term): " + peekToken()) ;
         return null ;
     }
 
@@ -451,8 +527,8 @@ public abstract class LangTurtleBase extends LangBase {
             if ( n == null )
                 exception(errorToken, "Malformed list") ;
 
-            // Node for the list structre.
-            Node nextCell = NodeFactory.createAnon() ;
+            // Node for the list structure.
+            Node nextCell = NodeFactory.createBlankNode() ;
             if ( listHead == null )
                 listHead = nextCell ;
             if ( lastCell != null )
@@ -460,21 +536,18 @@ public abstract class LangTurtleBase extends LangBase {
             lastCell = nextCell ;
 
             emitTriple(nextCell, NodeConst.nodeFirst, n) ;
-
-            if ( !moreTokens() ) // Error.
-                break ;
         }
         // On exit, just after the RPARENS
 
-        if ( lastCell == null )
+        if ( lastCell == null ) {
             // Simple ()
+            finishList();
             return NodeConst.nodeNil ;
+        }
 
         // Finish list.
         emitTriple(lastCell, NodeConst.nodeRest, NodeConst.nodeNil) ;
-
         finishList() ;
-
         return listHead ;
     }
 
@@ -489,10 +562,10 @@ public abstract class LangTurtleBase extends LangBase {
     }
 
     private final void emitPrefix(String prefix, String iriStr) {
-        dest.prefix(prefix, iriStr) ; 
+        dest.prefix(prefix, iriStr) ;
     }
 
-    private final void emitBase(String baseStr) { 
+    private final void emitBase(String baseStr) {
         dest.base(baseStr);
     }
 

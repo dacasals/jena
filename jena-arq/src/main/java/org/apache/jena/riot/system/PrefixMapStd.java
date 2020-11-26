@@ -23,25 +23,20 @@ import java.util.HashMap ;
 import java.util.Map ;
 
 import org.apache.jena.atlas.lib.Pair ;
-import org.apache.jena.iri.IRI ;
-import org.apache.jena.iri.IRIFactory ;
 
 /**
- * Default implementation of a {@link PrefixMap}, this implementation
- * is best suited to use for input.
- * <p>
- * @see FastAbbreviatingPrefixMap which may offer much better abbreviation performance.
+ * Default implementation of a {@link PrefixMap}.
  */
 public class PrefixMapStd extends PrefixMapBase {
     // Expansion map
-    final Map<String, IRI> prefixes = new HashMap<>();
+    final Map<String, String> prefixes = new HashMap<>();
 
     // Immutable view of prefixes 
-    private final Map<String, IRI> prefixes2 = Collections.unmodifiableMap(prefixes);
+    private final Map<String, String> prefixes2 = Collections.unmodifiableMap(prefixes);
     
     // Abbreviation map used for common cases.
-    // This keeps the URI->prefix mappings for a computed guess at the anser, before
-    // resorting to a full search. See abbrev(String) below.s 
+    // This keeps the URI->prefix mappings for a computed guess at the answer, before
+    // resorting to a full search. See abbrev(String) below. 
     final Map<String, String> uriToPrefix = new HashMap<>();
 
     /**
@@ -59,20 +54,12 @@ public class PrefixMapStd extends PrefixMapBase {
     }
 
     @Override
-    public Map<String, IRI> getMapping() {
+    public Map<String, String> getMapping() {
         return prefixes2;
     }
 
     @Override
-    public void add(String prefix, String iriString) {
-        prefix = canonicalPrefix(prefix);
-        IRI iri = IRIFactory.iriImplementation().create(iriString);
-        prefixes.put(prefix, iri);
-        uriToPrefix.put(iriString, prefix) ;
-    }
-
-    @Override
-    public void add(String prefix, IRI iri) {
+    public void add(String prefix, String iri) {
         prefix = canonicalPrefix(prefix);
         prefixes.put(prefix, iri);
         uriToPrefix.put(iri.toString(), prefix) ;
@@ -82,10 +69,17 @@ public class PrefixMapStd extends PrefixMapBase {
     public void delete(String prefix) {
         prefix = canonicalPrefix(prefix);
         prefixes.remove(prefix);
+        // Remove from the abbreviation map.
+        uriToPrefix.values().remove(prefix);
     }
 
     @Override
-    public boolean contains(String prefix) {
+    public void clear() {
+        prefixes.clear() ; 
+    }
+
+    @Override
+    public boolean containsPrefix(String prefix) {
         prefix = canonicalPrefix(prefix);
         return prefixes.containsKey(prefix);
     }
@@ -116,9 +110,9 @@ public class PrefixMapStd extends PrefixMapBase {
     }
 
     /**
-     * Takes a guess for the IRI string to use in abbreviation.
+     * Takes a guess for the String string to use in abbreviation.
      * 
-     * @param iriString IRI string
+     * @param iriString String string
      * @return String or null
      */
     protected static String getPossibleKey(String iriString) {
@@ -128,13 +122,16 @@ public class PrefixMapStd extends PrefixMapBase {
         index = iriString.lastIndexOf('/');
         if (index > -1)
             return iriString.substring(0, index + 1);
+        // We could add ':' here, it is used as a separator in URNs.
+        // But it is a multiple use character and always present in the scheme name.
+        // This is a fast-track guess so don't try guessing based on ':'.
         return null;
     }
 
     @Override
     public String expand(String prefix, String localName) {
         prefix = canonicalPrefix(prefix);
-        IRI x = prefixes.get(prefix);
+        String x = prefixes.get(prefix);
         if (x == null)
             return null;
         return x.toString() + localName;

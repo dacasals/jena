@@ -19,11 +19,14 @@
 
 package org.apache.jena.riot.system;
 
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import java.util.ArrayList ;
 import java.util.List ;
 
-import org.apache.jena.atlas.junit.BaseTest ;
-import org.apache.jena.riot.* ;
+import org.apache.jena.riot.RDFFormat;
+import org.apache.jena.riot.RDFWriterRegistry;
 import org.junit.Test ;
 // Test system integration / registration
 import org.junit.runner.RunWith ;
@@ -32,7 +35,7 @@ import org.junit.runners.Parameterized.Parameters ;
 
 
 @RunWith(Parameterized.class)
-public class TestFormatRegistration extends BaseTest
+public class TestFormatRegistration
 {
     @Parameters(name = "{0} -- {1} {2} {3}")
     public static Iterable<Object[]> data() {
@@ -84,27 +87,12 @@ public class TestFormatRegistration extends BaseTest
         if ( isquads )   assertNotNull(RDFWriterRegistry.getWriterDatasetFactory(format)) ;
     }
     
-  @Test public void jenaSystem_write_3() {
-      if ( istriples ) assertNotNull(RDFDataMgr.createGraphWriter(format)) ;
-      if ( isquads )   assertNotNull(RDFDataMgr.createDatasetWriter(format)) ;
-}
-
-    //    @Test public void jenaSystem_write_3() {
-//        
-//        assertEquals(jsonldFmt1, RDFWriterRegistry.defaultSerialization(JSONLD)) ;
-//        
-//        assertNotNull(RDFWriterRegistry.getWriterGraphFactory(jsonldFmt1)) ;
-//        assertNotNull(RDFWriterRegistry.getWriterGraphFactory(jsonldFmt2)) ;
-//
-//        assertTrue(RDFWriterRegistry.registeredGraphFormats().contains(jsonldFmt1)) ;
-//        assertTrue(RDFWriterRegistry.registeredGraphFormats().contains(jsonldFmt2)) ;
-//
-//        assertNotNull(RDFWriterRegistry.getWriterDatasetFactory(jsonldFmt1)) ;
-//        assertNotNull(RDFWriterRegistry.getWriterDatasetFactory(jsonldFmt2)) ;
-//        
-//        assertTrue(RDFWriterRegistry.registeredDatasetFormats().contains(jsonldFmt1)) ;
-//        assertTrue(RDFWriterRegistry.registeredDatasetFormats().contains(jsonldFmt2)) ;
-//    }
-//    
+  @Test public void xjenaSystem_write_3() {
+      RDFWriterRegistry.contains(format);
+      if ( istriples ) 
+          assertTrue(RDFWriterRegistry.registeredGraphFormats().contains(format));
+      if ( isquads )
+          assertTrue(RDFWriterRegistry.registeredDatasetFormats().contains(format));
+  }
 }
 

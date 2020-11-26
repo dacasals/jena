@@ -18,13 +18,11 @@
 
 package org.apache.jena.riot.writer;
 
-import org.apache.jena.atlas.junit.BaseTest ;
+import org.apache.jena.query.Dataset ;
+import org.apache.jena.rdf.model.Model ;
 import org.apache.jena.riot.RDFDataMgr ;
 
-import com.hp.hpl.jena.query.Dataset ;
-import com.hp.hpl.jena.rdf.model.Model ;
-
-public class AbstractWriterTest extends BaseTest
+public class AbstractWriterTest
 {
     static String DIR = "testing/RIOT/Writer" ;
     

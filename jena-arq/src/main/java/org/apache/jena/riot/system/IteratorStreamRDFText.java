@@ -28,27 +28,24 @@ import java.util.* ;
 
 import org.apache.jena.atlas.lib.Closeable ;
 import org.apache.jena.atlas.lib.NotImplemented ;
+import org.apache.jena.graph.Node ;
 import org.apache.jena.riot.RiotException ;
-import org.apache.jena.riot.system.RiotLib ;
-import org.apache.jena.riot.system.StreamRowRDF ;
 import org.apache.jena.riot.tokens.Token ;
 import org.apache.jena.riot.tokens.Tokenizer ;
-import org.apache.jena.riot.tokens.TokenizerFactory ;
+import org.apache.jena.riot.tokens.TokenizerText;
 import org.slf4j.Logger ;
 import org.slf4j.LoggerFactory ;
 
-import com.hp.hpl.jena.graph.Node ;
-
 /** Testing/development convenience.
- *  Iterator of StreamRowRDF (always a tuple) for an input stream of tokenized RDT terms.
+ *  Iterator of StreamRowRDF (always a tuple) for an input stream of tokenized RDF terms.
  */  
 public class IteratorStreamRDFText extends IteratorStreamRDF implements Iterator<StreamRowRDF> {
     private final TokenInputStream in ;
     private Node[] previousTuple = null ;
 
     private /*public*/ IteratorStreamRDFText(InputStream input) {
-        Tokenizer t = TokenizerFactory.makeTokenizerUTF8(input) ;
-        in = new TokenInputStream(null, t) ;
+        Tokenizer tokenizer = TokenizerText.create().source(input).build();
+        in = new TokenInputStream(null, tokenizer) ;
     }
 
     @Override
@@ -113,7 +110,7 @@ public class IteratorStreamRDFText extends IteratorStreamRDF implements Iterator
         private boolean             finished = false ;
         private final Tokenizer     tokens ;
         private List<Token>         list ;
-        private Map<String, String> map      = new HashMap<String, String>() ;
+        private Map<String, String> map      = new HashMap<>() ;
         private String              label ;
 
         public TokenInputStream(String label, Tokenizer tokens) {
@@ -147,7 +144,7 @@ public class IteratorStreamRDFText extends IteratorStreamRDF implements Iterator
         }
 
         private List<Token> buildOneLine() {
-            List<Token> tuple = new ArrayList<Token>() ;
+            List<Token> tuple = new ArrayList<>() ;
             boolean isDirective = false ;
             for (; tokens.hasNext();) {
                 Token token = tokens.next() ;

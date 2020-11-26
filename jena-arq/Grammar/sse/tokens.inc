@@ -93,12 +93,14 @@ TOKEN :
   < LPAREN:    "(" >
 | < RPAREN:    ")" >
 
-
 | < LBRACE:    "{" >
 | < RBRACE:    "}" >
 
 | < LBRACKET:  "[" >
 | < RBRACKET:  "]" >
+
+| < LT2 : "<<" >
+| < GT2 : ">>" >
 }
 
 // Specials for literals trailing parts
@@ -147,15 +149,18 @@ TOKEN:
 TOKEN:
 {
   // Anything left that isn't structural
-  // LPAREN and RPAREN / LBRACKET/RBRACKET
-  // Quotes
-  <#SYM:  (~["(", ")", "[", "]", "'", "\"", " ", "\t","\n","\r","\f" ])>
+  // Excludes:
+  //   LPAREN and RPAREN / LBRACKET/RBRACKET / LBRACE/RBRACE
+  //   Quotes, Whitespace
+  <#SYM:  (~["<", ">", "(", ")", "[", "]", "{", "}", "'", "\"", " ", "\t","\n","\r","\f" ])>
 |
-  <#SYM1: (~["^", "@", 
-             "(", ")", "[", "]", "'", "\"", " ", "\t","\n","\r","\f" ])>
+  <#SYM1: (~["^", "@",
+             "(", ")", "[", "]", "{", "}", "'", "\"", " ", "\t","\n","\r","\f" ])>
 | <#SYM_ESC: "\\" ( " " | "'" | "\"" ) >
 |
-  <SYMBOL: <SYM1> (<SYM>)*>
+  <SYMBOL: ( "<" | ">" 
+           | (<SYM1> (<SYM>)*)
+           ) >
 }
 
 // Catch-all tokens.  Must be last.  

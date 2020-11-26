@@ -18,94 +18,60 @@
 
 package org.apache.jena.riot.lang;
 
-import com.hp.hpl.jena.graph.Node ;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
-import org.apache.jena.atlas.junit.BaseTest ;
+import org.apache.jena.graph.Node ;
 import org.apache.jena.iri.IRI ;
 import org.apache.jena.iri.IRIFactory ;
 import org.apache.jena.riot.ErrorHandlerTestLib ;
 import org.apache.jena.riot.ErrorHandlerTestLib.ExWarning ;
 import org.apache.jena.riot.checker.CheckerIRI ;
-import org.apache.jena.riot.system.Checker ;
 import org.apache.jena.riot.system.ErrorHandler ;
-import org.apache.jena.riot.system.IRILib ;
+import org.apache.jena.riot.system.IRIResolver ;
 import org.apache.jena.riot.system.RiotLib ;
 import org.junit.Test ;
 
-public class TestIRI extends BaseTest
+public class TestIRI
 {
     static protected final ErrorHandler handler = new ErrorHandlerTestLib.ErrorHandlerEx() ;
-    static protected final Checker checker = new Checker(new ErrorHandlerTestLib.ErrorHandlerEx()) ;
-    
-    static IRIFactory factory = IRIFactory.iriImplementation() ;
-    
+
+    static IRIFactory factory = IRIResolver.iriFactory();
+
     @Test public void iri1()  { testIRI("http://example/") ; }
-    
+
+    // JENA-1713: Not a warning
+    @Test 
+    public void iri2()  { testIRI("http://example/.") ; }
+
     @Test(expected=ErrorHandlerTestLib.ExError.class)
     // No relative IRIs
-    public void iri2()  { testIRI("example") ; }
-    
+    public void iriErr1()  { testIRI("example") ; }
+
     @Test(expected=ExWarning.class) 
-    public void iriErr1()  
+    public void iriWarn1()  
     { testIRI("http:") ; }
 
     @Test(expected=ExWarning.class) 
-    public void iriErr2()  { testIRI("http:///::") ; }
+    public void iriWarn2()  { testIRI("http:///::") ; }
 
-    @Test(expected=ExWarning.class) 
-    public void iriErr3()  { testIRI("http://example/.") ; }
-    
     private void testIRI(String uriStr)
     {
         IRI iri = factory.create(uriStr) ;
         CheckerIRI.iriViolations(iri, handler) ;
     }
-    
+
     @Test public void bNodeIRI_1()
     {
         Node n = RiotLib.createIRIorBNode("_:abc") ;
         assertTrue(n.isBlank()) ;
         assertEquals("abc", n.getBlankNodeLabel()) ;
     }
-    
+
     @Test public void bNodeIRI_2()
     {
         Node n = RiotLib.createIRIorBNode("abc") ;
         assertTrue(n.isURI()) ;
         assertEquals("abc", n.getURI()) ;
-    }
-    
-    @Test public void fileIRI_1()
-    {
-        String uri = testFileIRI("D.ttl") ; 
-        assertTrue(uri.endsWith("D.ttl")) ;
-    }
-    
-    @Test public void fileIRI_2()
-    {
-        String uri = testFileIRI("file:/D.ttl") ; 
-        assertTrue(uri.endsWith("D.ttl")) ;
-    }
-    
-    @Test public void fileIRI_3()
-    {
-        String uri = testFileIRI("file://D.ttl") ; 
-        assertTrue(uri.endsWith("D.ttl")) ;
-    }
-
-    @Test public void fileIRI_4()
-    {
-        String iri = testFileIRI("file:///D.ttl") ;
-        // Even on windows, this is used as-is so no drive letter. 
-        assertEquals("file:///D.ttl", iri) ;
-    }
-    
-    private static String testFileIRI(String fn)
-    {
-        String uri1 = IRILib.filenameToIRI(fn) ;
-        assertTrue(uri1.startsWith("file:///")) ;
-        String uri2 = IRILib.filenameToIRI(uri1) ;
-        assertEquals(uri1, uri2) ;
-        return uri1 ;
     }
 }

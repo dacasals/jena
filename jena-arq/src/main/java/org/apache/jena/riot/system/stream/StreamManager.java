@@ -22,8 +22,11 @@ import java.util.ArrayList ;
 import java.util.Collections ;
 import java.util.List ;
 
+import org.apache.jena.atlas.lib.Lib;
 import org.apache.jena.atlas.web.TypedInputStream ;
 import org.apache.jena.riot.RiotNotFoundException ;
+import org.apache.jena.riot.SysRIOT;
+import org.apache.jena.sparql.util.Context;
 import org.slf4j.Logger ;
 import org.slf4j.LoggerFactory ;
 
@@ -34,8 +37,6 @@ import org.slf4j.LoggerFactory ;
  */
 
 public class StreamManager {
-    // Need to combine with IO to do the .gz and "-" things.
-
     private static Logger        log           = LoggerFactory.getLogger(StreamManager.class) ;
 
     public static boolean        logAllLookups = true ;
@@ -45,6 +46,61 @@ public class StreamManager {
 
     private static StreamManager globalStreamManager ;
 
+    /**
+     * Return a default configuration StreamManager with a {@link LocatorFile},
+     * {@link LocatorHTTP}, {@link LocatorFTP} and {@link LocatorClassLoader}
+     */
+    public static StreamManager createStd() {
+        StreamManager streamManager = new StreamManager() ;
+        streamManager.addLocator(new LocatorFile()) ;
+        streamManager.addLocator(new LocatorHTTP()) ;
+        streamManager.addLocator(new LocatorFTP()) ;
+        streamManager.addLocator(new LocatorClassLoader(streamManager.getClass().getClassLoader())) ;
+        streamManager.setLocationMapper(JenaIOEnvironment.getLocationMapper()) ;
+        return streamManager ;
+    }
+
+    /** @deprecate Use {@link #createStd()} */
+    @Deprecated
+    public static StreamManager makeDefaultStreamManager() { return createStd() ; }
+
+    /**
+     * Return the global {@code StreamManager}.
+     */
+    public static StreamManager get() {
+        return globalStreamManager ;
+    }
+
+    /**
+     * Return the {@code StreamManager} in a context, or the global one if the context is
+     * null or does not contain a valid entry for a {@code StreamManager}.
+     * <p>
+     * The {@code StreamManager} is keyed in the context by
+     * {@link SysRIOT#sysStreamManager}.
+     */
+    public static StreamManager get(Context context) {
+        if ( context == null )
+            return get();
+        try {
+            if ( context.isDefined(SysRIOT.sysStreamManager))
+                return (StreamManager)context.get(SysRIOT.sysStreamManager);
+        }
+        catch (ClassCastException ex) {
+            log.warn("Context symbol '" + SysRIOT.sysStreamManager + "' is not a " + Lib.classShortName(StreamManager.class));
+        }
+        return get();
+    }
+
+    /**
+     * Set the global {@code StreamManager}.
+     */
+    public static void setGlobal(StreamManager streamManager) {
+        globalStreamManager = streamManager ;
+    }
+    
+    static { setGlobal(createStd()) ; }
+    
+    /** Create a {@code StreamManager} with no locator or location mapper. */ 
     public StreamManager() {}
 
     /** Create a deep copy of this StreamManager */
@@ -61,32 +117,8 @@ public class StreamManager {
     }
 
     /**
-     * Return a default configuration StreamManager with a {@link LocatorFile},
-     * {@link LocatorHTTP}, {@link LocatorFTP} and {@link LocatorClassLoader}
-     */
-    public static StreamManager makeDefaultStreamManager() {
-        StreamManager streamManager = new StreamManager() ;
-        streamManager.addLocator(new LocatorFile(null)) ;
-        streamManager.addLocator(new LocatorHTTP()) ;
-        streamManager.addLocator(new LocatorFTP()) ;
-        streamManager.addLocator(new LocatorClassLoader(streamManager.getClass().getClassLoader())) ;
-        streamManager.setLocationMapper(JenaIOEnvironment.getLocationMapper()) ;
-        return streamManager ;
-    }
-
-    public static StreamManager get() {
-        return globalStreamManager ;
-    }
-
-    public static void setGlobal(StreamManager streamManager) {
-        globalStreamManager = streamManager ;
-    }
-    
-    static { setGlobal(makeDefaultStreamManager()) ; }
-
-    /**
-     * Open a file using the locators of this FileManager. Returns null if not
-     * found.
+     * Open a file using the locators of this StreamManager.
+     * Returns null if not found.
      */
     public TypedInputStream open(String filenameOrURI) {
         if ( log.isDebugEnabled() )
@@ -98,6 +130,11 @@ public class StreamManager {
             log.debug("open: mapped to " + uri) ;
 
         return openNoMapOrNull(uri) ;
+    }
+
+    /** Test whether a mapping exists */
+    public boolean hasMapping(String filenameOrURI) {
+        return mapper.containsMapping(filenameOrURI);
     }
 
     /** Apply the mapping of a filename or URI */
@@ -119,7 +156,7 @@ public class StreamManager {
     }
 
     /**
-     * Open a file using the locators of this FileManager but without location
+     * Open a file using the locators of this StreamManager but without location
      * mapping. Throws RiotNotFoundException if not found.
      */
     public TypedInputStream openNoMap(String filenameOrURI) {
@@ -130,7 +167,7 @@ public class StreamManager {
     }
 
     /**
-     * Open a file using the locators of this FileManager without location
+     * Open a file using the locators of this StreamManager without location
      * mapping. Return null if not found
      */
 
@@ -161,7 +198,7 @@ public class StreamManager {
         return Collections.unmodifiableList(handlers) ;
     }
 
-    /** Remove a locator */
+    /** Remove a locator. */
     public void remove(Locator loc) {
         handlers.remove(loc) ;
     }
@@ -171,8 +208,12 @@ public class StreamManager {
         handlers.clear() ;
     }
 
-    /** Add a locator to the end of the locators list */
-    public void addLocator(Locator loc) {
+    /**
+     * Add a locator to the end of the locators list.
+     * Returns {@code this} StreamManager.
+     */
+    public StreamManager addLocator(Locator loc) {
         handlers.add(loc) ;
+        return this;
     }
 }

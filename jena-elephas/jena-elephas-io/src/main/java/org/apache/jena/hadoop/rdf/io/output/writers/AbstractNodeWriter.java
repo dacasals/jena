@@ -18,7 +18,6 @@
 
 package org.apache.jena.hadoop.rdf.io.output.writers;
 
-import java.io.IOException;
 import java.io.Writer;
 
 import org.apache.hadoop.io.NullWritable;
@@ -26,19 +25,18 @@ import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.jena.atlas.io.AWriter;
 import org.apache.jena.atlas.io.Writer2;
-import org.apache.jena.atlas.lib.Tuple;
+import org.apache.jena.atlas.lib.tuple.Tuple ;
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.Triple ;
 import org.apache.jena.hadoop.rdf.types.NodeTupleWritable;
 import org.apache.jena.hadoop.rdf.types.NodeWritable;
 import org.apache.jena.hadoop.rdf.types.QuadWritable;
 import org.apache.jena.hadoop.rdf.types.TripleWritable;
 import org.apache.jena.riot.out.NodeFormatter;
 import org.apache.jena.riot.out.NodeFormatterNT;
+import org.apache.jena.sparql.core.Quad ;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.hp.hpl.jena.graph.Node;
-import com.hp.hpl.jena.graph.Triple;
-import com.hp.hpl.jena.sparql.core.Quad;
 
 /**
  * Abstract implementation of a record writer which writes pairs of nodes and
@@ -88,7 +86,7 @@ public abstract class AbstractNodeWriter<TValue> extends RecordWriter<NodeWritab
     }
 
     @Override
-    public final void write(NodeWritable key, TValue value) throws IOException, InterruptedException {
+    public final void write(NodeWritable key, TValue value) {
         this.writeKey(key);
         this.writer.write(this.getSeparator());
         this.writeValue(value);
@@ -159,7 +157,9 @@ public abstract class AbstractNodeWriter<TValue> extends RecordWriter<NodeWritab
             this.writeNodes(q.getGraph(), q.getSubject(), q.getPredicate(), q.getObject());
         } else if (value instanceof NodeTupleWritable) {
             Tuple<Node> tuple = ((NodeTupleWritable) value).get();
-            this.writeNodes(tuple.tuple());
+            Node[] n = new Node[tuple.len()] ;
+            tuple.copyInto(n);
+            this.writeNodes(n);
         } else {
             // For arbitrary values just toString() them
             this.writer.write(value.toString());
@@ -167,7 +167,7 @@ public abstract class AbstractNodeWriter<TValue> extends RecordWriter<NodeWritab
     }
 
     @Override
-    public void close(TaskAttemptContext context) throws IOException, InterruptedException {
+    public void close(TaskAttemptContext context) {
         log.debug("close({})", context);
         writer.close();
     }

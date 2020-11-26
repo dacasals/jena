@@ -18,23 +18,17 @@
 
 package jena;
 
-import java.util.Iterator;
-
+import arq.cmdline.CmdARQ;
+import jena.cmd.ArgDecl ;
+import jena.cmd.CmdException ;
+import org.apache.jena.query.Dataset ;
 import org.apache.jena.query.spatial.DatasetGraphSpatial;
 import org.apache.jena.query.spatial.SpatialDatasetFactory;
 import org.apache.jena.query.spatial.SpatialIndex;
 import org.apache.jena.query.spatial.SpatialIndexContext;
-import org.apache.jena.query.spatial.SpatialQuery;
+import org.apache.jena.system.Txn;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import arq.cmd.CmdException;
-import arq.cmdline.ArgDecl;
-import arq.cmdline.CmdARQ;
-
-import com.hp.hpl.jena.graph.Node;
-import com.hp.hpl.jena.query.Dataset;
-import com.hp.hpl.jena.sparql.core.Quad;
 
 /**
  * Spatial indexer application that will read a dataset and index its triples in
@@ -53,7 +47,6 @@ public class spatialindexer extends CmdARQ {
 	protected ProgressMonitor progressMonitor;
 		
 	static public void main(String... argv) {
-		SpatialQuery.init();
 		new spatialindexer(argv).mainRun();
 	}
 
@@ -108,18 +101,12 @@ public class spatialindexer extends CmdARQ {
 
 	@Override
 	protected void exec() {
-		// Set<Node> properties = getIndexedProperties() ;
 		spatialIndex.startIndexing();
-
-		Iterator<Quad> quadIter = dataset.find(Node.ANY, Node.ANY, Node.ANY,
-				Node.ANY);
-		for (; quadIter.hasNext();) {
-			Quad quad = quadIter.next();
-			context.index(quad.getGraph(), quad.getSubject(), quad.getPredicate(),
-					quad.getObject());
+		Txn.executeRead(dataset, () -> dataset.find().forEachRemaining(quad -> {
+			context.index(quad);
 			progressMonitor.progressByOne();
 
-		}
+		}));
 		spatialIndex.finishIndexing();
 		progressMonitor.close();
 	}

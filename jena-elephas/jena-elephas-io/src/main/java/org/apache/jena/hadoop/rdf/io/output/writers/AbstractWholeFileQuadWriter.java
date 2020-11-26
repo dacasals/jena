@@ -24,10 +24,9 @@ import org.apache.jena.hadoop.rdf.types.QuadWritable;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFWriterRegistry;
-
-import com.hp.hpl.jena.sparql.core.DatasetGraph;
-import com.hp.hpl.jena.sparql.core.DatasetGraphFactory;
-import com.hp.hpl.jena.sparql.core.Quad;
+import org.apache.jena.sparql.core.DatasetGraph ;
+import org.apache.jena.sparql.core.DatasetGraphFactory ;
+import org.apache.jena.sparql.core.Quad ;
 
 /**
  * An abstract record writer for whole file triple formats
@@ -39,7 +38,7 @@ import com.hp.hpl.jena.sparql.core.Quad;
  */
 public abstract class AbstractWholeFileQuadWriter<TKey> extends AbstractWholeFileNodeTupleWriter<TKey, Quad, QuadWritable> {
 
-    private DatasetGraph g = DatasetGraphFactory.createMem();
+    private DatasetGraph g = DatasetGraphFactory.createGeneral();
 
     protected AbstractWholeFileQuadWriter(Writer writer) {
         super(writer);

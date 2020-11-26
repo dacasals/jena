@@ -18,20 +18,24 @@
 
 package org.apache.jena.riot.lang;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.util.HashMap ;
 import java.util.Map ;
 
-import org.apache.jena.atlas.junit.BaseTest ;
 import org.apache.jena.riot.Lang ;
 import org.apache.jena.riot.RDFLanguages ;
 import org.apache.jena.riot.WebContent ;
+import org.apache.jena.riot.resultset.ResultSetLang;
+import org.apache.jena.sys.JenaSystem;
+import org.apache.jena.util.FileUtils ;
 import org.junit.Assert ;
 import org.junit.Test ;
 
-import com.hp.hpl.jena.util.FileUtils ;
-
-public class TestLang extends BaseTest
+public class TestLang
 {
+    static { JenaSystem.init(); }
     @Test public void registration_01() { testregistration(RDFLanguages.RDFXML) ; }
     @Test public void registration_02() { testregistration(RDFLanguages.NTRIPLES) ; }
     @Test public void registration_03() { testregistration(RDFLanguages.NT) ; }
@@ -102,6 +106,9 @@ public class TestLang extends BaseTest
         {
             if ( RDFLanguages.RDFNULL.equals(l) )
                 continue ;
+            if ( ResultSetLang.SPARQLResultSetNone.equals(l) ) 
+                continue ;
+
             Assert.assertNotNull( l+" does not have file extensions defined", l.getFileExtensions());
             Assert.assertTrue( l+" does not have file extensions defined", l.getFileExtensions().size() > 0);
         }
@@ -127,11 +134,11 @@ public class TestLang extends BaseTest
     @Test
     public void testDefaultInExtensions()
     {
-        for (Lang l : RDFLanguages.getRegisteredLanguages() )
+        for (Lang lang : RDFLanguages.getRegisteredLanguages() )
         {
-            if ( RDFLanguages.RDFNULL.equals(l) )
+            if ( lang.getFileExtensions() == null || lang.getFileExtensions().isEmpty())
                 continue ;
-            Assert.assertTrue( l+" default extension not in file extensions list", l.getFileExtensions().contains( l.getFileExtensions().get(0))  );
+            Assert.assertTrue( lang+" default extension not in file extensions list", lang.getFileExtensions().contains( lang.getFileExtensions().get(0))  );
         }
     }
     

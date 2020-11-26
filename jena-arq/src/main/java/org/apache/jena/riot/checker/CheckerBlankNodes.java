@@ -18,16 +18,14 @@
 
 package org.apache.jena.riot.checker;
 
+import org.apache.jena.graph.Node ;
 import org.apache.jena.riot.system.ErrorHandler ;
-
-import com.hp.hpl.jena.graph.Node ;
 
 public class CheckerBlankNodes implements NodeChecker
 {
     private ErrorHandler handler ;
 
-    public CheckerBlankNodes(ErrorHandler handler)
-    {
+    public CheckerBlankNodes(ErrorHandler handler) {
         this.handler = handler ;
     }
     
@@ -35,13 +33,11 @@ public class CheckerBlankNodes implements NodeChecker
     public boolean check(Node node, long line, long col)
     { return node.isBlank() && checkBlank(node, line, col) ; }
     
-    public boolean checkBlank(Node node, long line, long col)
-    {
-        String x =  node.getBlankNodeLabel() ;
-        if ( x.indexOf(' ') >= 0 )
-        {
-            handler.error("Illegal blank node label (contains a space): "+node, line, col) ;
-            return false ; 
+    public boolean checkBlank(Node node, long line, long col) {
+        String x = node.getBlankNodeLabel() ;
+        if ( x.indexOf(' ') >= 0 ) {
+            handler.error("Illegal blank node label (contains a space): " + node, line, col) ;
+            return false ;
         }
         return true ;
     }

@@ -18,15 +18,14 @@
 
 package org.apache.jena.query.text.assembler;
 
+import org.apache.jena.assembler.Assembler ;
 import org.apache.jena.query.text.TextIndexLucene ;
+import org.apache.jena.rdf.model.Resource ;
+import org.apache.jena.sys.JenaSystem;
+import org.apache.jena.vocabulary.RDFS ;
 import org.apache.lucene.analysis.core.KeywordAnalyzer ;
-import org.apache.lucene.store.RAMDirectory ;
+import org.apache.lucene.store.ByteBuffersDirectory ;
 import org.junit.Test ;
-
-import com.hp.hpl.jena.assembler.Assembler ;
-import com.hp.hpl.jena.rdf.model.Resource ;
-import com.hp.hpl.jena.vocabulary.RDFS ;
-
 import static org.junit.Assert.* ;
 
 public class TestTextIndexLuceneAssembler extends AbstractTestTextAssembler {
@@ -66,7 +65,7 @@ public class TestTextIndexLuceneAssembler extends AbstractTestTextAssembler {
         // a resource
         TextIndexLucene index = (TextIndexLucene) assembler.open(a, root, /*mode*/ null);
         try {
-            assertFalse(index.getDirectory() instanceof RAMDirectory);
+            assertFalse(index.getDirectory() instanceof ByteBuffersDirectory);
             assertNotNull(index.getQueryAnalyzer());
         }
         finally {
@@ -83,7 +82,7 @@ public class TestTextIndexLuceneAssembler extends AbstractTestTextAssembler {
         // a iri resource
         TextIndexLucene index = (TextIndexLucene) assembler.open(a, root, /*mode*/ null);
         try {
-            assertTrue(index.getDirectory() instanceof RAMDirectory);
+            assertTrue(index.getDirectory() instanceof ByteBuffersDirectory);
         }
         finally {
             index.close();
@@ -101,6 +100,7 @@ public class TestTextIndexLuceneAssembler extends AbstractTestTextAssembler {
     }
 
     static {
+        JenaSystem.init();
         TextAssembler.init();
     }
 

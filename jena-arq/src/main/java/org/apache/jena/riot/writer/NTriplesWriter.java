@@ -18,24 +18,21 @@
 
 package org.apache.jena.riot.writer;
 
-import static org.apache.jena.riot.out.CharSpace.ASCII ;
-import static org.apache.jena.riot.out.CharSpace.UTF8 ;
-
 import java.io.OutputStream ;
 import java.io.Writer ;
 import java.util.Iterator ;
 
 import org.apache.jena.atlas.io.IO ;
+import org.apache.jena.atlas.lib.CharSpace ;
+import static org.apache.jena.atlas.lib.CharSpace.* ;
+import org.apache.jena.graph.Graph ;
+import org.apache.jena.graph.Triple ;
 import org.apache.jena.riot.Lang ;
-import org.apache.jena.riot.out.CharSpace ;
 import org.apache.jena.riot.system.PrefixMap ;
-import org.apache.jena.riot.system.StreamOps ;
+import org.apache.jena.riot.system.StreamRDFOps ;
 import org.apache.jena.riot.system.StreamRDF ;
 import org.apache.jena.riot.system.StreamRDFLib ;
-
-import com.hp.hpl.jena.graph.Graph ;
-import com.hp.hpl.jena.graph.Triple ;
-import com.hp.hpl.jena.sparql.util.Context ;
+import org.apache.jena.sparql.util.Context ;
 
 public class NTriplesWriter extends WriterGraphRIOTBase
 {
@@ -64,7 +61,7 @@ public class NTriplesWriter extends WriterGraphRIOTBase
     private static void write$(StreamRDF s, Iterator<Triple> iter)
     {
         s.start() ;
-        StreamOps.sendTriplesToStream(iter, s) ;
+        StreamRDFOps.sendTriplesToStream(iter, s) ;
         s.finish();
     }
 

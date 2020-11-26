@@ -20,6 +20,7 @@ package org.apache.jena.riot;
 
 import org.apache.jena.atlas.lib.Lib ;
 import org.apache.jena.atlas.web.ContentType ;
+import org.apache.jena.riot.resultset.ResultSetLang;
 
 
 public class WebContent
@@ -40,11 +41,17 @@ public class WebContent
 
     public static final String      contentTypeRDFJSON           = "application/rdf+json" ;
     public static final ContentType ctRDFJSON                    = ContentType.create(contentTypeRDFJSON) ;
+    
+    /** @deprecated Use {@link #contentTypeRDFJSON} */
+    @Deprecated
+    public static final String      contentTypeRdfJson           = contentTypeRDFJSON ;
+    /** @deprecated Use {@link #ctRDFJSON} */
+    @Deprecated
+    public static final ContentType ctRrdfJson                   = ctRDFJSON ;
 
     public static final String      contentTypeJSONLD            = "application/ld+json" ;
     public static final ContentType ctJSONLD                     = ContentType.create(contentTypeJSONLD) ;
 
-    // MIME type for N-triple is text/plain (!!!)
     public static final String      contentTypeTextPlain         = "text/plain" ;
     public static final ContentType ctTextPlain                  = ContentType.create(contentTypeTextPlain) ;
 
@@ -99,9 +106,6 @@ public class WebContent
     public static final String      contentTypeMultiAlt          = "multipart/alternative" ;
     public static final ContentType ctMultiAlt                   = ContentType.create(contentTypeMultiAlt) ;
 
-    public static final String      contentTypeRdfJson           = "application/rdf+json" ;
-    public static final ContentType ctRdfJson                    = ContentType.create(contentTypeRdfJson) ;
-
     public static final String      contentTypeN3                = "text/rdf+n3" ;
     public static final ContentType ctTypeN3                     = ContentType.create("text/rdf+n3") ;
     public static final String      contentTypeN3Alt1            = "application/n3" ;
@@ -119,13 +123,10 @@ public class WebContent
     public static final String      contentTypeJSON              = "application/json" ;
     public static final ContentType ctJSON                       = ContentType.create(contentTypeJSON) ;
     
+    // Unofficial
     public static final String      contentTypeResultsThrift     = "application/sparql-results+thrift" ;
     public static final ContentType ctResultsThrift              = ContentType.create(contentTypeResultsThrift) ;
     
-    // Unofficial
-    public static final String      contentTypeResultsBIO        = "application/sparql-results+bio" ;
-    public static final ContentType ctResultsBIO                 = ContentType.create(contentTypeResultsBIO) ;
-
     public static final String      contentTypeSPARQLQuery       = "application/sparql-query" ;
     public static final ContentType ctSPARQLQuery                = ContentType.create(contentTypeSPARQLQuery) ;
 
@@ -170,18 +171,22 @@ public class WebContent
     
     /** Accept header when looking for a graph */
     // Catches aplication/xml and application.json
-    public static final String defaultGraphAcceptHeader     =  defaultGraphAccept+",*/*;q=0.5" ; 
+    public static final String defaultGraphAcceptHeader     =  defaultGraphAccept+",*/*;q=0.3" ; 
 
     /** Accept header part when looking for a dataset */
     private static final String defaultDatasetAccept         
-        =  "application/trig,application/n-quads;q=0.9,text/x-nquads;q=0.8,application/x-trig;q=0.7,application/ld+json;q=0.5" ;
+        =  "application/trig,application/n-quads;q=0.9,application/ld+json;q=0.8" ;
     
     /** Accept header when looking for a dataset */
-    public static final String defaultDatasetAcceptHeader   =  defaultDatasetAccept+",*/*;q=0.5" ;
+    public static final String defaultDatasetAcceptHeader   =  defaultDatasetAccept+",*/*;q=0.3" ;
     
+    // This is the essence of defaultGraphAccept+","+defaultDatasetAccept+",*/*;q=0.5" cleaned up (e.g.de-duplicate JSON-LD).
     /** Accept header when looking for a graph or dataset */
-    public static final String defaultRDFAcceptHeader       =  defaultGraphAccept+","+defaultDatasetAccept+",*/*;q=0.5" ;
-    
+    public static final String defaultRDFAcceptHeader       =  
+            "text/turtle,application/n-triples;q=0.9,application/rdf+xml;q=0.7," +
+            "application/trig,application/n-quads;q=0.9,application/ld+json;q=0.8," +
+            "*/*;q=0.5" ;
+
     /** Return our "canonical" name for a Content Type.
      * This should be the standard one, no X-*
      */
@@ -199,7 +204,7 @@ public class WebContent
         if ( ct1 == null || ct2 == null )
             return false ;
         
-        return matchContentType(ct1.getContentType(), ct2.getContentType()) ;
+        return matchContentType(ct1.getContentTypeStr(), ct2.getContentTypeStr()) ;
     }
     
     public static boolean matchContentType(String ct1, String ct2)  {
@@ -209,11 +214,11 @@ public class WebContent
     public static boolean isHtmlForm(ContentType ct) {
         if ( ct == null )
             return false ;
-        return contentTypeHTMLForm.equalsIgnoreCase(ct.getContentType()) ;
+        return contentTypeHTMLForm.equalsIgnoreCase(ct.getContentTypeStr()) ;
     }
 
     public static boolean isMultiPartForm(ContentType ct) {
-        return contentTypeMultipartFormData.equalsIgnoreCase(ct.getContentType()) ;
+        return contentTypeMultipartFormData.equalsIgnoreCase(ct.getContentTypeStr()) ;
     }
 
     /**
@@ -224,7 +229,7 @@ public class WebContent
      *  </p><p>
      *  The decision is 
      *  <blockquote>
-     *  <i>Content type</i> (but not text/plain) > <i>hint</i> > <i>file extension</i>.
+     *  <i>Content type</i> (but not text/plain) {@literal >} <i>hint</i> {@literal >} <i>file extension</i>.
      *  </blockquote>
      *  We make content type (via content negotiation) strongest because a server
      *  may return something unexpected because that is all it can do. We are
@@ -262,5 +267,19 @@ public class WebContent
             ct = RDFLanguages.guessContentType(target) ;
         
         return ct ;
+    }
+    
+    /** Map content-type to lang for SPARQL results, with pragmatic adapters. */   
+    public static Lang contentTypeToLangResultSet(String contentType) {
+        if ( contentType == null )
+            return null;
+        // Special cases : use of application/xml and application/json
+        if ( contentType.equals(WebContent.contentTypeXML) )
+            return ResultSetLang.SPARQLResultSetXML;
+        else if ( contentType.equals(WebContent.contentTypeJSON) )
+            return ResultSetLang.SPARQLResultSetJSON;
+        Lang lang = RDFLanguages.contentTypeToLang(contentType);
+        // May not be a reader/write result set language. 
+        return lang;
     }
 }

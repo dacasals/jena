@@ -19,23 +19,23 @@
 package org.apache.jena.riot.tokens ;
 
 public enum TokenType {
+
     NODE, IRI, PREFIXED_NAME, BNODE,
     // BOOLEAN,
-    // One kind of string?
-    STRING, // Token created programmatically and superclass of ...
-    STRING1, STRING2, LONG_STRING1, LONG_STRING2,
+    // One kind of string - the seen form is record
+    STRING,
 
-    LITERAL_LANG, LITERAL_DT, INTEGER, DECIMAL, DOUBLE,
+    LITERAL_LANG, LITERAL_DT, INTEGER, DECIMAL, DOUBLE, BOOLEAN,
 
     // Not RDF
-    KEYWORD, VAR, HEX, CNTRL,   // Starts with *
-    UNDERSCORE,                 // In RDF, UNDERSCORE is only visible if BNode processing is not enabled.
-
+    KEYWORD, VAR, HEX,       // Starts with *
+    UNDERSCORE,              // In RDF, UNDERSCORE is only visible if BNode processing is not enabled.
 
     // COLON is only visible if prefix names are not being processed.
     DOT, COMMA, SEMICOLON, COLON, DIRECTIVE,
     // LT, GT, LE, GE are only visible if IRI processing is not enabled.
-    LT, GT, LE, GE, LOGICAL_AND, LOGICAL_OR, // && and ||
+    LT, GT, LE, GE, LOGICAL_AND, LOGICAL_OR,    // && and ||
+    LT2, GT2,                                   // << and >>
     VBAR, AMPHERSAND,
 
     LBRACE, RBRACE,     // {}
@@ -44,5 +44,5 @@ public enum TokenType {
     // = == + - * / \
     EQUALS, EQUIVALENT, PLUS, MINUS, STAR, SLASH, RSLASH,
     // Whitespace, any comment, (one line comment, multiline comment)
-    NL, WS, COMMENT, COMMENT1, COMMENT2, EOF
+    NL, WS, COMMENT, COMMENT1, COMMENT2, EOF;
 }

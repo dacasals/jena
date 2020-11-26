@@ -22,18 +22,18 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 
-import org.apache.jena.atlas.web.auth.HttpAuthenticator;
+import org.apache.http.client.HttpClient;
 import org.apache.jena.jdbc.remote.connections.RemoteEndpointConnection;
 import org.apache.jena.jdbc.statements.JenaPreparedStatement;
-import com.hp.hpl.jena.query.Query;
-import com.hp.hpl.jena.query.QueryExecution;
-import com.hp.hpl.jena.query.QueryExecutionFactory;
-import com.hp.hpl.jena.query.ReadWrite;
-import com.hp.hpl.jena.sparql.engine.http.QueryEngineHTTP;
-import com.hp.hpl.jena.sparql.modify.UpdateProcessRemoteBase;
-import com.hp.hpl.jena.update.UpdateExecutionFactory;
-import com.hp.hpl.jena.update.UpdateProcessor;
-import com.hp.hpl.jena.update.UpdateRequest;
+import org.apache.jena.query.Query ;
+import org.apache.jena.query.QueryExecution ;
+import org.apache.jena.query.QueryExecutionFactory ;
+import org.apache.jena.query.ReadWrite ;
+import org.apache.jena.sparql.engine.http.QueryEngineHTTP ;
+import org.apache.jena.sparql.modify.UpdateProcessRemoteBase ;
+import org.apache.jena.update.UpdateExecutionFactory ;
+import org.apache.jena.update.UpdateProcessor ;
+import org.apache.jena.update.UpdateRequest ;
 
 /**
  * A Jena JDBC statement against a remote endpoint
@@ -42,7 +42,7 @@ import com.hp.hpl.jena.update.UpdateRequest;
 public class RemoteEndpointPreparedStatement extends JenaPreparedStatement {
 
     private RemoteEndpointConnection remoteConn;
-    private HttpAuthenticator authenticator;
+    private HttpClient client;
 
     /**
      * Creates a new statement
@@ -65,8 +65,8 @@ public class RemoteEndpointPreparedStatement extends JenaPreparedStatement {
      *            SPARQL command
      * @param connection
      *            Connection
-     * @param authenticator
-     *            HTTP Authenticator
+     * @param client
+     *            HTTP client
      * @param type
      *            Result Set type for result sets produced by this statement
      * @param fetchDir
@@ -79,11 +79,11 @@ public class RemoteEndpointPreparedStatement extends JenaPreparedStatement {
      *             Thrown if there is an error with the statement parameters
      * 
      */
-    public RemoteEndpointPreparedStatement(String sparql, RemoteEndpointConnection connection, HttpAuthenticator authenticator,
+    public RemoteEndpointPreparedStatement(String sparql, RemoteEndpointConnection connection, HttpClient client,
             int type, int fetchDir, int fetchSize, int holdability) throws SQLException {
         super(sparql, connection, type, fetchDir, fetchSize, holdability, false, Connection.TRANSACTION_NONE);
         this.remoteConn = connection;
-        this.authenticator = authenticator;
+        this.client = client;
     }
 
     @Override
@@ -94,9 +94,9 @@ public class RemoteEndpointPreparedStatement extends JenaPreparedStatement {
         // Create basic execution
         QueryEngineHTTP exec = (QueryEngineHTTP) QueryExecutionFactory.sparqlService(this.remoteConn.getQueryEndpoint(), q);
 
-        // Apply authentication settings
-        if (this.authenticator != null) {
-            exec.setAuthenticator(this.authenticator);
+        // Apply HTTP settings
+        if (this.client != null) {
+            exec.setClient(this.client);
         }
 
         // Apply default and named graphs if appropriate
@@ -124,9 +124,9 @@ public class RemoteEndpointPreparedStatement extends JenaPreparedStatement {
         UpdateProcessRemoteBase proc = (UpdateProcessRemoteBase) UpdateExecutionFactory.createRemote(u,
                 this.remoteConn.getUpdateEndpoint());
 
-        // Apply authentication settings
-        if (this.authenticator != null) {
-            proc.setAuthenticator(this.authenticator);
+        // Apply HTTP settings
+        if (this.client != null) {
+            proc.setClient(this.client);
         }
 
         // Apply default and named graphs if appropriate
@@ -156,7 +156,7 @@ public class RemoteEndpointPreparedStatement extends JenaPreparedStatement {
     }
 
     @Override
-    protected boolean hasActiveTransaction() throws SQLException {
+    protected boolean hasActiveTransaction() {
         // Remote endpoints don't support transactions so can't ever have an
         // active transaction
         return false;

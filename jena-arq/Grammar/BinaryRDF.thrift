@@ -70,12 +70,14 @@ struct RDF_REPEAT { }
 union RDF_Term {
 1: RDF_IRI          iri
 2: RDF_BNode        bnode
-3: RDF_Literal      literal     # Full form lexical form/datattype/langtag
+3: RDF_Literal      literal     # Full form lexical form/datatype/langtag
 4: RDF_PrefixName   prefixName 
 5: RDF_VAR          variable
 6: RDF_ANY          any
 7: RDF_UNDEF        undefined
 8: RDF_REPEAT       repeat
+9: RDF_Triple       tripleTerm  # RDF*
+
 # Value forms of literals.
 10: i64             valInteger
 11: double          valDouble

@@ -27,16 +27,8 @@ import java.io.StringReader;
 import java.util.Set;
 
 import org.apache.jena.atlas.lib.StrUtils;
-
-import com.hp.hpl.jena.query.Dataset;
-import com.hp.hpl.jena.query.Query;
-import com.hp.hpl.jena.query.QueryException;
-import com.hp.hpl.jena.query.QueryExecution;
-import com.hp.hpl.jena.query.QueryExecutionFactory;
-import com.hp.hpl.jena.query.QueryFactory;
-import com.hp.hpl.jena.query.ReadWrite;
-import com.hp.hpl.jena.query.ResultSet;
-import com.hp.hpl.jena.rdf.model.Model;
+import org.apache.jena.query.* ;
+import org.apache.jena.rdf.model.Model ;
 
 /*
  * This abstract class defines a collection of test methods for testing
@@ -78,13 +70,15 @@ public abstract class AbstractTestDatasetWithSpatialIndex {
 		doTestSearch(turtle, queryString, expectedEntityURIs, expectedNumResults, false);
 	}
 	
-	private void doTestSearch(String turtle, String queryString, Set<String> expectedEntityURIs, int expectedNumResults, boolean throwException) {
+	private static void doTestSearch(String turtle, String queryString, Set<String> expectedEntityURIs, int expectedNumResults, boolean throwException) {
 		Model model = dataset.getDefaultModel();
 		Reader reader = new StringReader(turtle);
-		dataset.begin(ReadWrite.WRITE);
-		model.read(reader, "", "TURTLE");
-		dataset.commit();
-		doTestQuery(dataset, queryString, expectedEntityURIs, expectedNumResults, throwException);
+        try {
+            dataset.begin(ReadWrite.WRITE);
+            model.read(reader, "", "TURTLE");
+            dataset.commit();
+            doTestQuery(dataset, queryString, expectedEntityURIs, expectedNumResults, throwException);
+        } finally { dataset.end(); }
 	}
 	
 	public static void doTestQuery(Dataset dataset, String queryString, Set<String> expectedEntityURIs, int expectedNumResults, boolean throwException) {

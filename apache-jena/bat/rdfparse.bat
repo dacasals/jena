@@ -10,9 +10,9 @@ echo JENA_HOME not set
 exit /B
 
 :okHome
-set JVM_ARGS=-Xmx1024M
 set JENA_CP=%JENA_HOME%\lib\*;
-set LOGGING=file:%JENA_HOME%/jena-log4j.properties
+set LOGGING=file:%JENA_HOME%/log4j2.properties
 
-java %JVM_ARGS% -Dlog4j.configuration="%LOGGING%" -cp "%JENA_CP%" jena.rdfparse %*
+@rem JVM_ARGS comes from the environment.
+java %JVM_ARGS% -Dlog4j.configurationFile="%LOGGING%" -cp "%JENA_CP%" jena.rdfparse %*
 exit /B

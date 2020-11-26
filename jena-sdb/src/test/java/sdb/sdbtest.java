@@ -18,24 +18,14 @@
 
 package sdb;
 
-import java.util.List;
+import java.util.List ;
 
-import junit.framework.TestSuite;
-import sdb.cmd.CmdArgsDB;
-import arq.cmdline.ArgDecl;
-
-import com.hp.hpl.jena.query.ARQ;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.sdb.SDB;
-import com.hp.hpl.jena.sdb.test.junit.QueryTestSDBFactory;
-import com.hp.hpl.jena.sparql.junit.EarlReport;
-import com.hp.hpl.jena.sparql.junit.ScriptTestSuiteFactory ;
-import com.hp.hpl.jena.sparql.junit.SimpleTestRunner;
-import com.hp.hpl.jena.sparql.util.Utils;
-import com.hp.hpl.jena.sparql.vocabulary.FOAF;
-import com.hp.hpl.jena.vocabulary.DC;
-import com.hp.hpl.jena.vocabulary.DCTerms;
+import junit.framework.TestSuite ;
+import org.apache.jena.atlas.lib.Lib ;
+import org.apache.jena.query.ARQ ;
+import org.apache.jena.sdb.SDB ;
+import org.apache.jena.sdb.test.junit.QueryTestSDBFactory ;
+import sdb.cmd.CmdArgsDB ;
  
  /** Run a test suite
   * 
@@ -48,9 +38,7 @@ import com.hp.hpl.jena.vocabulary.DCTerms;
  
 public class sdbtest extends CmdArgsDB
 {
-    public static final String usage = "sdbtest --sdb <SPEC> [--earl] [--direct] [manifest]" ;
-    static ArgDecl earlDecl = new ArgDecl(ArgDecl.NoValue, "earl") ;
-    boolean earlReport = false ;
+    public static final String usage = "sdbtest --sdb <SPEC> manifest" ;
     
     public static void main (String... argv)
     {
@@ -62,32 +50,24 @@ public class sdbtest extends CmdArgsDB
     protected sdbtest(String... args)
     {
         super(args);
-        add(earlDecl, "--earl", "Generate an EARL report (RDF)") ;
     }
 
     @Override
-    protected String getCommandName() { return Utils.className(this) ; }
+    protected String getCommandName() { return Lib.className(this) ; }
     
     @Override
-    protected String getSummary()  { return Utils.className(this)+" <SPEC> [--earl] [--direct] [manifest]" ; }
+    protected String getSummary()  { return Lib.className(this)+" <SPEC> manifest" ; }
     
     @Override
-    protected void processModulesAndArgs()
-    { 
+    protected void processModulesAndArgs() {
         if ( getPositional().size() == 0 )
-            cmdError("No manifest to run") ;
-        earlReport = contains(earlDecl) ; 
+            cmdError("No manifest to run");
     }
-    
-    @Override 
-    protected void execCmd(List<String> positionalArgs)
-    {
-        for ( String x : positionalArgs )
-        {
-            if ( earlReport )
-                execOneManifestEarl(x) ;
-            else
-                execOneManifest(x) ;
+
+    @Override
+    protected void execCmd(List<String> positionalArgs) {
+        for ( String x : positionalArgs ) {
+            execOneManifest(x);
         }
     }
     
@@ -107,37 +87,6 @@ public class sdbtest extends CmdArgsDB
             // PostgreSQL gets upset with comments in comments??
             ARQ.getContext().setFalse(SDB.annotateGeneratedSQL) ;
         
-        SimpleTestRunner.runAndReport(ts) ;
-    }
-    
-    static void execOneManifestEarl(String testManifest)
-    {
-        // Include information later.
-        EarlReport report = new EarlReport("http://jena.apache.org/#sdb", "SDB", SDB.VERSION, "http://jena.apahe.org/") ;
-        ScriptTestSuiteFactory.results = report ;
-        
-        Model model = report.getModel() ;
-
-        // Update the EARL report. 
-        Resource jena = model.createResource()
-                    .addProperty(FOAF.homepage, model.createResource("http://jena.apahe.org/")) ;
-        
-        // SDB is part of Jena.
-        Resource arq = report.getSystem()
-                        .addProperty(DCTerms.isPartOf, jena) ;
-        
-        // Andy wrote the test software (updates the thing being tested as well as they are the same). 
-        Resource who = model.createResource(FOAF.Person)
-            .addProperty(FOAF.name, "Andy Seaborne")
-            .addProperty(FOAF.homepage, 
-                         model.createResource("http://people.apache.org/~andy")) ; 
-        Resource reporter = report.getReporter() ;
-        reporter.addProperty(DC.creator, who) ;
-        
-        TestSuite suite = ScriptTestSuiteFactory.make(testManifest) ;
-        SimpleTestRunner.runSilent(suite) ;
-        
-        ScriptTestSuiteFactory.results.getModel().write(System.out, "TTL") ;
-        
+        org.apache.jena.sdb.test.junit2.SimpleTestRunner.runAndReport(ts) ;
     }
 }

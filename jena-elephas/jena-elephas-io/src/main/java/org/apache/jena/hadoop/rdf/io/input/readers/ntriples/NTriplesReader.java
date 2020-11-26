@@ -20,13 +20,11 @@ package org.apache.jena.hadoop.rdf.io.input.readers.ntriples;
 
 import java.util.Iterator;
 
+import org.apache.jena.graph.Triple ;
 import org.apache.jena.hadoop.rdf.io.input.readers.AbstractLineBasedTripleReader;
-import org.apache.jena.riot.lang.LangNTriples;
+import org.apache.jena.riot.lang.RiotParsers;
 import org.apache.jena.riot.system.ParserProfile;
 import org.apache.jena.riot.tokens.Tokenizer;
-import org.apache.jena.riot.tokens.TokenizerFactory;
-
-import com.hp.hpl.jena.graph.Triple;
 
 /**
  * A record reader for NTriples
@@ -37,12 +35,7 @@ import com.hp.hpl.jena.graph.Triple;
 public class NTriplesReader extends AbstractLineBasedTripleReader {
 
     @Override
-    protected Iterator<Triple> getTriplesIterator(Tokenizer tokenizer, ParserProfile profile) {
-        return new LangNTriples(tokenizer, profile, null);
-    }
-
-    @Override
-    protected Tokenizer getTokenizer(String line) {
-        return TokenizerFactory.makeTokenizerString(line);
+    protected Iterator<Triple> getTriplesIterator(Tokenizer tokenizer, ParserProfile maker) {
+        return  RiotParsers.createParserNTriples(tokenizer, null, maker);
     }
 }

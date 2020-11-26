@@ -22,10 +22,9 @@ import org.apache.http.client.HttpClient;
 import org.apache.jena.fuseki.Fuseki;
 import org.apache.jena.jdbc.results.AbstractResultSetTests;
 import org.apache.jena.riot.web.HttpOp;
+import org.apache.jena.sys.JenaSystem ;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-
-import com.hp.hpl.jena.query.ARQ;
 
 /**
  * Abstract tests for remote endpoint connection result sets
@@ -35,12 +34,12 @@ public abstract class AbstractRemoteEndpointResultSetTests extends AbstractResul
 
 	static HttpClient defaultHttpClient = HttpOp.getDefaultHttpClient() ;
 	// Used for all tests except auth tests.
-	static HttpClient globalCachingClient = HttpOp.createCachingHttpClient() ;
+	static HttpClient globalPoolingClient = HttpOp.createPoolingHttpClient() ;
 	
 	@BeforeClass public static void beforeClassAbstract1() {
-    	ARQ.init();
+        JenaSystem.init() ;
         Fuseki.init();
-		HttpOp.setDefaultHttpClient(globalCachingClient) ;
+		HttpOp.setDefaultHttpClient(globalPoolingClient) ;
     }
 	
 	@AfterClass public static void afterClassAbstract1() {

@@ -23,9 +23,8 @@ import java.sql.SQLException;
 import org.apache.jena.jdbc.JdbcCompatibility;
 import org.apache.jena.jdbc.connections.JenaConnection;
 import org.apache.jena.jdbc.tdb.connections.TDBConnection;
-
-import com.hp.hpl.jena.query.Dataset;
-import com.hp.hpl.jena.query.DatasetFactory;
+import org.apache.jena.query.Dataset ;
+import org.apache.jena.query.DatasetFactory ;
 
 /**
  * A test only variant of {@link TDBConnection} which allows the dataset to be changed on the fly
@@ -38,7 +37,7 @@ public class DebugTdbConnection extends TDBConnection {
      * @throws SQLException
      */
     public DebugTdbConnection() throws SQLException {
-        this(DatasetFactory.createMem());
+        this(DatasetFactory.create());
     }
 
     /**

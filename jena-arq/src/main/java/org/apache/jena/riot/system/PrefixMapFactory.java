@@ -20,7 +20,7 @@ package org.apache.jena.riot.system;
 
 import java.util.Map ;
 
-import com.hp.hpl.jena.shared.PrefixMapping;
+import org.apache.jena.shared.PrefixMapping ;
 
 /**
  * Factory which provides prefix maps
@@ -160,7 +160,7 @@ public class PrefixMapFactory {
      * @return Prefix Map
      */
     public static PrefixMap createForOutput() {
-        return new FastAbbreviatingPrefixMap();
+        return new PrefixMapStd();
     }
 
     /**
@@ -177,7 +177,7 @@ public class PrefixMapFactory {
      * @return Prefix Map
      */
     public static PrefixMap createForOutput(PrefixMap pmap) {
-        return new FastAbbreviatingPrefixMap(pmap);
+        return new PrefixMapStd(pmap);
     }
 
     /**
@@ -230,7 +230,7 @@ public class PrefixMapFactory {
     
     /** Return an immutable view of the prefix map.
      * Throws {@link UnsupportedOperationException} on 
-     * attempts to update it.  Refelcts hcnages mad to the underlying map.
+     * attempts to update it.  Reflects changes made to the underlying map.
      * @param pmap  PrefixMap
      * @return Prefix Map
      */

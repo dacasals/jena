@@ -22,16 +22,16 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import org.apache.jena.fuseki.ServerTest;
+import org.apache.jena.fuseki.main.FusekiTestServer ;
 import org.apache.jena.jdbc.JdbcCompatibility;
 import org.apache.jena.jdbc.connections.JenaConnection;
 import org.apache.jena.jdbc.remote.connections.RemoteEndpointConnection;
 import org.apache.jena.jdbc.utils.TestUtils;
+import org.apache.jena.query.Dataset ;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before ;
 import org.junit.BeforeClass;
-
-import com.hp.hpl.jena.query.Dataset;
 
 /**
  * Tests result sets from a remote endpoint
@@ -41,35 +41,30 @@ public class TestRemoteEndpointResults extends AbstractRemoteEndpointResultSetTe
     
     private static RemoteEndpointConnection connection;
     
+    //@BeforeClass public static void ctlBeforeClass() { FusekiTestServer.ctlBeforeClass(); }
+    //@AfterClass  public static void ctlAfterClass()  { FusekiTestServer.ctlAfterClass(); }
+    @Before      public void ctlBeforeTest()         { FusekiTestServer.ctlBeforeTest(); }
+    @After       public void ctlAfterTest()          { FusekiTestServer.ctlAfterTest(); } 
+
     /**
      * Setup for the tests by allocating a Fuseki instance to work with
      * @throws SQLException 
      */
     @BeforeClass
     public static void setup() throws SQLException {
-    	ServerTest.allocServer();
-        
-        connection = new RemoteEndpointConnection(ServerTest.serviceQuery, ServerTest.serviceUpdate, JenaConnection.DEFAULT_HOLDABILITY, JdbcCompatibility.DEFAULT);
+        FusekiTestServer.ctlBeforeClass();
+        connection = new RemoteEndpointConnection(FusekiTestServer.serviceQuery(), FusekiTestServer.serviceUpdate(), JenaConnection.DEFAULT_HOLDABILITY, JdbcCompatibility.DEFAULT);
         connection.setJdbcCompatibilityLevel(JdbcCompatibility.HIGH);
     }
     
     /**
-     * Clean up after each test by resetting the Fuseki instance
-     * @throws InterruptedException 
-     */
-    @After
-    public void cleanupTest() throws InterruptedException {
-        ServerTest.resetServer();
-    }
-    /**
      * Clean up after tests by de-allocating the Fuseki instance
      * @throws SQLException 
-     * @throws InterruptedException 
      */
     @AfterClass
-    public static void cleanup() throws SQLException, InterruptedException {
+    public static void cleanup() throws SQLException {
         connection.close();
-        ServerTest.freeServer();
+        FusekiTestServer.ctlAfterClass();
     }
 
     @Override
@@ -79,7 +74,7 @@ public class TestRemoteEndpointResults extends AbstractRemoteEndpointResultSetTe
     
     @Override
     protected ResultSet createResults(Dataset ds, String query, int resultSetType) throws SQLException {
-        TestUtils.copyToRemoteDataset(ds, ServerTest.serviceREST);
+        TestUtils.copyToRemoteDataset(ds, FusekiTestServer.serviceGSP());
         Statement stmt = connection.createStatement(resultSetType, ResultSet.CONCUR_READ_ONLY);
         return stmt.executeQuery(query);
     }

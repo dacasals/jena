@@ -19,16 +19,17 @@
 package org.apache.jena.web;
 
 
-import com.hp.hpl.jena.query.DatasetAccessorFactory ;
-import com.hp.hpl.jena.sparql.core.DatasetGraph ;
-import com.hp.hpl.jena.sparql.core.DatasetGraphFactory ;
+import org.apache.jena.query.DatasetAccessorFactory ;
+import org.apache.jena.sparql.core.DatasetGraph ;
+import org.apache.jena.sparql.core.DatasetGraphFactory ;
 
+@SuppressWarnings("deprecation")
 public class TestDatasetGraphAccessorMem extends AbstractTestDatasetGraphAccessor
 {
     @Override
     protected DatasetGraphAccessor getDatasetUpdater()
     {
-        DatasetGraph dsg = DatasetGraphFactory.createMem() ;
+        DatasetGraph dsg = DatasetGraphFactory.create() ;
         return DatasetAccessorFactory.make(dsg) ;
     }
 }

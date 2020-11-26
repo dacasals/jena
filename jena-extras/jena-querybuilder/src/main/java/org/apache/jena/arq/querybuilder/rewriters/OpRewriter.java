@@ -21,55 +21,21 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import com.hp.hpl.jena.graph.Node;
-import com.hp.hpl.jena.query.SortCondition;
-import com.hp.hpl.jena.sparql.algebra.Op;
-import com.hp.hpl.jena.sparql.algebra.OpVisitor;
-import com.hp.hpl.jena.sparql.algebra.Table;
-import com.hp.hpl.jena.sparql.algebra.op.OpAssign;
-import com.hp.hpl.jena.sparql.algebra.op.OpBGP;
-import com.hp.hpl.jena.sparql.algebra.op.OpConditional;
-import com.hp.hpl.jena.sparql.algebra.op.OpDatasetNames;
-import com.hp.hpl.jena.sparql.algebra.op.OpDiff;
-import com.hp.hpl.jena.sparql.algebra.op.OpDisjunction;
-import com.hp.hpl.jena.sparql.algebra.op.OpDistinct;
-import com.hp.hpl.jena.sparql.algebra.op.OpExt;
-import com.hp.hpl.jena.sparql.algebra.op.OpExtend;
-import com.hp.hpl.jena.sparql.algebra.op.OpFilter;
-import com.hp.hpl.jena.sparql.algebra.op.OpGraph;
-import com.hp.hpl.jena.sparql.algebra.op.OpGroup;
-import com.hp.hpl.jena.sparql.algebra.op.OpJoin;
-import com.hp.hpl.jena.sparql.algebra.op.OpLabel;
-import com.hp.hpl.jena.sparql.algebra.op.OpLeftJoin;
-import com.hp.hpl.jena.sparql.algebra.op.OpList;
-import com.hp.hpl.jena.sparql.algebra.op.OpMinus;
-import com.hp.hpl.jena.sparql.algebra.op.OpNull;
-import com.hp.hpl.jena.sparql.algebra.op.OpOrder;
-import com.hp.hpl.jena.sparql.algebra.op.OpPath;
-import com.hp.hpl.jena.sparql.algebra.op.OpProcedure;
-import com.hp.hpl.jena.sparql.algebra.op.OpProject;
-import com.hp.hpl.jena.sparql.algebra.op.OpPropFunc;
-import com.hp.hpl.jena.sparql.algebra.op.OpQuad;
-import com.hp.hpl.jena.sparql.algebra.op.OpQuadBlock;
-import com.hp.hpl.jena.sparql.algebra.op.OpQuadPattern;
-import com.hp.hpl.jena.sparql.algebra.op.OpReduced;
-import com.hp.hpl.jena.sparql.algebra.op.OpSequence;
-import com.hp.hpl.jena.sparql.algebra.op.OpService;
-import com.hp.hpl.jena.sparql.algebra.op.OpSlice;
-import com.hp.hpl.jena.sparql.algebra.op.OpTable;
-import com.hp.hpl.jena.sparql.algebra.op.OpTopN;
-import com.hp.hpl.jena.sparql.algebra.op.OpTriple;
-import com.hp.hpl.jena.sparql.algebra.op.OpUnion;
-import com.hp.hpl.jena.sparql.algebra.table.TableN;
-import com.hp.hpl.jena.sparql.core.BasicPattern;
-import com.hp.hpl.jena.sparql.core.Quad;
-import com.hp.hpl.jena.sparql.core.QuadPattern;
-import com.hp.hpl.jena.sparql.core.Var;
-import com.hp.hpl.jena.sparql.core.VarExprList;
-import com.hp.hpl.jena.sparql.engine.binding.Binding;
-import com.hp.hpl.jena.sparql.expr.ExprAggregator;
-import com.hp.hpl.jena.sparql.expr.ExprList;
-import com.hp.hpl.jena.sparql.pfunction.PropFuncArg;
+
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.Triple;
+import org.apache.jena.query.SortCondition ;
+import org.apache.jena.shared.JenaException;
+import org.apache.jena.sparql.algebra.Op ;
+import org.apache.jena.sparql.algebra.OpVisitor ;
+import org.apache.jena.sparql.algebra.Table ;
+import org.apache.jena.sparql.algebra.op.* ;
+import org.apache.jena.sparql.algebra.table.TableN ;
+import org.apache.jena.sparql.core.* ;
+import org.apache.jena.sparql.engine.binding.Binding ;
+import org.apache.jena.sparql.expr.ExprAggregator ;
+import org.apache.jena.sparql.expr.ExprList ;
+import org.apache.jena.sparql.pfunction.PropFuncArg ;
 
 /**
  * A rewriter that implements OpVisitor.
@@ -99,7 +65,7 @@ class OpRewriter extends AbstractRewriter<Op> implements OpVisitor {
 	}
 
 	private List<Op> rewriteOpList(List<Op> lst) {
-		List<Op> retval = new ArrayList<Op>();
+		List<Op> retval = new ArrayList<>();
 		for (Op o : lst) {
 			o.visit(this);
 			retval.add(pop());
@@ -143,7 +109,21 @@ class OpRewriter extends AbstractRewriter<Op> implements OpVisitor {
 		push(new OpPath(rewrite(opPath.getTriplePath())));
 	}
 
-	@Override
+    @Override
+    public void visit(OpFind opFind) {
+        Var var = opFind.getVar();
+        Triple triple = opFind.getTriple();
+        
+        Node n2 = changeNode(var);
+        if ( ! Var.isVar(n2) )
+            throw new JenaException("OpFind: Write if not a variable");
+        
+        Var var2 = Var.alloc(n2); 
+        Triple triple2 = rewrite(triple); 
+        push(new OpFind(triple2, var2));
+    }
+
+    @Override
 	public void visit(OpTable opTable) {
 		Table tbl = opTable.getTable();
 		boolean process = false;
@@ -197,7 +177,7 @@ class OpRewriter extends AbstractRewriter<Op> implements OpVisitor {
 	@Override
 	public void visit(OpFilter opFilter) {
 		opFilter.getSubOp().visit(this);
-		push(OpFilter.filter(
+		push(OpFilter.filterBy(
 				new ExprRewriter(values).rewrite(opFilter.getExprs()), pop()));
 	}
 
@@ -318,7 +298,7 @@ class OpRewriter extends AbstractRewriter<Op> implements OpVisitor {
 	@Override
 	public void visit(OpProject opProject) {
 		opProject.getSubOp().visit(this);
-		List<Var> vars = new ArrayList<Var>();
+		List<Var> vars = new ArrayList<>();
 		for (Var v : opProject.getVars()) {
 			Node n = changeNode(v);
 			vars.add(Var.alloc(n));
@@ -349,7 +329,7 @@ class OpRewriter extends AbstractRewriter<Op> implements OpVisitor {
 		opGroup.getSubOp().visit(this);
 		ExprRewriter expRewriter = new ExprRewriter(values);
 		VarExprList groupVars = rewrite(opGroup.getGroupVars());
-		List<ExprAggregator> aggregators = new ArrayList<ExprAggregator>();
+		List<ExprAggregator> aggregators = new ArrayList<>();
 		for (ExprAggregator ea : opGroup.getAggregators()) {
 			ea.visit(expRewriter);
 			aggregators.add((ExprAggregator) expRewriter.pop());

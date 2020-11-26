@@ -18,17 +18,17 @@
 
 package org.apache.jena.query.spatial.assembler;
 
-import com.hp.hpl.jena.assembler.Assembler;
-import com.hp.hpl.jena.sparql.core.assembler.AssemblerUtils;
+import org.apache.jena.assembler.Assembler ;
+import org.apache.jena.sparql.core.assembler.AssemblerUtils ;
 
 public class SpatialAssembler
 {
     public static void init()
     {
         AssemblerUtils.init() ;
-        Assembler.general.implementWith(SpatialVocab.spatialDataset,      new SpatialDatasetAssembler()) ;
-        Assembler.general.implementWith(SpatialVocab.definition,        new EntityDefinitionAssembler()) ;
-        Assembler.general.implementWith(SpatialVocab.spatialIndexSolr,    new SpatialIndexSolrAssembler()) ; 
+        AssemblerUtils.registerDataset(SpatialVocab.spatialDataset,       new SpatialDatasetAssembler()) ;
+        
+        Assembler.general.implementWith(SpatialVocab.definition,          new EntityDefinitionAssembler()) ;
         Assembler.general.implementWith(SpatialVocab.spatialIndexLucene,  new SpatialIndexLuceneAssembler()) ;
     }
 }

@@ -19,17 +19,17 @@
 package org.apache.jena.jdbc.remote.connections;
 
 import java.sql.SQLException;
-import org.apache.jena.fuseki.ServerTest;
+
+import org.apache.jena.fuseki.main.FusekiTestServer;
 import org.apache.jena.jdbc.JdbcCompatibility;
 import org.apache.jena.jdbc.connections.JenaConnection;
-import org.apache.jena.jdbc.remote.connections.RemoteEndpointConnection;
 import org.apache.jena.jdbc.utils.TestUtils;
+import org.apache.jena.query.Dataset ;
 import org.apache.jena.riot.WebContent;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before ;
 import org.junit.BeforeClass;
-
-import com.hp.hpl.jena.query.Dataset;
 
 /**
  * Tests for the {@link RemoteEndpointConnection} where we use custom result set types
@@ -37,29 +37,10 @@ import com.hp.hpl.jena.query.Dataset;
  */
 public class TestRemoteEndpointConnectionWithResultSetTypes extends AbstractRemoteEndpointConnectionTests {
         
-    /**
-     * Setup for the tests by allocating a Fuseki instance to work with
-     */
-    @BeforeClass
-    public static void setup() {
-        ServerTest.allocServer();
-    }
-    
-    /**
-     * Clean up after each test by resetting the Fuseki instance
-     */
-    @After
-    public void cleanupTest() {
-        ServerTest.resetServer();
-    }
-    
-    /**
-     * Clean up after tests by de-allocating the Fuseki instance
-     */
-    @AfterClass
-    public static void cleanup() {
-        ServerTest.freeServer();
-    }
+    @BeforeClass public static void ctlBeforeClass() { FusekiTestServer.ctlBeforeClass(); }
+    @AfterClass  public static void ctlAfterClass()  { FusekiTestServer.ctlAfterClass(); }
+    @Before      public void ctlBeforeTest()         { FusekiTestServer.ctlBeforeTest(); }
+    @After       public void ctlAfterTest()          { FusekiTestServer.ctlAfterTest(); } 
     
     @Override
     protected boolean supportsTimeouts() {
@@ -69,13 +50,13 @@ public class TestRemoteEndpointConnectionWithResultSetTypes extends AbstractRemo
 
     @Override
     protected JenaConnection getConnection() throws SQLException {
-        return new RemoteEndpointConnection(ServerTest.serviceQuery, ServerTest.serviceUpdate, null, null, null, null, null, JenaConnection.DEFAULT_HOLDABILITY, JdbcCompatibility.DEFAULT, WebContent.contentTypeTextTSV, WebContent.contentTypeRdfJson);
+        return new RemoteEndpointConnection(FusekiTestServer.serviceQuery(), FusekiTestServer.serviceUpdate(), null, null, null, null, null, JenaConnection.DEFAULT_HOLDABILITY, JdbcCompatibility.DEFAULT, WebContent.contentTypeTextTSV, WebContent.contentTypeRDFJSON);
     }
 
     @Override
     protected JenaConnection getConnection(Dataset ds) throws SQLException {
         // Set up the dataset
-        TestUtils.copyToRemoteDataset(ds, ServerTest.serviceREST);
-        return new RemoteEndpointConnection(ServerTest.serviceQuery, ServerTest.serviceUpdate, null, null, null, null, null, JenaConnection.DEFAULT_HOLDABILITY, JdbcCompatibility.DEFAULT, WebContent.contentTypeTextTSV, WebContent.contentTypeRdfJson);
+        TestUtils.copyToRemoteDataset(ds, FusekiTestServer.serviceGSP());
+        return new RemoteEndpointConnection(FusekiTestServer.serviceQuery(), FusekiTestServer.serviceUpdate(), null, null, null, null, null, JenaConnection.DEFAULT_HOLDABILITY, JdbcCompatibility.DEFAULT, WebContent.contentTypeTextTSV, WebContent.contentTypeRDFJSON);
     }
 }

@@ -24,23 +24,23 @@ import java.sql.SQLException ;
 
 import org.apache.jena.atlas.logging.LogCtl ;
 
-import com.hp.hpl.jena.query.* ;
-import com.hp.hpl.jena.sdb.SDBException ;
-import com.hp.hpl.jena.sdb.Store ;
-import com.hp.hpl.jena.sdb.StoreDesc ;
-import com.hp.hpl.jena.sdb.shared.Access ;
-import com.hp.hpl.jena.sdb.sql.JDBC ;
-import com.hp.hpl.jena.sdb.sql.SDBConnection ;
-import com.hp.hpl.jena.sdb.store.DatabaseType ;
-import com.hp.hpl.jena.sdb.store.DatasetStore ;
-import com.hp.hpl.jena.sdb.store.LayoutType ;
-import com.hp.hpl.jena.sdb.store.StoreFactory ;
+import org.apache.jena.query.* ;
+import org.apache.jena.sdb.SDBException ;
+import org.apache.jena.sdb.Store ;
+import org.apache.jena.sdb.StoreDesc ;
+import org.apache.jena.sdb.shared.Access ;
+import org.apache.jena.sdb.sql.JDBC ;
+import org.apache.jena.sdb.sql.SDBConnection ;
+import org.apache.jena.sdb.store.DatabaseType ;
+import org.apache.jena.sdb.store.DatasetStore ;
+import org.apache.jena.sdb.store.LayoutType ;
+import org.apache.jena.sdb.store.StoreFactory ;
 
-/** Managed JDBC connections : creat */ 
+/** Managed JDBC connections : create */ 
 
 public class ExJdbcConnection
 {
-    static { LogCtl.setLog4j() ; }
+    static { LogCtl.setLogging();}
     
     public static void main(String...argv)
     {
@@ -73,11 +73,10 @@ public class ExJdbcConnection
         Store store = StoreFactory.create(storeDesc, conn) ;
         
         Dataset ds = DatasetStore.create(store) ;
-        QueryExecution qe = QueryExecutionFactory.create(query, ds) ;
-        try {
+        try ( QueryExecution qe = QueryExecutionFactory.create(query, ds) ) {
             ResultSet rs = qe.execSelect() ;
             ResultSetFormatter.out(rs) ;
-        } finally { qe.close() ; }
+        }
         // Does not close the JDBC connection.
         // Do not call : store.getConnection().close() , which does close the underlying connection.
         store.close() ;

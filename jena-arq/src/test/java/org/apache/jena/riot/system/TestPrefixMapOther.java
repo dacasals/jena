@@ -18,14 +18,13 @@
 
 package org.apache.jena.riot.system;
 
-import org.apache.jena.atlas.junit.BaseTest ;
 import org.junit.Test ;
 
 /**
  * Test the standard {@link PrefixMapStd} implementation
  *
  */
-public class TestPrefixMapOther extends BaseTest
+public class TestPrefixMapOther
 {
     @Test(expected=UnsupportedOperationException.class) 
     public void other_01()
@@ -40,7 +39,7 @@ public class TestPrefixMapOther extends BaseTest
     {
         PrefixMap pmap = PrefixMapFactory.create() ;
         pmap = PrefixMapFactory.unmodifiablePrefixMap(pmap) ;
-        pmap.getMapping().put("ex", IRIResolver.iriFactory.construct("http://example/"))  ;
+        pmap.getMapping().put("ex", "http://example/")  ;
     }
     
 
@@ -55,7 +54,7 @@ public class TestPrefixMapOther extends BaseTest
     public void other_11()
     {
         PrefixMap pmap = PrefixMapFactory.emptyPrefixMap() ;
-        pmap.getMapping().put("ex", IRIResolver.iriFactory.construct("http://example/"))  ;
+        pmap.getMapping().put("ex", "http://example/") ;
     }
     
 }

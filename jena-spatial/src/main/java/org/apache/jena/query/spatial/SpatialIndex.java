@@ -21,10 +21,10 @@ package org.apache.jena.query.spatial ;
 import java.util.List;
 
 import org.apache.jena.atlas.lib.Closeable;
+import org.apache.jena.graph.Node ;
 import org.apache.lucene.spatial.query.SpatialOperation;
 
-import com.hp.hpl.jena.graph.Node;
-import com.spatial4j.core.shape.Shape;
+import org.locationtech.spatial4j.shape.Shape;
 
 /** SpatialIndex abstraction */ 
 public interface SpatialIndex extends Closeable //, Transactional 

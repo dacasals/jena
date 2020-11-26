@@ -16,26 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.jena.riot.lang ;
+package org.apache.jena.riot.lang;
 
-import java.util.concurrent.atomic.AtomicLong ;
+import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.jena.riot.SysRIOT ;
-import org.apache.jena.riot.out.NodeFmtLib ;
-import org.apache.jena.riot.out.NodeToLabel ;
-
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.graph.NodeFactory ;
-import com.hp.hpl.jena.rdf.model.AnonId ;
+import org.apache.jena.graph.Node;
+import org.apache.jena.graph.NodeFactory;
+import org.apache.jena.riot.SysRIOT;
+import org.apache.jena.riot.out.NodeFmtLib;
+import org.apache.jena.riot.out.NodeToLabel;
 
 /**
  * Allocate blank nodes according to the label given. 
- * This alloctor reconstructs labels made by
+ * This allocator reconstructs labels made by
  * {@link NodeToLabel#createBNodeByLabelEncoded()}
  */
 
 public class BlankNodeAllocatorLabelEncoded implements BlankNodeAllocator {
-    private AtomicLong counter = new AtomicLong(0) ;
+    private AtomicLong counter = new AtomicLong(0);
 
     public BlankNodeAllocatorLabelEncoded() {}
 
@@ -44,12 +42,12 @@ public class BlankNodeAllocatorLabelEncoded implements BlankNodeAllocator {
 
     @Override
     public Node alloc(String label) {
-        return NodeFactory.createAnon(new AnonId(NodeFmtLib.decodeBNodeLabel(label))) ;
+        return NodeFactory.createBlankNode(NodeFmtLib.decodeBNodeLabel(label));
     }
 
     @Override
     public Node create() {
-        String label = SysRIOT.BNodeGenIdPrefix + (counter.getAndIncrement()) ;
-        return NodeFactory.createAnon(new AnonId(label)) ;
+        String label = SysRIOT.BNodeGenIdPrefix + (counter.getAndIncrement());
+        return NodeFactory.createBlankNode(label);
     }
 }

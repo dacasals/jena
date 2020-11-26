@@ -18,21 +18,19 @@
 
 package org.apache.jena.riot.writer;
 
-import static org.apache.jena.atlas.lib.Lib.equal ;
-
 import java.io.OutputStream ;
 import java.io.Writer ;
 import java.util.Collection ;
 import java.util.List ;
+import java.util.Objects;
 
 import org.apache.jena.atlas.io.IndentedWriter ;
-import org.apache.jena.atlas.lib.Lib ;
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.Triple ;
 import org.apache.jena.riot.other.GLib ;
 import org.apache.jena.riot.system.RiotLib ;
-
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.graph.Triple ;
-import com.hp.hpl.jena.sparql.core.Quad ;
+import org.apache.jena.sparql.core.Quad ;
+import org.apache.jena.sparql.util.Context;
 
 /** An output of triples / quads that print batches of same subject / same graph, same subject. 
  *  It writes something that is easier to read than
@@ -67,31 +65,30 @@ public class WriterStreamRDFBlocks extends WriterStreamRDFBatched
     // Quad output
     protected Node lastGraph            = null ;
     protected Node lastSubject          = null ;
-    protected boolean firstGraph        = true ;
     protected int currentGraphIndent    = 0;
 
-    public WriterStreamRDFBlocks(OutputStream output) {
-        super(output) ;
+    public WriterStreamRDFBlocks(OutputStream output, Context context) {
+        super(output, context) ;
     }
 
-    public WriterStreamRDFBlocks(Writer output) {
-        super(output) ;
+    public WriterStreamRDFBlocks(Writer output, Context context) {
+        super(output, context) ;
     }
 
-    public WriterStreamRDFBlocks(IndentedWriter output) {
-        super(output) ;
+    public WriterStreamRDFBlocks(IndentedWriter output, Context context) {
+        super(output, context) ;
     }
 
     @Override
     protected void printBatchQuads(Node g, Node s, List<Quad> quads) {
         if ( g == null )
+            // print as Triples has currentGraph == null. 
             g = Quad.defaultGraphNodeGenerated ;
-        if ( Lib.equal(g, lastGraph) ) {
+        if ( Objects.equals(g, lastGraph) ) {
             // Same graph, different subject.
             out.println(" .") ;
-            out.println() ;
         } else {
-            // Start graph
+            // Different graph
             endGraph(g) ;
             startGraph(g) ;
             lastGraph = g ;
@@ -102,21 +99,24 @@ public class WriterStreamRDFBlocks extends WriterStreamRDFBatched
         lastSubject = s ;
     }
 
+    private void startBatch() {
+        // Any output so far? prefixes or a previous graph.
+        if ( out.getRow() > 1 )
+            out.println() ;
+        out.flush();
+    }
+
     private void gap(int gap) {
         out.print(' ', gap) ;
     }
 
     @Override
     protected void printBatchTriples(Node s, List<Triple> triples) {
-        // Blank line?
-        // Not if not prefixes and first batch.
-        if ( out.getRow() > 1 )
-            out.println() ;
-
+        startBatch();
         printBatch(s, triples) ;
         // End of cluster.
-        out.print(" .") ;
-        out.println() ;
+        out.println(" .") ;
+        lastGraph = null;
     }
         
     private void printBatch(Node s, List<Triple> triples) {
@@ -161,14 +161,11 @@ public class WriterStreamRDFBlocks extends WriterStreamRDFBatched
     protected boolean dftGraph(Node g)  { return g == Quad.defaultGraphNodeGenerated ; }
 
     protected void startGraph(Node g) {
+        startBatch();
         // Start graph
         if ( lastGraph == null ) {
             boolean NL_START = (dftGraph(g) ? NL_GDFT_START : NL_GNMD_START) ;
-
-            if ( !firstGraph )
-                out.println() ;
-            firstGraph = false ;
-
+            
             lastSubject = null ;
             if ( !dftGraph(g) ) {
                 outputNode(g) ;
@@ -196,7 +193,7 @@ public class WriterStreamRDFBlocks extends WriterStreamRDFBatched
             return ;
 
         // End of graph
-        if ( !equal(lastGraph, g) ) {
+        if ( !Objects.equals(lastGraph, g) ) {
             boolean NL_END = (dftGraph(g) ? NL_GDFT_END : NL_GNMD_END) ;
 
             if ( lastSubject != null )
@@ -221,5 +218,4 @@ public class WriterStreamRDFBlocks extends WriterStreamRDFBatched
 
     protected void setGraphIndent(int x)    { currentGraphIndent = x ; }
     protected int graphIndent()             { return currentGraphIndent ; }
-
 }

@@ -29,7 +29,6 @@ import org.apache.jena.riot.thrift.TS_RDFThrift ;
 import org.apache.jena.riot.tokens.TS_Tokens ;
 import org.apache.jena.riot.web.TS_RiotWeb ;
 import org.apache.jena.riot.writer.TS_RiotWriter ;
-import org.junit.BeforeClass ;
 import org.junit.runner.RunWith ;
 import org.junit.runners.Suite ;
 
@@ -38,8 +37,7 @@ import org.junit.runners.Suite ;
     TS_Tokens.class
     , TS_Out.class
     , TS_Lang.class
-    , TS_LangSuite.class
-    , TS_ReaderRIOT.class
+    , TS_RiotGeneral.class
     , TS_IO2.class
     , TS_RIOTAdapters.class
     , TS_Process.class
@@ -48,13 +46,10 @@ import org.junit.runners.Suite ;
     , TS_RiotWeb.class
     , TS_ResultSetRIOT.class
     , TS_RDFThrift.class
+    
+    , Scripts_LangSuite.class
 })
 
 
 public class TC_Riot
-{
-    @BeforeClass public static void beforeClass()
-    { 
-        RIOT.init() ;
-    }
-}
+{ }

@@ -22,8 +22,7 @@ import java.util.Collections ;
 import java.util.Map ;
 
 import org.apache.jena.iri.IRI ;
-
-import com.hp.hpl.jena.shared.PrefixMapping ;
+import org.apache.jena.shared.PrefixMapping ;
 
 /** A PrefixMap that traps update operations on a wrapped prefix map */ 
 public class PrefixMapUnmodifiable extends PrefixMapWrapper
@@ -31,8 +30,8 @@ public class PrefixMapUnmodifiable extends PrefixMapWrapper
     public PrefixMapUnmodifiable(PrefixMap other) { super(other) ; }
 
     @Override
-    public Map<String, IRI> getMapping()
-    { return Collections.unmodifiableMap(other.getMapping()) ; }
+    public Map<String, String> getMapping()
+    { return Collections.unmodifiableMap(get().getMapping()) ; }
 
     @Override
     public void add(String prefix, String iriString)

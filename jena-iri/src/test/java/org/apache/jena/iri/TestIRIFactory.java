@@ -29,10 +29,11 @@ public class TestIRIFactory {
 		return new JUnit4TestAdapter(TestIRIFactory.class);
 	}
 	
+    @SuppressWarnings("deprecation")
 	private static IRIFactory iriFactory = IRIFactory.jenaImplementation();
 	
 	@Test
-	public void createFromURI() throws Exception {
+	public void createFromURI() {
 		URI uri = URI.create("http://johndoe:secret@example.com:81/page?2#hash");
 		IRI iri = iriFactory.create(uri);		
 		assertEquals("http", iri.getScheme());

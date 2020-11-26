@@ -17,14 +17,18 @@
  */
 package org.apache.jena.arq.querybuilder.handlers;
 
-import java.lang.reflect.Field;
+import java.io.StringReader;
 import java.util.List;
 import java.util.Map;
-
-import com.hp.hpl.jena.graph.Node;
-import com.hp.hpl.jena.query.Query;
-import com.hp.hpl.jena.sparql.core.Var;
-import com.hp.hpl.jena.sparql.core.VarExprList;
+import org.apache.jena.graph.Node;
+import org.apache.jena.query.Query;
+import org.apache.jena.query.QueryParseException;
+import org.apache.jena.sparql.core.Var;
+import org.apache.jena.sparql.core.VarExprList;
+import org.apache.jena.sparql.expr.Expr;
+import org.apache.jena.sparql.lang.arq.ARQParser;
+import org.apache.jena.sparql.lang.arq.ParseException;
+import org.apache.jena.sparql.lang.arq.TokenMgrError;
 
 /**
  * A Select clause handler.
@@ -34,22 +38,26 @@ public class SelectHandler implements Handler {
 
 	// the query to handle
 	private final Query query;
+	private final AggregationHandler aggHandler;
 
 	/**
 	 * Constructor.
-	 * @param query The query to manage.
+	 * 
+	 * @param aggHandler The aggregate handler that wraps the query we want to handle.
 	 */
-	public SelectHandler(Query query) {
-		this.query = query;
+	public SelectHandler(AggregationHandler aggHandler) {
+		this.query = aggHandler.getQuery();
+		this.aggHandler = aggHandler;
 		setDistinct(query.isDistinct());
 		setReduced(query.isReduced());
 	}
 
 	/**
-	 * Set the distinct flag.
-	 * Set or unset the distinct flag.
-	 * Will set the reduced flag if it was previously set.
-	 * @param state the state to set the distinct flag to.
+	 * Set the distinct flag. Set or unset the distinct flag. Will set the
+	 * reduced flag if it was previously set.
+	 * 
+	 * @param state
+	 *            the state to set the distinct flag to.
 	 */
 	public void setDistinct(boolean state) {
 		query.setDistinct(state);
@@ -59,10 +67,11 @@ public class SelectHandler implements Handler {
 	}
 
 	/**
-	 * Set the reduced flag.
-	 * Set or unset the reduced flag.
-	 * Will set the reduced flag if it was previously set.
-	 * @param state the state to set the reduced flag to.
+	 * Set the reduced flag. Set or unset the reduced flag. Will set the reduced
+	 * flag if it was previously set.
+	 * 
+	 * @param state
+	 *            the state to set the reduced flag to.
 	 */
 	public void setReduced(boolean state) {
 		query.setReduced(state);
@@ -72,9 +81,11 @@ public class SelectHandler implements Handler {
 	}
 
 	/**
-	 * Add a variable to the select.
-	 * If the variable is the variables are set to star.
-	 * @param var The variable to add.
+	 * Add a variable to the select. If the variable is <code>null</code> the
+	 * variables are set to star.
+	 * 
+	 * @param var
+	 *            The variable to add.
 	 */
 	public void addVar(Var var) {
 		if (var == null) {
@@ -86,7 +97,74 @@ public class SelectHandler implements Handler {
 	}
 
 	/**
+	 * Add an Expression as variable to the select. If the variable is the
+	 * variables are set to star.
+	 * 
+	 * @param expression
+	 *            The expression as a string.
+	 * @param var
+	 *            The variable to add.
+	 */
+	public void addVar(String expression, Var var) {
+		addVar(parseExpr(expression), var);
+	}
+
+	/**
+	 * Parse an expression string into an expression.
+	 * 
+	 * This must be able to be parsed as though it were written "SELECT "+s
+	 * 
+	 * @param s
+	 *            the select string to parse.
+	 * @return the expression
+	 * @throws QueryParseException
+	 *             on error
+	 */
+	private Expr parseExpr(String s) throws QueryParseException {
+		try {
+			ARQParser parser = new ARQParser(new StringReader("SELECT " + s));
+			parser.setQuery(new Query());
+			parser.getQuery().setPrefixMapping( query.getPrefixMapping());
+			parser.SelectClause();
+			Query q = parser.getQuery();
+			VarExprList vel = q.getProject();
+			return vel.getExprs().values().iterator().next();
+		} catch (ParseException ex) {
+			throw new QueryParseException(ex.getMessage(), ex.currentToken.beginLine, ex.currentToken.beginLine);
+		} catch (TokenMgrError tErr) {
+			throw new QueryParseException(tErr.getMessage(), -1, -1);
+		} catch (Error err) {
+			// The token stream can throw java.lang.Error's
+			String tmp = err.getMessage();
+			if (tmp == null)
+				throw new QueryParseException(err, -1, -1);
+			throw new QueryParseException(tmp, -1, -1);
+		}
+	}
+
+	/**
+	 * Add an Expression as variable to the select.
+	 * 
+	 * @param expr
+	 *            The expression to add.
+	 * @param var
+	 *            The variable to add.
+	 */
+	public void addVar(Expr expr, Var var) {
+		if (expr == null) {
+			throw new IllegalArgumentException("expr may not be null");
+		}
+		if (var == null) {
+			throw new IllegalArgumentException("var may not be null");
+		}
+		query.setQueryResultStar(false);
+		query.addResultVar(var, expr);
+		aggHandler.add( expr, var );
+	}
+
+	/**
 	 * Get the list of variables from the query.
+	 * 
 	 * @return The list of variables in the query.
 	 */
 	public List<Var> getVars() {
@@ -94,27 +172,33 @@ public class SelectHandler implements Handler {
 	}
 
 	/**
+	 * Return the projected var expression list.
+	 * 
+	 * @return The projected var expression list.
+	 */
+	public VarExprList getProject() {
+		return query.getProject();
+	}
+
+	/**
 	 * Add all the variables from the select handler variable.
-	 * @param selectHandler The select handler to copy the variables from.
+	 * 
+	 * @param selectHandler
+	 *            The select handler to copy the variables from.
 	 */
 	public void addAll(SelectHandler selectHandler) {
-
 		setReduced(selectHandler.query.isReduced());
 		setDistinct(selectHandler.query.isDistinct());
 		query.setQueryResultStar(selectHandler.query.isQueryResultStar());
-
-		try {
-			Field f = Query.class.getDeclaredField("projectVars");
-			f.setAccessible(true);
-			VarExprList projectVars = (VarExprList) f.get(selectHandler.query);
-			f.set(query, new VarExprList(projectVars));
-		} catch (NoSuchFieldException e) {
-			throw new IllegalStateException(e);
-		} catch (SecurityException e) {
-			throw new IllegalStateException(e);
-		} catch (IllegalAccessException e) {
-			throw new IllegalStateException(e);
+		VarExprList shProjectVars = selectHandler.query.getProject();
+		VarExprList qProjectVars = query.getProject();
+		for (Var var : shProjectVars.getVars()) {
+			// make sure there are no duplicates
+			if (!qProjectVars.contains(var)) {
+				qProjectVars.add(var, shProjectVars.getExpr(var));
+			}
 		}
+		aggHandler.addAll( selectHandler.aggHandler );
 	}
 
 	@Override
@@ -127,6 +211,9 @@ public class SelectHandler implements Handler {
 		if (query.getProject().getVars().isEmpty()) {
 			query.setQueryResultStar(true);
 		}
+		
+		aggHandler.build();
+		
 		// handle the SELECT * case
 		query.getProjectVars();
 	}

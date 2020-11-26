@@ -18,24 +18,27 @@
 
 package org.apache.jena.riot.out;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import org.apache.jena.JenaRuntime ;
 import org.apache.jena.atlas.io.StringWriterI ;
-import org.apache.jena.atlas.junit.BaseTest ;
+import org.apache.jena.atlas.lib.CharSpace ;
+import org.apache.jena.graph.Node ;
 import org.apache.jena.riot.system.PrefixMap ;
 import org.apache.jena.riot.system.PrefixMapFactory ;
+import org.apache.jena.sparql.core.Var ;
+import org.apache.jena.sparql.util.NodeFactoryExtra ;
 import org.junit.Test ;
 
-import com.hp.hpl.jena.JenaRuntime ;
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.sparql.core.Var ;
-import com.hp.hpl.jena.sparql.util.NodeFactoryExtra ;
-
-public class TestNodeFmt extends BaseTest
+public class TestNodeFmt
 {
     private static String base = "http://example.org/base" ;
     private static PrefixMap prefixMap = PrefixMapFactory.createForOutput() ;
     static {
         prefixMap.add(":", "http://example/p") ;
         prefixMap.add("ex", "http://example/ex/") ;
+        prefixMap.add("ns", "urn:test:") ;
     }
     private static NodeFormatter nodeFormatterNTutf8 = new NodeFormatterNT(CharSpace.UTF8) ;
     private static NodeFormatter nodeFormatterNTascii = new NodeFormatterNT(CharSpace.ASCII) ;
@@ -120,9 +123,15 @@ public class TestNodeFmt extends BaseTest
     @Test public void nodefmt_ttl_18()  { test(nodeFormatterTTL, "<http://example.org/base#bar>", "<#bar>") ; }
 
     // Trailing DOT
-    @Test public void nodefmt_ttl_19()  { test(nodeFormatterTTL, "<http://example/ex/abc.>", "<http://example/ex/abc.>") ; } 
+    @Test public void nodefmt_ttl_19()  { test(nodeFormatterTTL, "<http://example/ex/abc.>", "<http://example/ex/abc.>") ; }
+    
     @Test public void nodefmt_ttl_20()  { test(nodeFormatterTTL, "<http://example/ex/abc.x>", "ex:abc.x") ; }
     @Test public void nodefmt_ttl_21()  { test(nodeFormatterTTL, "<http://example/ex/abc456.123>", "ex:abc456.123") ; }
+    @Test public void nodefmt_ttl_22()  { test(nodeFormatterTTL, "<http://example/ex/abc:x>", "ex:abc:x") ; }
+    @Test public void nodefmt_ttl_23()  { test(nodeFormatterTTL, "<http://example/ex/001234>", "ex:001234") ; }
+    @Test public void nodefmt_ttl_24()  { test(nodeFormatterTTL, "<urn:test:abc:x>", "ns:abc:x") ; }
+    @Test public void nodefmt_ttl_25()  { test(nodeFormatterTTL, "<urn:test:00:1234>", "ns:00:1234") ; }
+    @Test public void nodefmt_ttl_26()  { test(nodeFormatterTTL, "<http://example/ex/::>", "ex:::") ; }
     
     @Test public void nodefmt_ttl_29()  { test(nodeFormatterTTL, "'Ω'", "\"Ω\"") ; }
     
@@ -184,5 +193,17 @@ public class TestNodeFmt extends BaseTest
     // Illegal lexical form.
     @Test public void nodefmt_ttl_74()  { test(nodeFormatterTTL, "'False'^^<http://www.w3.org/2001/XMLSchema#boolean>", "\"False\"^^<http://www.w3.org/2001/XMLSchema#boolean>") ; }
     @Test public void nodefmt_ttl_75()  { test(nodeFormatterTTL, "'True'^^<http://www.w3.org/2001/XMLSchema#boolean>", "\"True\"^^<http://www.w3.org/2001/XMLSchema#boolean>") ; }
+    
+    private static String QuoteDouble3 = "\"\"\"" ;
+    private static String QuoteSingle3 = "'''" ;
+
+    // Multiline
+    
+    private static NodeFormatter nodeFormatterTTL_ML = new NodeFormatterTTL_MultiLine(base, prefixMap) ;
+    
+    @Test public void nodefmt_ttl_ML_01()  { test(nodeFormatterTTL_ML, "'A\\nB'", QuoteDouble3+"A\nB"+QuoteDouble3) ; }
+    @Test public void nodefmt_ttl_ML_02()  { test(nodeFormatterTTL_ML, "'A\\nB'@en", QuoteDouble3+"A\nB"+QuoteDouble3+"@en") ; }
+    @Test public void nodefmt_ttl_ML_03()  { test(nodeFormatterTTL_ML, "'A\\nB'^^:ex\\/datatype", QuoteDouble3+"A\nB"+QuoteDouble3+"^^ex:datatype") ; }
+
     
 }

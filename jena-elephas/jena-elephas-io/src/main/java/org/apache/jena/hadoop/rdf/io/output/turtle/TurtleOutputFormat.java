@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- *     
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,17 +22,16 @@ import java.io.Writer;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.RecordWriter;
+import org.apache.jena.graph.Triple ;
 import org.apache.jena.hadoop.rdf.io.output.AbstractStreamRdfNodeTupleOutputFormat;
 import org.apache.jena.hadoop.rdf.io.output.writers.StreamRdfTripleWriter;
 import org.apache.jena.hadoop.rdf.types.TripleWritable;
 import org.apache.jena.riot.system.StreamRDF;
 import org.apache.jena.riot.writer.WriterStreamRDFBlocks;
 
-import com.hp.hpl.jena.graph.Triple;
-
 /**
  * Turtle output format
- * 
+ *
  * @param <TKey>
  *            Key type
  */
@@ -50,7 +49,7 @@ public class TurtleOutputFormat<TKey> extends AbstractStreamRdfNodeTupleOutputFo
 
     @Override
     protected StreamRDF getStream(Writer writer, Configuration config) {
-        return new WriterStreamRDFBlocks(writer);
+        return new WriterStreamRDFBlocks(writer, null);
     }
 
 }

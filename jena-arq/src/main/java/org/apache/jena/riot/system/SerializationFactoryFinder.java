@@ -24,23 +24,19 @@ import java.util.Iterator ;
 
 import org.apache.jena.atlas.data.SerializationFactory ;
 import org.apache.jena.atlas.lib.Sink ;
+import org.apache.jena.graph.Triple ;
 import org.apache.jena.riot.lang.LabelToNode ;
 import org.apache.jena.riot.lang.LangNQuads ;
 import org.apache.jena.riot.lang.LangNTriples ;
 import org.apache.jena.riot.out.NodeToLabel ;
 import org.apache.jena.riot.out.SinkQuadOutput ;
 import org.apache.jena.riot.out.SinkTripleOutput ;
-import org.apache.jena.riot.system.IRIResolver ;
-import org.apache.jena.riot.system.ParserProfileBase ;
-import org.apache.jena.riot.system.Prologue ;
 import org.apache.jena.riot.tokens.Tokenizer ;
-import org.apache.jena.riot.tokens.TokenizerFactory ;
-
-import com.hp.hpl.jena.graph.Triple ;
-import com.hp.hpl.jena.sparql.core.Quad ;
-import com.hp.hpl.jena.sparql.engine.binding.Binding ;
-import com.hp.hpl.jena.sparql.engine.binding.BindingInputStream ;
-import com.hp.hpl.jena.sparql.engine.binding.BindingOutputStream ;
+import org.apache.jena.riot.tokens.TokenizerText;
+import org.apache.jena.sparql.core.Quad ;
+import org.apache.jena.sparql.engine.binding.Binding ;
+import org.apache.jena.sparql.engine.binding.BindingInputStream ;
+import org.apache.jena.sparql.engine.binding.BindingOutputStream ;
 
 public class SerializationFactoryFinder
 {
@@ -67,7 +63,7 @@ public class SerializationFactoryFinder
                 return 0 ;
             }
         };
-    }
+   }
     
     public static SerializationFactory<Triple> tripleSerializationFactory()
     {
@@ -82,9 +78,12 @@ public class SerializationFactoryFinder
             @Override
             public Iterator<Triple> createDeserializer(InputStream in)
             {
-                Tokenizer tokenizer = TokenizerFactory.makeTokenizerASCII(in) ;
-                ParserProfileBase profile = new ParserProfileBase(new Prologue(null, IRIResolver.createNoResolve()), null, LabelToNode.createUseLabelEncoded()) ;
-                LangNTriples parser = new LangNTriples(tokenizer, profile, null) ;
+                Tokenizer tokenizer = TokenizerText.create().source(in).build();
+                ParserProfile profile = RiotLib.createParserProfile(RiotLib.factoryRDF(LabelToNode.createUseLabelEncoded()),
+                                                                    ErrorHandlerFactory.errorHandlerNoWarnings,
+                                                                    IRIResolver.createNoResolve(),
+                                                                    false);
+                LangNTriples parser = new LangNTriples(tokenizer, profile, null);
                 return parser ;
             }
             
@@ -110,8 +109,11 @@ public class SerializationFactoryFinder
             @Override
             public Iterator<Quad> createDeserializer(InputStream in)
             {
-                Tokenizer tokenizer = TokenizerFactory.makeTokenizerASCII(in) ;
-                ParserProfileBase profile = new ParserProfileBase(new Prologue(null, IRIResolver.createNoResolve()), null, LabelToNode.createUseLabelEncoded()) ;
+                Tokenizer tokenizer = TokenizerText.create().source(in).build();
+                ParserProfile profile = RiotLib.createParserProfile(RiotLib.factoryRDF(LabelToNode.createUseLabelEncoded()),
+                                                                    ErrorHandlerFactory.errorHandlerNoWarnings,
+                                                                    IRIResolver.createNoResolve(),
+                                                                    false);
                 LangNQuads parser = new LangNQuads(tokenizer, profile, null) ;
                 return parser ;
             }

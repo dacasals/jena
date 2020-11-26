@@ -18,11 +18,10 @@
 
 package org.apache.jena.hadoop.rdf.mapreduce.filter;
 
+import org.apache.jena.datatypes.xsd.XSDDatatype ;
+import org.apache.jena.graph.NodeFactory ;
 import org.apache.jena.hadoop.rdf.types.QuadWritable;
-
-import com.hp.hpl.jena.datatypes.xsd.XSDDatatype;
-import com.hp.hpl.jena.graph.NodeFactory;
-import com.hp.hpl.jena.sparql.core.Quad;
+import org.apache.jena.sparql.core.Quad ;
 
 /**
  * Abstract tests for triple filter mappers that check triple validity
@@ -66,7 +65,7 @@ public abstract class AbstractQuadValidityFilterTests extends AbstractNodeTupleF
         case 4:
             // Invalid to use Blank Node as Predicate
             return new QuadWritable(new Quad(Quad.defaultGraphNodeGenerated, NodeFactory.createURI("http://subjects/" + i),
-                    NodeFactory.createAnon(), NodeFactory.createLiteral(Integer.toString(i), XSDDatatype.XSDinteger)));
+                    NodeFactory.createBlankNode(), NodeFactory.createLiteral(Integer.toString(i), XSDDatatype.XSDinteger)));
         case 5:
             // Invalid to use Literal as Predicate
             return new QuadWritable(new Quad(Quad.defaultGraphNodeGenerated, NodeFactory.createURI("http://subjects/" + i),

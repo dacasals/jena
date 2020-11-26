@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,74 +18,21 @@
 
 package org.apache.jena.fuseki.validation;
 
-import org.apache.jena.atlas.io.IndentedLineBuffer ;
-import org.apache.jena.atlas.json.JsonBuilder ;
-import org.apache.jena.atlas.json.JsonObject ;
-import org.apache.jena.fuseki.servlets.ServletOps ;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
-import com.hp.hpl.jena.query.QueryParseException ;
-import com.hp.hpl.jena.query.Syntax ;
-import com.hp.hpl.jena.update.UpdateFactory ;
-import com.hp.hpl.jena.update.UpdateRequest ;
+import org.apache.jena.fuseki.validation.html.UpdateValidatorHTML;
+import org.apache.jena.fuseki.validation.json.UpdateValidatorJSON;
 
-public class UpdateValidator extends ValidatorBaseJson {
-    public UpdateValidator() {}
-    
-    static final String paramUpdate           = "update" ;
-    static final String paramSyntax           = "languageSyntax" ;
-    
-    static final String jInput           = "input" ;
-    static final String jFormatted       = "formatted" ;
+public class UpdateValidator extends ValidatorBase {
 
     @Override
-    protected JsonObject execute(ValidationAction action) {
-        JsonBuilder obj = new JsonBuilder() ;
-        obj.startObject() ;
-        
-        final String updateString = getArg(action, paramUpdate) ;
-        String updateSyntax = getArgOrNull(action, paramSyntax) ;
-        if ( updateSyntax == null || updateSyntax.equals("") )
-            updateSyntax = "SPARQL" ;
-        
-        Syntax language = Syntax.lookup(updateSyntax) ;
-        if ( language == null ) {
-            ServletOps.errorBadRequest("Unknown syntax: " + updateSyntax) ;
-            return null ;
-        }
-        
-        obj.key(jInput).value(updateString) ;
-        UpdateRequest request = null ;
-        try {
-            request = UpdateFactory.create(updateString, "http://example/base/", language) ;
-        } catch (QueryParseException ex) {
-            obj.key(jErrors) ;
-            obj.startArray() ;      // Errors array
-            obj.startObject() ;
-            obj.key(jParseError).value(ex.getMessage()) ;
-            obj.key(jParseErrorLine).value(ex.getLine()) ;
-            obj.key(jParseErrorCol).value(ex.getColumn()) ;
-            obj.finishObject() ;
-            obj.finishArray() ;
-            
-            obj.finishObject() ; // Outer object
-            return obj.build().getAsObject() ;
-        }
-        
-        formatted(obj, request) ;
-        
-        obj.finishObject() ;
-        return obj.build().getAsObject() ;
+    protected void executeJSON(HttpServletRequest request, HttpServletResponse response) {
+        executeJSON(request, response, UpdateValidatorJSON::execute);
     }
 
-    private void formatted(JsonBuilder obj, UpdateRequest updateRequest) {
-        IndentedLineBuffer out = new IndentedLineBuffer() ;
-        updateRequest.output(out) ;
-        obj.key(jFormatted).value(out.asString()) ;
-    }
-    
     @Override
-    protected String validatorName() {
-        return "SPARQL Update" ;
+    protected void executeHTML(HttpServletRequest request, HttpServletResponse response) {
+        UpdateValidatorHTML.executeHTML(request, response);
     }
 }
-

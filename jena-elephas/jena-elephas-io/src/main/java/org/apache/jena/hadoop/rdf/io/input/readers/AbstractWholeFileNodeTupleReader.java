@@ -38,12 +38,10 @@ import org.apache.jena.hadoop.rdf.io.input.util.TrackableInputStream;
 import org.apache.jena.hadoop.rdf.io.input.util.TrackedInputStream;
 import org.apache.jena.hadoop.rdf.io.input.util.TrackedPipedRDFStream;
 import org.apache.jena.hadoop.rdf.types.AbstractNodeTupleWritable;
-import org.apache.jena.riot.Lang;
-import org.apache.jena.riot.RDFDataMgr;
-import org.apache.jena.riot.ReaderRIOT;
+import org.apache.jena.riot.Lang ;
+import org.apache.jena.riot.RDFParserBuilder ;
 import org.apache.jena.riot.lang.PipedRDFIterator;
 import org.apache.jena.riot.lang.PipedRDFStream;
-import org.apache.jena.riot.system.ParserProfile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,7 +86,7 @@ public abstract class AbstractWholeFileNodeTupleReader<TValue, T extends Abstrac
     private Throwable parserError = null;
 
     @Override
-    public void initialize(InputSplit genericSplit, TaskAttemptContext context) throws IOException, InterruptedException {
+    public void initialize(InputSplit genericSplit, TaskAttemptContext context) throws IOException {
         LOG.debug("initialize({}, {})", genericSplit, context);
 
         // Assuming file split
@@ -133,8 +131,8 @@ public abstract class AbstractWholeFileNodeTupleReader<TValue, T extends Abstrac
         // Set up background thread for parser
         iter = this.getPipedIterator();
         this.stream = this.getPipedStream(iter, this.input);
-        ParserProfile profile = RdfIOUtils.createParserProfile(context, file);
-        Runnable parserRunnable = this.createRunnable(this, this.input, stream, this.getRdfLanguage(), profile);
+        RDFParserBuilder builder = RdfIOUtils.createRDFParserBuilder(context, file);
+        Runnable parserRunnable = this.createRunnable(this, this.input, stream, this.getRdfLanguage(), builder);
         this.parserThread = new Thread(parserRunnable);
         this.parserThread.setDaemon(true);
         this.parserThread.start();
@@ -172,17 +170,17 @@ public abstract class AbstractWholeFileNodeTupleReader<TValue, T extends Abstrac
      *            Stream
      * @param lang
      *            Language to use for parsing
+     * @param builder 
+     *     RDFParser setup
      * @return Parser runnable
      */
-    private Runnable createRunnable(@SuppressWarnings("rawtypes") final AbstractWholeFileNodeTupleReader reader, final InputStream input,
-            final PipedRDFStream<TValue> stream, final Lang lang, final ParserProfile profile) {
+    private Runnable createRunnable(final AbstractWholeFileNodeTupleReader<?, ?> reader, final InputStream input,
+                                    final PipedRDFStream<TValue> stream, final Lang lang, RDFParserBuilder builder) {
         return new Runnable() {
             @Override
             public void run() {
                 try {
-                    ReaderRIOT riotReader = RDFDataMgr.createReader(lang);
-                    riotReader.setParserProfile(profile);
-                    riotReader.read(input, null, lang.getContentType(), stream, null);
+                    builder.lang(lang).source(input).parse(stream);
                     reader.setParserFinished(null);
                 } catch (Throwable e) {
                     reader.setParserFinished(e);
@@ -229,7 +227,7 @@ public abstract class AbstractWholeFileNodeTupleReader<TValue, T extends Abstrac
     protected abstract T createInstance(TValue tuple);
 
     @Override
-    public boolean nextKeyValue() throws IOException, InterruptedException {
+    public boolean nextKeyValue() throws IOException {
         // Reuse key for efficiency
         if (key == null) {
             key = new LongWritable();
@@ -292,17 +290,17 @@ public abstract class AbstractWholeFileNodeTupleReader<TValue, T extends Abstrac
     }
 
     @Override
-    public LongWritable getCurrentKey() throws IOException, InterruptedException {
+    public LongWritable getCurrentKey() {
         return this.key;
     }
 
     @Override
-    public T getCurrentValue() throws IOException, InterruptedException {
+    public T getCurrentValue() {
         return this.tuple;
     }
 
     @Override
-    public float getProgress() throws IOException, InterruptedException {
+    public float getProgress() {
         float progress = 0.0f;
         if (this.key == null) {
             // We've either not started or we've finished

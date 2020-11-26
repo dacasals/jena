@@ -18,10 +18,12 @@
 package org.apache.jena.arq.querybuilder.clauses;
 
 import java.util.List;
+
 import org.apache.jena.arq.querybuilder.AbstractQueryBuilder;
 import org.apache.jena.arq.querybuilder.handlers.SelectHandler;
-
-import com.hp.hpl.jena.sparql.core.Var;
+import org.apache.jena.sparql.core.Var;
+import org.apache.jena.sparql.expr.Expr;
+import org.apache.jena.sparql.lang.sparql_11.ParseException;
 
 /**
  * Interface that defines the SelectClause as per
@@ -32,44 +34,57 @@ import com.hp.hpl.jena.sparql.core.Var;
  */
 public interface SelectClause<T extends AbstractQueryBuilder<T>> {
 	/**
-	 * Get the select handler for this clause
+	 * Returns the select handler for this clause
+	 * 
 	 * @return The SelectHandler that the clause is using
 	 */
 	public SelectHandler getSelectHandler();
 
 	/**
-	 * Set set the distinct flag.
-	 * 
-	 * Setting the select distinct will unset reduced if it was set.
-	 * 
-	 * @param state
-	 *            if true results will be distinct.
-	 * @return The builder for chaining.
-	 */
-	public T setDistinct(boolean state);
-
-	/**
-	 * Set set the reduced flag.
-	 * 
-	 * Setting the select reduced will unset distinct if it was set.
-	 * 
-	 * @param state
-	 *            if true results will be reduced.
-	 * @return The builder for chaining.
-	 */
-	public T setReduced(boolean state);
-
-	/**
-	 * Add a variable to the select statement.
+	 * Adds a variable to the select clause.
 	 * 
 	 * A variable may only be added once. Attempting to add the same variable
 	 * multiple times will be silently ignored.
 	 * 
 	 * @param var
 	 *            The variable to add.
-	 * @return The builder for chaining.
+	 * @return This builder for chaining.
 	 */
 	public T addVar(Object var);
+
+	/**
+	 * Adds an expression as variable to the select statement.
+	 * 
+	 * Creates an '(Expression as Var)' to the select statement.
+	 * 
+	 * A variable may only be added once. Attempting to add the same variable
+	 * multiple times will be silently ignored.
+	 * 
+	 * @param expr
+	 *            The expression to be added
+	 * @param var
+	 *            The variable to add.
+	 * @return This builder for chaining.
+	 */
+	public T addVar(Expr expr, Object var);
+
+	/**
+	 * Adds an expression as variable to the select statement.
+	 * 
+	 * Creates an '(Expression as Var)' to the select statement.
+	 * 
+	 * A variable may only be added once. Attempting to add the same variable
+	 * multiple times will be silently ignored.
+	 * 
+	 * @param expr
+	 *            The expression to be added
+	 * @param var
+	 *            The variable to add.
+	 * @return This builder for chaining.
+	 * @throws ParseException
+	 *            If the expression can not be parsed.
+	 */
+	public T addVar(String expr, Object var) throws ParseException;
 
 	/**
 	 * @return A list of all the variables that have been added.

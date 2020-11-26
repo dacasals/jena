@@ -18,10 +18,13 @@
 
 package org.apache.jena.riot.system;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import java.util.ArrayList ;
 import java.util.List ;
 
-import org.apache.jena.atlas.junit.BaseTest ;
 import org.apache.jena.riot.* ;
 import org.junit.Test ;
 import org.junit.runner.RunWith ;
@@ -30,12 +33,12 @@ import org.junit.runners.Parameterized.Parameters ;
 
 
 @RunWith(Parameterized.class)
-public class TestLangRegistration extends BaseTest
+public class TestLangRegistration
 {
     @Parameters(name = "{0} -- {1} {2} {3}")
     public static Iterable<Object[]> data() {
         List<Object[]> x = new ArrayList<>() ;
-        add("NULL",     x, Lang.RDFNULL,    false, false)  ;
+        add("NULL",     x, Lang.RDFNULL,    true, true)  ;
         add("RDFXML",   x, Lang.RDFXML,     true, false) ;
         add("NTRIPLES", x, Lang.NTRIPLES,   true, false) ;
         add("NT",       x, Lang.NT,         true, false) ;
@@ -78,11 +81,14 @@ public class TestLangRegistration extends BaseTest
             assertTrue(RDFLanguages.isQuads(lang)) ;
         else
             assertFalse(RDFLanguages.isQuads(lang)) ;
-        
     }
+    
+    @SuppressWarnings("deprecation")
     @Test public void jenaSystem_read_2() {
-        if ( ! Lang.RDFNULL.equals(lang) )
+        if ( ! Lang.RDFNULL.equals(lang) ) {
+            assertTrue(RDFParserRegistry.isRegistered(lang));
             assertNotNull(RDFParserRegistry.getFactory(lang)) ;
+        }
     }
     
     @Test public void jenaSystem_write_1() {

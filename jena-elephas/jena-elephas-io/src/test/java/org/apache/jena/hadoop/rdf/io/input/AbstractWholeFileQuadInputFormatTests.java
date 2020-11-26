@@ -23,17 +23,16 @@ import java.io.OutputStream;
 import java.nio.charset.Charset;
 
 import org.apache.jena.hadoop.rdf.types.QuadWritable;
+import org.apache.jena.query.Dataset ;
+import org.apache.jena.query.DatasetFactory ;
+import org.apache.jena.rdf.model.Model ;
+import org.apache.jena.rdf.model.ModelFactory ;
+import org.apache.jena.rdf.model.Property ;
+import org.apache.jena.rdf.model.Resource ;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFWriterRegistry;
-
-import com.hp.hpl.jena.query.Dataset;
-import com.hp.hpl.jena.query.DatasetFactory;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
-import com.hp.hpl.jena.rdf.model.Property;
-import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.sparql.core.Quad;
+import org.apache.jena.sparql.core.Quad ;
 
 /**
  * Abstract tests for Quad input formats
@@ -61,8 +60,8 @@ public abstract class AbstractWholeFileQuadInputFormatTests extends AbstractNode
      */
     protected abstract Lang getRdfLanguage();
 
-    private void writeGoodTuples(OutputStream output, int num) throws IOException {
-        Dataset ds = DatasetFactory.createMem();
+    private void writeGoodTuples(OutputStream output, int num) {
+        Dataset ds = DatasetFactory.createGeneral();
         Model m = ModelFactory.createDefaultModel();
         Resource currSubj = m.createResource("http://example.org/subjects/0");
         Property predicate = m.createProperty("http://example.org/predicate");

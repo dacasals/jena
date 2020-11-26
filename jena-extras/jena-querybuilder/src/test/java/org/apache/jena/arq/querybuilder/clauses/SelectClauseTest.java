@@ -19,17 +19,20 @@ package org.apache.jena.arq.querybuilder.clauses;
 
 import static org.junit.Assert.*;
 
+import java.util.List;
+
 import org.apache.jena.arq.querybuilder.AbstractQueryBuilder;
 import org.apache.jena.arq.querybuilder.handlers.SelectHandler;
+import org.apache.jena.graph.NodeFactory ;
+import org.apache.jena.query.Query ;
+import org.apache.jena.sparql.core.Var ;
+import org.apache.jena.sparql.core.VarExprList ;
+import org.apache.jena.sparql.expr.E_Random;
+import org.apache.jena.sparql.expr.Expr;
 import org.junit.After;
 import org.xenei.junit.contract.Contract;
 import org.xenei.junit.contract.ContractTest;
 import org.xenei.junit.contract.IProducer;
-
-import com.hp.hpl.jena.graph.NodeFactory;
-import com.hp.hpl.jena.query.Query;
-import com.hp.hpl.jena.sparql.core.Var;
-import com.hp.hpl.jena.sparql.core.VarExprList;
 
 @Contract(SelectClause.class)
 public class SelectClauseTest<T extends SelectClause<?>> extends
@@ -60,62 +63,7 @@ public class SelectClauseTest<T extends SelectClause<?>> extends
 		assertNotNull(handler);
 	}
 
-	@ContractTest
-	public void setDistinctTest() throws Exception {
-		SelectClause<?> selectClause = getProducer().newInstance();
-		Query query = getQuery((AbstractQueryBuilder<?>) selectClause);
-		assertFalse(query.isDistinct());
-		assertFalse(query.isReduced());
-
-		query = getQuery(selectClause.setDistinct(true));
-		assertTrue(query.isDistinct());
-		assertFalse(query.isReduced());
-
-		query = getQuery(selectClause.setReduced(false));
-		assertTrue(query.isDistinct());
-		assertFalse(query.isReduced());
-
-		query = getQuery(selectClause.setReduced(true));
-		assertFalse(query.isDistinct());
-		assertTrue(query.isReduced());
-
-		query = getQuery(selectClause.setDistinct(true));
-		assertTrue(query.isDistinct());
-		assertFalse(query.isReduced());
-
-		query = getQuery(selectClause.setDistinct(false));
-		assertFalse(query.isDistinct());
-		assertFalse(query.isReduced());
-	}
-
-	@ContractTest
-	public void setReducedTest() throws Exception {
-		SelectClause<?> selectClause = getProducer().newInstance();
-		Query query = getQuery((AbstractQueryBuilder<?>) selectClause);
-		assertFalse(query.isDistinct());
-		assertFalse(query.isReduced());
-
-		query = getQuery(selectClause.setReduced(true));
-		assertFalse(query.isDistinct());
-		assertTrue(query.isReduced());
-
-		query = getQuery(selectClause.setDistinct(false));
-		assertFalse(query.isDistinct());
-		assertTrue(query.isReduced());
-
-		query = getQuery(selectClause.setDistinct(true));
-		assertTrue(query.isDistinct());
-		assertFalse(query.isReduced());
-
-		query = getQuery(selectClause.setReduced(true));
-		assertFalse(query.isDistinct());
-		assertTrue(query.isReduced());
-
-		query = getQuery(selectClause.setReduced(false));
-		assertFalse(query.isDistinct());
-		assertFalse(query.isReduced());
-	}
-
+	
 	@ContractTest
 	public void testAddVarString() throws Exception {
 		Var v = Var.alloc("one");
@@ -150,11 +98,17 @@ public class SelectClauseTest<T extends SelectClause<?>> extends
 	}
 
 	@ContractTest
-	public void getVarsTest() {
+	public void getVarsTest()  {
 		SelectClause<?> selectClause = getProducer().newInstance();
 		AbstractQueryBuilder<?> builder = selectClause.addVar(NodeFactory
 				.createVariable("foo"));
-		String[] s = byLine(builder);
+		try {
+			List<Var> vars = getQuery(builder).getProjectVars();
+			assertEquals( 1, vars.size());
+			assertEquals( "?foo", vars.get(0).toString());
+		} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+			fail( "Unable to access query from queryBuilder: "+e.getMessage() );
+		}
 	}
 
 	@ContractTest
@@ -167,4 +121,29 @@ public class SelectClauseTest<T extends SelectClause<?>> extends
 		assertTrue(query.isQueryResultStar());
 	}
 
+	@ContractTest
+	public void testAddExprVar() throws Exception {
+		SelectClause<?> selectClause = getProducer().newInstance();
+		AbstractQueryBuilder<?> aqb = selectClause.addVar( new E_Random(), Var.alloc( "foo"));
+		
+		Query query = getQuery(aqb);
+		VarExprList expr = query.getProject();
+		assertEquals(1, expr.size());
+		Expr e = expr.getExpr( Var.alloc( "foo" ));
+		assertNotNull( "expression should not be null", e );
+		assertTrue( "Should be an E_Random", e instanceof E_Random);
+	}
+	
+	@ContractTest
+	public void testAddStringVar() throws Exception {
+		SelectClause<?> selectClause = getProducer().newInstance();
+		AbstractQueryBuilder<?> aqb = selectClause.addVar( "rand()", Var.alloc( "foo"));
+		
+		Query query = getQuery(aqb);
+		VarExprList expr = query.getProject();
+		assertEquals(1, expr.size());
+		Expr e = expr.getExpr( Var.alloc( "foo" ));
+		assertNotNull( "expression should not be null", e );
+		assertTrue( "Should be an E_Random", e instanceof E_Random);
+	}
 }

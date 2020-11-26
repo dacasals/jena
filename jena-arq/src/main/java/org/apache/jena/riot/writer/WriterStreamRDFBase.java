@@ -23,22 +23,22 @@ import java.io.OutputStream ;
 import java.io.Writer ;
 
 import org.apache.jena.atlas.io.IndentedWriter ;
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.Triple ;
 import org.apache.jena.riot.out.NodeFormatterTTL ;
 import org.apache.jena.riot.out.NodeToLabel ;
 import org.apache.jena.riot.system.PrefixMap ;
 import org.apache.jena.riot.system.PrefixMapFactory ;
 import org.apache.jena.riot.system.RiotLib ;
 import org.apache.jena.riot.system.StreamRDF ;
-
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.graph.Triple ;
-import com.hp.hpl.jena.sparql.core.Quad ;
+import org.apache.jena.sparql.core.Quad ;
+import org.apache.jena.sparql.util.Context;
 
 /** Core engine for output of triples / quads that is streaming.
- *  Handles prefixes and base, toegther with the environment for processing. 
- *  If fed quads, the output is valid TriG. 
+ *  Handles prefixes and base, together with the environment for processing.
+ *  If fed quads, the output is valid TriG.
  *  If fed only triples, the output is valid Turtle.
- *  Not for N-Quads and N-triples. 
+ *  Not for N-Quads and N-triples.
  */
 
 public abstract class WriterStreamRDFBase implements StreamRDF
@@ -51,21 +51,27 @@ public abstract class WriterStreamRDFBase implements StreamRDF
     protected final PrefixMap pMap ;
     protected String baseURI = null ;
     protected final NodeToLabel nodeToLabel ;
-    
+
     protected NodeFormatterTTL fmt ;
     protected final IndentedWriter out ;
-    
-    public WriterStreamRDFBase(OutputStream output)
-    { 
-        this(new IndentedWriter(output)) ;
+    protected final DirectiveStyle prefixStyle;
+
+    public WriterStreamRDFBase(OutputStream output, Context context)
+    {
+        this(new IndentedWriter(output), context) ;
     }
 
-    public WriterStreamRDFBase(IndentedWriter output)
-    { 
+    public WriterStreamRDFBase(Writer output, Context context)
+    { this(wrap(output), context) ; }
+
+
+    public WriterStreamRDFBase(IndentedWriter output, Context context)
+    {
         out = output ;
         baseURI = null ;
         pMap = PrefixMapFactory.create() ;
         nodeToLabel = NodeToLabel.createScopeByDocument() ;
+        prefixStyle = WriterLib.directiveStyle(context);
         setFormatter() ;
     }
 
@@ -74,17 +80,14 @@ public abstract class WriterStreamRDFBase implements StreamRDF
         fmt = new NodeFormatterTTL(baseURI, pMap, nodeToLabel) ;
     }
 
-    public WriterStreamRDFBase(Writer output)
-    { this(wrap(output)) ; }
-    
     private static IndentedWriter wrap(Writer output)
     {
         if ( ! ( output instanceof BufferedWriter ) )
             output = new BufferedWriter(output, 32*1024) ;
         return RiotLib.create(output) ;
     }
-    
-    private void reset$() 
+
+    private void reset$()
     {
         activeTripleData = false ;
         activeQuadData = false ;
@@ -123,21 +126,18 @@ public abstract class WriterStreamRDFBase implements StreamRDF
     public final void base(String base)
     {
         baseURI = base ;
+        lastWasDirective = true ;
         setFormatter() ;
+        RiotLib.writeBase(out, base, prefixStyle==DirectiveStyle.SPARQL) ;
     }
-        
+
     @Override
     public final void prefix(String prefix, String iri)
     {
         endData() ;
         lastWasDirective = true ;
-    
-        out.print("@prefix ") ;
-        out.print(prefix) ;
-        out.print(":  <") ;
-        out.print(iri) ;        // Don't let it be abbreviated!
-        out.println("> .") ; 
         pMap.add(prefix, iri) ;
+        RiotLib.writePrefix(out, prefix, iri, prefixStyle==DirectiveStyle.SPARQL);
     }
 
     protected void outputNode(Node n)
@@ -146,7 +146,7 @@ public abstract class WriterStreamRDFBase implements StreamRDF
     }
 
     // Subclass contract
-    
+
     protected abstract void startData() ;
 
     protected abstract void endData() ;

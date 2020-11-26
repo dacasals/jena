@@ -18,31 +18,27 @@
 
 package org.apache.jena.web ;
 
-import java.io.IOException ;
 import java.io.OutputStream ;
 
 import org.apache.http.HttpEntity ;
-import org.apache.http.client.methods.HttpHead ;
-import org.apache.http.client.methods.HttpUriRequest ;
+import org.apache.http.client.HttpClient;
 import org.apache.http.entity.ContentProducer ;
 import org.apache.http.entity.EntityTemplate ;
+import org.apache.jena.atlas.lib.IRILib ;
 import org.apache.jena.atlas.web.HttpException ;
-import org.apache.jena.atlas.web.auth.HttpAuthenticator ;
-import org.apache.jena.atlas.web.auth.SimpleAuthenticator ;
+import org.apache.jena.graph.Graph ;
+import org.apache.jena.graph.Node ;
 import org.apache.jena.riot.RDFDataMgr ;
 import org.apache.jena.riot.RDFFormat ;
 import org.apache.jena.riot.WebContent ;
-import org.apache.jena.riot.system.IRILib ;
 import org.apache.jena.riot.web.* ;
-
-import com.hp.hpl.jena.graph.Graph ;
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.shared.JenaException ;
+import org.apache.jena.shared.JenaException ;
 
 /**
  * A dataset graph accessor that talks to stores that implement the SPARQL 1.1
- * Graph Store Protocol
- */
+ * Graph Store Protocol.
+/** @deprecated This will be replaced by the {@code RDFConnection} style at the Graph/Triple level. */
+@Deprecated
 public class DatasetGraphAccessorHTTP implements DatasetGraphAccessor {
     // Test for this class are in Fuseki so they can be run with a server.
 
@@ -51,13 +47,13 @@ public class DatasetGraphAccessorHTTP implements DatasetGraphAccessor {
     private static final RDFFormat           defaultSendLang   = RDFFormat.RDFXML_PLAIN ;
 
     private final String                     remote ;
-    private HttpAuthenticator                authenticator ;
+    private HttpClient                       client ;
 
     private RDFFormat                        formatPutPost     = defaultSendLang ;
 
     /**
      * Accept header for fetching graphs - prefer N-triples.
-     * @See WebContent.defaultGraphAcceptHeader
+     * @see WebContent.defaultGraphAcceptHeader
      */
     private String                           graphAcceptHeader = WebContent.defaultGraphAcceptHeader ;  
 
@@ -80,7 +76,7 @@ public class DatasetGraphAccessorHTTP implements DatasetGraphAccessor {
      *            Remote URL
      */
     public DatasetGraphAccessorHTTP(String remote) {
-        this.remote = remote ;
+        this(remote, HttpOp.getDefaultHttpClient());
     }
 
     /**
@@ -88,34 +84,21 @@ public class DatasetGraphAccessorHTTP implements DatasetGraphAccessor {
      * 
      * @param remote
      *            Remote URL
-     * @param authenticator
-     *            HTTP Authenticator
+     * @param client
+     *            HTTP Client
      */
-    public DatasetGraphAccessorHTTP(String remote, HttpAuthenticator authenticator) {
-        this(remote) ;
-        this.setAuthenticator(authenticator) ;
+    public DatasetGraphAccessorHTTP(String remote, HttpClient client) {
+        this.remote = remote ;
+        this.setClient(client) ;
     }
 
     /**
-     * Sets authentication credentials for the remote URL
+     * Sets an HTTP client for use to this dataset
      * 
-     * @param username
-     *            User name
-     * @param password
-     *            Password
+     * @param client Client
      */
-    public void setAuthentication(String username, char[] password) {
-        this.setAuthenticator(new SimpleAuthenticator(username, password)) ;
-    }
-
-    /**
-     * Sets an authenticator to use for authentication to the remote URL
-     * 
-     * @param authenticator
-     *            Authenticator
-     */
-    public void setAuthenticator(HttpAuthenticator authenticator) {
-        this.authenticator = authenticator ;
+    public void setClient(HttpClient client) {
+        this.client = client ;
     }
 
     @Override
@@ -131,9 +114,9 @@ public class DatasetGraphAccessorHTTP implements DatasetGraphAccessor {
     protected Graph doGet(String url) {
         HttpCaptureResponse<Graph> graph = HttpResponseLib.graphHandler() ;
         try {
-            HttpOp.execHttpGet(url, graphAcceptHeader, graph, this.authenticator) ;
+            HttpOp.execHttpGet(url, graphAcceptHeader, graph, client, null) ;
         } catch (HttpException ex) {
-            if ( ex.getResponseCode() == HttpSC.NOT_FOUND_404 )
+            if ( ex.getStatusCode() == HttpSC.NOT_FOUND_404 )
                 return null ;
             throw ex ;
         }
@@ -151,12 +134,11 @@ public class DatasetGraphAccessorHTTP implements DatasetGraphAccessor {
     }
 
     protected boolean doHead(String url) {
-        HttpUriRequest httpHead = new HttpHead(url) ;
         try {
-            HttpOp.execHttpHead(url, WebContent.defaultGraphAcceptHeader, noResponse, null, null, this.authenticator) ;
+            HttpOp.execHttpHead(url, WebContent.defaultGraphAcceptHeader, noResponse, client, null) ;
             return true ;
         } catch (HttpException ex) {
-            if ( ex.getResponseCode() == HttpSC.NOT_FOUND_404 )
+            if ( ex.getStatusCode() == HttpSC.NOT_FOUND_404 )
                 return false ;
             throw ex ;
         }
@@ -174,7 +156,7 @@ public class DatasetGraphAccessorHTTP implements DatasetGraphAccessor {
 
     protected void doPut(String url, Graph data) {
         HttpEntity entity = graphToHttpEntity(data) ;
-        HttpOp.execHttpPut(url, entity, null, null, this.authenticator) ;
+        HttpOp.execHttpPut(url, entity, client, null) ;
     }
 
     @Override
@@ -189,9 +171,9 @@ public class DatasetGraphAccessorHTTP implements DatasetGraphAccessor {
 
     protected void doDelete(String url) {
         try {
-            HttpOp.execHttpDelete(url, noResponse, null, null, this.authenticator) ;
+            HttpOp.execHttpDelete(url, noResponse, client, null) ;
         } catch (HttpException ex) {
-            if ( ex.getResponseCode() == HttpSC.NOT_FOUND_404 )
+            if ( ex.getStatusCode() == HttpSC.NOT_FOUND_404 )
                 return ;
         }
     }
@@ -208,7 +190,7 @@ public class DatasetGraphAccessorHTTP implements DatasetGraphAccessor {
 
     protected void doPost(String url, Graph data) {
         HttpEntity entity = graphToHttpEntity(data) ;
-        HttpOp.execHttpPost(url, entity, null, null, this.authenticator) ;
+        HttpOp.execHttpPost(url, entity, client, null) ;
     }
 
     @Override
@@ -222,7 +204,7 @@ public class DatasetGraphAccessorHTTP implements DatasetGraphAccessor {
     }
 
     protected final String targetDefault() {
-        return remote + "?" + HttpNames.paramGraphDefault + "=" ;
+        return remote + "?" + HttpNames.paramGraphDefault ;
     }
 
     protected final String target(Node name) {
@@ -240,13 +222,13 @@ public class DatasetGraphAccessorHTTP implements DatasetGraphAccessor {
         final RDFFormat syntax = getOutboundSyntax() ;
         ContentProducer producer = new ContentProducer() {
             @Override
-            public void writeTo(OutputStream out) throws IOException {
+            public void writeTo(OutputStream out) {
                 RDFDataMgr.write(out, graph, syntax) ;
             }
         } ;
 
         EntityTemplate entity = new EntityTemplate(producer) ;
-        String ct = syntax.getLang().getContentType().getContentType() ;
+        String ct = syntax.getLang().getContentType().getContentTypeStr() ;
         entity.setContentType(ct) ;
         return entity ;
     }

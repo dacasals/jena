@@ -22,22 +22,21 @@ import java.io.BufferedOutputStream ;
 import java.io.InputStream ;
 import java.io.OutputStream ;
 import java.util.List ;
+import java.util.function.Consumer;
 
 import org.apache.jena.atlas.io.IO ;
 import org.apache.jena.atlas.io.IndentedWriter ;
-import org.apache.jena.atlas.iterator.Action ;
+import org.apache.jena.query.ResultSet ;
 import org.apache.jena.riot.system.PrefixMap ;
 import org.apache.jena.riot.system.PrefixMapFactory ;
 import org.apache.jena.riot.system.StreamRDF ;
 import org.apache.jena.riot.thrift.wire.RDF_StreamRow ;
+import org.apache.jena.sparql.core.Var ;
+import org.apache.jena.sparql.engine.ResultSetStream ;
+import org.apache.jena.sparql.engine.binding.Binding ;
 import org.apache.thrift.TException ;
 import org.apache.thrift.protocol.TProtocol ;
 import org.apache.thrift.transport.TTransportException ;
-
-import com.hp.hpl.jena.query.ResultSet ;
-import com.hp.hpl.jena.sparql.core.Var ;
-import com.hp.hpl.jena.sparql.engine.ResultSetStream ;
-import com.hp.hpl.jena.sparql.engine.binding.Binding ;
 
 /** Operations on binary RDF (which uses <a href="http://thrift.apache.org/">Apache Thrift</a>).
  * See also {@link ThriftConvert}, for specific functions on binary RDF.
@@ -63,8 +62,8 @@ public class BinRDF {
     }
     
     /** 
-     * Create an {@link StreamRDF} for output.  A filename ending {@code .gz} will have
-     * a gzip compressor added to the output path. A filename of "-" is {@code System.out}.
+     * Create an {@link StreamRDF} for output.  A filenames ending {@code .gz} or {@code .bz2} will have
+     * the respective compressor added to the output path. A filename of "-" is {@code System.out}.
      * The file is closed when {@link StreamRDF#finish()} is called unless it is {@code System.out}.  
      * Call {@link StreamRDF#start()}...{@link StreamRDF#finish()}.
      * 
@@ -74,7 +73,6 @@ public class BinRDF {
      */
     public static StreamRDF streamToFile(String filename, boolean withValues) {
         OutputStream out = IO.openOutputFile(filename) ;
-        // Is this internally buffered as well?
         BufferedOutputStream bout = new BufferedOutputStream(out, BUFSIZE_OUT) ;
         TProtocol protocol = TRDF.protocol(bout) ;
         return new StreamRDF2Thrift(protocol, withValues) ;
@@ -158,39 +156,29 @@ public class BinRDF {
         PrefixMap pmap = PrefixMapFactory.create() ;
         final Thrift2StreamRDF s = new Thrift2StreamRDF(pmap, dest) ;
         dest.start() ;
-        // ** Java8
-        //apply(protocol, z -> TRDF.visit(z, s)) ;
-        
-        applyVisitor(protocol, s)  ;
-        
+        apply(protocol, z -> TRDF.visit(z, s)) ;
         dest.finish() ;
         // No need to flush - we read from the protocol ; 
     }
 
-    // ** Java7 support
-    public static void applyVisitor(TProtocol protocol, final VisitorStreamRowTRDF visitor) {
-        Action<RDF_StreamRow> action = new Action<RDF_StreamRow>() {
-            @Override
-            public void apply(RDF_StreamRow z) { TRDF.visit(z, visitor) ; }
-        } ;
-        apply(protocol, action) ;
-    }
-    
     /**
      * Send the contents of a RDF-encoded Thrift file to an "action" 
      * @param protocol TProtocol
      * @param action   Code to act on the row.
      */
-    public static void apply(TProtocol protocol, Action<RDF_StreamRow> action) {
+    public static void apply(TProtocol protocol, Consumer<RDF_StreamRow> action) {
         RDF_StreamRow row = new RDF_StreamRow() ;
-        while(protocol.getTransport().isOpen()) {
+        // Bug in 0.13.0 / TIOStreamTransport.isOpen / THRIFT-5022
+        //while(protocol.getTransport().isOpen()) {
+        while(true) {
             try { row.read(protocol) ; }
             catch (TTransportException e) {
                 if ( e.getType() == TTransportException.END_OF_FILE )
-                    break ;
+                    // THRIFT-5022 // break;
+                    return;
             }
             catch (TException ex) { TRDF.exception(ex) ; }
-            action.apply(row) ;
+            action.accept(row) ;
             row.clear() ;
         }
     }
@@ -204,7 +192,7 @@ public class BinRDF {
         IndentedWriter iOut = new IndentedWriter(out) ;
         StreamRowTRDFPrinter printer = new StreamRowTRDFPrinter(iOut) ;
         TProtocol protocol = TRDF.protocol(in) ;
-        BinRDF.applyVisitor(protocol, printer) ;
+        apply(protocol, z -> TRDF.visit(z, printer));
         iOut.flush() ;
     }
 

@@ -20,13 +20,12 @@ package org.apache.jena.riot;
 
 import java.util.* ;
 
-import org.apache.jena.atlas.lib.Lib ;
-import org.apache.jena.riot.out.CharSpace ;
-import org.apache.jena.riot.out.JsonLDWriter ;
+import org.apache.jena.atlas.lib.CharSpace ;
 import org.apache.jena.riot.system.RiotLib ;
 import org.apache.jena.riot.thrift.WriterDatasetThrift ;
 import org.apache.jena.riot.thrift.WriterGraphThrift ;
 import org.apache.jena.riot.writer.* ;
+import org.apache.jena.sys.JenaSystem ;
 
 public class RDFWriterRegistry
 {
@@ -35,11 +34,12 @@ public class RDFWriterRegistry
     // Let the serializer deal with the character issues.
     // UTF-8 is universal - but UTF-8 is not the default in Java ("platform encoding" is).
     
-    static { RIOT.init() ; }
-
+    static { JenaSystem.init() ; }
+    
     private static Map<RDFFormat, WriterGraphRIOTFactory> registryGraph     = new HashMap<>() ;
     private static Map<RDFFormat, WriterDatasetRIOTFactory> registryDataset = new HashMap<>() ;
     private static Map<Lang, RDFFormat> langToFormat                        = new HashMap<>() ;
+    private static Map<String, RDFFormat> mapJenaNameToFormat               = new HashMap<>() ;
     
     // Writing a graph
     static WriterGraphRIOTFactory wgfactory = new WriterGraphRIOTFactory() {
@@ -48,23 +48,23 @@ public class RDFWriterRegistry
         {
             // Built-ins
             
-            if ( Lib.equal(RDFFormat.TURTLE_PRETTY, serialization) )
+            if ( Objects.equals(RDFFormat.TURTLE_PRETTY, serialization) )
                 return new TurtleWriter() ;
-            if ( Lib.equal(RDFFormat.TURTLE_BLOCKS, serialization) )
+            if ( Objects.equals(RDFFormat.TURTLE_BLOCKS, serialization) )
                 return new TurtleWriterBlocks() ;
-            if ( Lib.equal(RDFFormat.TURTLE_FLAT, serialization) )
+            if ( Objects.equals(RDFFormat.TURTLE_FLAT, serialization) )
                 return new TurtleWriterFlat() ;
             
-            if ( Lib.equal(RDFFormat.NTRIPLES_UTF8, serialization) )
+            if ( Objects.equals(RDFFormat.NTRIPLES_UTF8, serialization) )
                 return new NTriplesWriter() ;
-            if ( Lib.equal(RDFFormat.NTRIPLES_ASCII, serialization) )
+            if ( Objects.equals(RDFFormat.NTRIPLES_ASCII, serialization) )
                 return new NTriplesWriter(CharSpace.ASCII) ;
             
-            if ( Lib.equal(RDFFormat.RDFJSON, serialization) )
+            if ( Objects.equals(RDFFormat.RDFJSON, serialization) )
                 return new RDFJSONWriter() ;
-            if ( Lib.equal(RDFFormat.RDFXML_PRETTY, serialization) )
+            if ( Objects.equals(RDFFormat.RDFXML_PRETTY, serialization) )
                 return new RDFXMLAbbrevWriter() ;
-            if ( Lib.equal(RDFFormat.RDFXML_PLAIN, serialization) )
+            if ( Objects.equals(RDFFormat.RDFXML_PLAIN, serialization) )
                 return new RDFXMLPlainWriter() ;
             
             WriterDatasetRIOT dsw = wdsfactory.create(serialization) ;
@@ -78,17 +78,17 @@ public class RDFWriterRegistry
         @Override
         public WriterDatasetRIOT create(RDFFormat serialization)
         {
-            if ( Lib.equal(RDFFormat.TRIG_PRETTY, serialization) )
+            if ( Objects.equals(RDFFormat.TRIG_PRETTY, serialization) )
                 return new TriGWriter() ;
-            if ( Lib.equal(RDFFormat.TRIG_BLOCKS, serialization) )
+            if ( Objects.equals(RDFFormat.TRIG_BLOCKS, serialization) )
                 return new TriGWriterBlocks() ;
-            if ( Lib.equal(RDFFormat.TRIG_FLAT, serialization) )
+            if ( Objects.equals(RDFFormat.TRIG_FLAT, serialization) )
                 return new TriGWriterFlat() ;
-            if ( Lib.equal(RDFFormat.NQUADS_UTF8, serialization) )
+            if ( Objects.equals(RDFFormat.NQUADS_UTF8, serialization) )
                 return new NQuadsWriter() ;
-            if ( Lib.equal(RDFFormat.NQUADS_ASCII, serialization) )
+            if ( Objects.equals(RDFFormat.NQUADS_ASCII, serialization) )
                 return new NQuadsWriter(CharSpace.ASCII) ;
-            if ( Lib.equal(RDFFormat.RDFNULL, serialization) )
+            if ( Objects.equals(RDFFormat.RDFNULL, serialization) )
                 return NullWriter.factory.create(RDFFormat.RDFNULL) ;
             return null ;
     }} ;
@@ -166,10 +166,18 @@ public class RDFWriterRegistry
          register(RDFFormat.NTRIPLES,       wgfactory) ;
          register(RDFFormat.NTRIPLES_ASCII, wgfactory) ;
          
-         register(RDFFormat.JSONLD,         wgJsonldfactory) ;
-         register(RDFFormat.JSONLD_FLAT,    wgJsonldfactory) ;
-         register(RDFFormat.JSONLD_PRETTY,  wgJsonldfactory) ;
-         
+         register(RDFFormat.JSONLD,                      wgJsonldfactory) ;
+         register(RDFFormat.JSONLD_FLAT,                 wgJsonldfactory) ;
+         register(RDFFormat.JSONLD_PRETTY,               wgJsonldfactory) ;
+         register(RDFFormat.JSONLD_COMPACT_PRETTY,       wgJsonldfactory) ;
+         register(RDFFormat.JSONLD_FLATTEN_PRETTY,       wgJsonldfactory) ;
+         register(RDFFormat.JSONLD_EXPAND_PRETTY,        wgJsonldfactory) ;
+         register(RDFFormat.JSONLD_FRAME_PRETTY,         wgJsonldfactory) ;
+         register(RDFFormat.JSONLD_COMPACT_FLAT,         wgJsonldfactory) ;
+         register(RDFFormat.JSONLD_FLATTEN_FLAT,         wgJsonldfactory) ;
+         register(RDFFormat.JSONLD_EXPAND_FLAT,          wgJsonldfactory) ;
+         register(RDFFormat.JSONLD_FRAME_FLAT,           wgJsonldfactory) ;
+        
          register(RDFFormat.RDFJSON,        wgfactory) ;
 
          register(RDFFormat.RDFXML_PRETTY,  wgfactory) ;
@@ -198,16 +206,68 @@ public class RDFWriterRegistry
          register(RDFFormat.NQUADS_ASCII,   wdsfactory) ;
          register(RDFFormat.RDFNULL,        wdsfactory) ;
          
-         register(RDFFormat.JSONLD,         wdsJsonldfactory) ;
-         register(RDFFormat.JSONLD_FLAT,    wdsJsonldfactory) ;
-         register(RDFFormat.JSONLD_PRETTY,  wdsJsonldfactory) ;
-         
+         register(RDFFormat.JSONLD,                      wdsJsonldfactory) ;
+         register(RDFFormat.JSONLD_FLAT,                 wdsJsonldfactory) ;
+         register(RDFFormat.JSONLD_PRETTY,               wdsJsonldfactory) ;
+         register(RDFFormat.JSONLD_COMPACT_PRETTY,       wdsJsonldfactory) ;
+         register(RDFFormat.JSONLD_FLATTEN_PRETTY,       wdsJsonldfactory) ;
+         register(RDFFormat.JSONLD_EXPAND_PRETTY,        wdsJsonldfactory) ;
+         register(RDFFormat.JSONLD_FRAME_PRETTY,         wdsJsonldfactory) ;
+         register(RDFFormat.JSONLD_COMPACT_FLAT,         wdsJsonldfactory) ;
+         register(RDFFormat.JSONLD_FLATTEN_FLAT,         wdsJsonldfactory) ;
+         register(RDFFormat.JSONLD_EXPAND_FLAT,          wdsJsonldfactory) ;
+         register(RDFFormat.JSONLD_FRAME_FLAT,           wdsJsonldfactory) ;
+
          register(RDFFormat.RDF_THRIFT,     wdsThriftFactory) ;
          register(RDFFormat.RDF_THRIFT_VALUES, wdsThriftFactory) ;
          
          register(RDFFormat.TRIX, wdsTriXFactory) ;
      }
     
+     // ---- Compatibility
+     
+     /** return the RDFFormat for the existing Jena writer name, or null */
+     public static RDFFormat getFormatForJenaWriter(String jenaName) {
+         return mapJenaNameToFormat.get(jenaName);
+     }
+
+     /** Register an RDFFormat for a Jena writer name */
+     private /*public*/ static void setFormatForJenaWriter(String jenaName, RDFFormat format) {
+         mapJenaNameToFormat.put(jenaName, format);
+     }
+
+     /** Return a collection of Jena writer names */
+     public static Collection<String> getJenaWriterNames() {
+         return mapJenaNameToFormat.keySet();
+     }
+
+     // Unused; not called from init$()
+     // These settings are used by RDFWriterRIOT to override RDFWriterRegistrations.
+     
+     // The only difference is "RDF/XML" being plain here but pretty
+     // as registered.
+     // 2017-03:
+     // The number of user questions on format of RDF/XML not being pretty
+     // has dropped off since Jena2.  
+     
+//     private static void setupJenaNames() {
+//         setFormatForJenaWriter("RDF/XML",                           RDFFormat.RDFXML_PLAIN) ;
+//         setFormatForJenaWriter("RDF/XML-ABBREV",                    RDFFormat.RDFXML_ABBREV) ;
+//         setFormatForJenaWriter("N-TRIPLE",                          RDFFormat.NTRIPLES) ;
+//         setFormatForJenaWriter("NT",                                RDFFormat.NTRIPLES) ;
+//         setFormatForJenaWriter("N-TRIPLES",                         RDFFormat.NTRIPLES) ;
+//         setFormatForJenaWriter("N-Triples",                         RDFFormat.NTRIPLES) ;
+//         setFormatForJenaWriter("N3",                                RDFFormat.TURTLE) ;
+//         setFormatForJenaWriter(N3JenaWriter.n3WriterPrettyPrinter,  RDFFormat.TURTLE_PRETTY) ;
+//         setFormatForJenaWriter(N3JenaWriter.n3WriterPlain,          RDFFormat.TURTLE_BLOCKS) ;
+//         setFormatForJenaWriter(N3JenaWriter.n3WriterTriples,        RDFFormat.TURTLE_FLAT) ;
+//         setFormatForJenaWriter(N3JenaWriter.n3WriterTriplesAlt,     RDFFormat.TURTLE_FLAT) ;
+//         setFormatForJenaWriter(N3JenaWriter.turtleWriter,           RDFFormat.TURTLE) ;
+//         setFormatForJenaWriter(N3JenaWriter.turtleWriterAlt1,       RDFFormat.TURTLE) ;
+//         setFormatForJenaWriter(N3JenaWriter.turtleWriterAlt2,       RDFFormat.TURTLE) ;
+//     }
+
+     
     /** Register the serialization for graphs and it's associated factory
      * @param serialization         RDFFormat for the output format.
      * @param graphWriterFactory    Source of writer engines
@@ -237,7 +297,7 @@ public class RDFWriterRegistry
      * @param lang
      *            Languages
      * @param format
-     *            The serialization forma to use when the language is used for
+     *            The serialization format to use when the language is used for
      *            writing.
      */
     public static void register(Lang lang, RDFFormat format) {
@@ -283,7 +343,7 @@ public class RDFWriterRegistry
     }
     
     
-    /** Get the graph writer factory asscoiated with the language */
+    /** Get the graph writer factory associated with the language */
     public static WriterGraphRIOTFactory getWriterGraphFactory(Lang lang) {
         RDFFormat serialization = defaultSerialization(lang) ;
         if ( serialization == null )
@@ -291,12 +351,12 @@ public class RDFWriterRegistry
         return getWriterGraphFactory(serialization) ;
     }
 
-    /** Get the graph writer factory asscoiated with the output format */
+    /** Get the graph writer factory associated with the output format */
     public static WriterGraphRIOTFactory getWriterGraphFactory(RDFFormat serialization) {
         return registryGraph.get(serialization) ;
     }
 
-    /** Get the dataset writer factory asscoiated with the language */
+    /** Get the dataset writer factory associated with the language */
     public static WriterDatasetRIOTFactory getWriterDatasetFactory(Lang lang) {
         RDFFormat serialization = defaultSerialization(lang) ;
         if ( serialization == null )
@@ -304,7 +364,7 @@ public class RDFWriterRegistry
         return getWriterDatasetFactory(serialization) ;
     }
 
-    /** Get the dataset writer factory asscoiated with the output format */
+    /** Get the dataset writer factory associated with the output format */
     public static WriterDatasetRIOTFactory getWriterDatasetFactory(RDFFormat serialization) {
         if ( serialization == null )
             return null ;

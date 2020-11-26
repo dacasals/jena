@@ -47,9 +47,9 @@ PARSER_BEGIN(SSE_ParserCore)
  * limitations under the License.
  */
 
-package com.hp.hpl.jena.sparql.sse.lang.parser ;
+package org.apache.jena.sparql.sse.lang.parser ;
 
-import com.hp.hpl.jena.sparql.sse.lang.ParserSSEBase ;
+import org.apache.jena.sparql.sse.lang.ParserSSEBase ;
     
 
 public class SSE_ParserCore extends ParserSSEBase
@@ -115,10 +115,13 @@ void BareList() : { }
   )*
 }
 
-void Term() : { Token t ; }
+void Term() : { }
 {
-    Symbol()
-  |
+  Symbol() | RDFTerm()
+}
+
+void RDFTerm() : { }
+{
     IRIref()
   |
     PrefixedName()
@@ -128,6 +131,8 @@ void Term() : { Token t ; }
     Literal()
   |
     BlankNode()
+  |
+    TripleTerm()
 }
 
 
@@ -188,6 +193,21 @@ void BlankNode() : { Token t ; }
 //  t = <ANON> { return emitBNode(t.beginLine, t.beginColumn) ; }
 }
 
+void TripleTerm() :     { Token t1 = null ; Token t2 = null ; }
+{
+    t1 = <LT2>
+    (<WS>)*
+    { tripleTermStart(t1.beginLine, t1.beginColumn); }
+    RDFTerm()
+    (<WS>)*
+    RDFTerm()
+    (<WS>)*
+    RDFTerm()
+    (<WS>)*
+    t2 = <GT2>
+    { tripleTermFinish(t2.beginLine, t2.beginColumn); }
+}
+
 void RDFLiteral() : { Token t = null ; int currLine ; int currColumn ;
                       String lex ; String lang = null ;
                       String dt_iri = null ; String dt_pn = null ; }
@@ -234,7 +254,6 @@ void NumericLiteral() : { Token t ; }
 // No whitespace skipping.
 #undef SKIP
 #include "tokens.inc"
-#include "copyright.inc"
 
 /*
 # Local Variables:

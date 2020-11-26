@@ -19,8 +19,8 @@
 package org.apache.jena.riot.system;
 
 
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.graph.Triple ;
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.Triple ;
 import org.apache.jena.iri.IRI ;
 import org.apache.jena.riot.checker.* ;
 
@@ -49,7 +49,7 @@ public final class Checker
         
         checkLiterals = new CheckerLiterals(handler) ;
        
-        checkURIs = new CheckerIRI(handler, IRIResolver.iriFactory) ;
+        checkURIs = new CheckerIRI(handler, IRIResolver.iriFactory()) ;
         checkBlankNodes = new CheckerBlankNodes(handler) ;
         checkVars = new CheckerVar(handler) ;        
     }

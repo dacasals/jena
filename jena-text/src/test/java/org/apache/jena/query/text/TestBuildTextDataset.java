@@ -18,29 +18,23 @@
 
 package org.apache.jena.query.text ;
 
-import org.apache.jena.atlas.junit.BaseTest ;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import org.apache.jena.atlas.lib.StrUtils ;
+import org.apache.jena.query.* ;
+import org.apache.jena.rdf.model.Model ;
 import org.apache.jena.riot.RDFDataMgr ;
+import org.apache.jena.tdb.TDB ;
+import org.apache.jena.vocabulary.RDFS ;
+import org.apache.lucene.store.ByteBuffersDirectory ;
 import org.apache.lucene.store.Directory ;
-import org.apache.lucene.store.RAMDirectory ;
-import org.junit.BeforeClass ;
 import org.junit.Test ;
 
-import com.hp.hpl.jena.query.* ;
-import com.hp.hpl.jena.rdf.model.Model ;
-import com.hp.hpl.jena.tdb.TDB ;
-import com.hp.hpl.jena.vocabulary.RDFS ;
-
 /** Test the examples of building a test dataset */
-public class TestBuildTextDataset extends BaseTest
+public class TestBuildTextDataset
 {
     static final String DIR = "testing/TextQuery" ;
-
-    // Ensure assembler initialized.
-    @BeforeClass
-    public static void setupClass() {
-        TextQuery.init() ;
-    }
 
     @Test
     public void buildText_01() {
@@ -73,7 +67,7 @@ public class TestBuildTextDataset extends BaseTest
         queryData(ds) ;
     }
 
-    private void loadData(Dataset dataset) {
+    private static void loadData(Dataset dataset) {
         dataset.begin(ReadWrite.WRITE) ;
         try {
             Model m = dataset.getDefaultModel() ;
@@ -108,16 +102,17 @@ public class TestBuildTextDataset extends BaseTest
 
     public static Dataset createCode() {
         // Base data
-        Dataset ds1 = DatasetFactory.createMem() ;
+        Dataset ds1 = DatasetFactory.create() ;
 
         // Define the index mapping
-        EntityDefinition entDef = new EntityDefinition("uri", "text", RDFS.label.asNode()) ;
+        EntityDefinition entDef = new EntityDefinition("uri", "text");
+        entDef.setPrimaryPredicate(RDFS.label);
 
         // Lucene, in memory.
-        Directory dir = new RAMDirectory() ;
+        Directory dir = new ByteBuffersDirectory() ;
 
         // Join together into a dataset
-        Dataset ds = TextDatasetFactory.createLucene(ds1, dir, entDef, null) ;
+        Dataset ds = TextDatasetFactory.createLucene(ds1, dir, new TextIndexConfig(entDef)) ;
 
         return ds ;
     }

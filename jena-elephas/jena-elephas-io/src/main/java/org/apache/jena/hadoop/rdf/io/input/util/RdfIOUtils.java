@@ -23,12 +23,10 @@ import java.util.UUID;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.jena.hadoop.rdf.io.RdfIOConstants;
+import org.apache.jena.riot.RDFParser ;
+import org.apache.jena.riot.RDFParserBuilder ;
 import org.apache.jena.riot.lang.LabelToNode;
-import org.apache.jena.riot.system.ErrorHandlerFactory;
-import org.apache.jena.riot.system.IRIResolver;
-import org.apache.jena.riot.system.ParserProfile;
-import org.apache.jena.riot.system.ParserProfileBase;
-import org.apache.jena.riot.system.Prologue;
+import org.apache.jena.riot.system.* ;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,14 +53,29 @@ public class RdfIOUtils {
      * @param path
      *            File path
      * @return Parser profile
+     * @deprecated Legacy - use {@link #createRDFParserBuilder}.
      */
+    @Deprecated
     public static ParserProfile createParserProfile(JobContext context, Path path) {
-        Prologue prologue = new Prologue(null, IRIResolver.createNoResolve());
-        UUID seed = RdfIOUtils.getSeed(context, path);
-        LabelToNode labelMapping = LabelToNode.createScopeByDocumentHash(seed);
-        return new ParserProfileBase(prologue, ErrorHandlerFactory.errorHandlerStd, labelMapping);
+        LabelToNode labelMapping = createLabelToNode(context, path);
+        ParserProfile profile = RiotLib.createParserProfile(RiotLib.factoryRDF(labelMapping), ErrorHandlerFactory.errorHandlerStd,
+                                                  IRIResolver.createNoResolve(), false);
+        return profile;
     }
 
+    public static RDFParserBuilder createRDFParserBuilder(JobContext context, Path path) {
+        LabelToNode labelMapping = createLabelToNode(context, path);
+        RDFParserBuilder builder = RDFParser.create()
+                .labelToNode(labelMapping)
+                .errorHandler(ErrorHandlerFactory.errorHandlerStd) ;
+        return builder ;
+    }
+    
+    public static LabelToNode createLabelToNode(JobContext context, Path path) {
+        UUID seed = RdfIOUtils.getSeed(context, path);
+        LabelToNode labelMapping = LabelToNode.createScopeByDocumentHash(seed);
+        return labelMapping;
+    }
     /**
      * Selects a seed for use in generating blank node identifiers
      * 

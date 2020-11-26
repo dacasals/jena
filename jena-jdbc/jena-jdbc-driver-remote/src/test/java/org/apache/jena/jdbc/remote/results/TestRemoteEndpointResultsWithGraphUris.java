@@ -21,19 +21,19 @@ package org.apache.jena.jdbc.remote.results;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.jena.fuseki.ServerTest;
+import org.apache.jena.ext.com.google.common.collect.Lists;
+import org.apache.jena.fuseki.main.FusekiTestServer ;
 import org.apache.jena.jdbc.JdbcCompatibility;
 import org.apache.jena.jdbc.connections.JenaConnection;
 import org.apache.jena.jdbc.remote.connections.RemoteEndpointConnection;
 import org.apache.jena.jdbc.utils.TestUtils;
+import org.apache.jena.query.Dataset ;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before ;
 import org.junit.BeforeClass;
-
-import com.hp.hpl.jena.query.Dataset;
 
 /**
  * Tests result sets from a remote endpoint
@@ -41,6 +41,12 @@ import com.hp.hpl.jena.query.Dataset;
  */
 public class TestRemoteEndpointResultsWithGraphUris extends AbstractRemoteEndpointResultSetTests {
     
+    //@BeforeClass public static void ctlBeforeClass() { FusekiTestServer.ctlBeforeClass(); }
+    //@AfterClass  public static void ctlAfterClass()  { FusekiTestServer.ctlAfterClass(); }
+    @Before      public void ctlBeforeTest()  { FusekiTestServer.ctlBeforeTest(); }
+    @After       public void ctlAfterTest()   { FusekiTestServer.ctlAfterTest(); } 
+
+
     /**
      * Constant for default graph URI used in these tests
      */
@@ -54,32 +60,20 @@ public class TestRemoteEndpointResultsWithGraphUris extends AbstractRemoteEndpoi
      */
     @BeforeClass
     public static void setup() throws SQLException {
-        ServerTest.allocServer();
-        
-        List<String> defaultGraphUris = new ArrayList<String>();
-        defaultGraphUris.add(DEFAULT_GRAPH_URI);
-        connection = new RemoteEndpointConnection(ServerTest.serviceQuery, ServerTest.serviceUpdate, defaultGraphUris, null, defaultGraphUris, null, null, JenaConnection.DEFAULT_HOLDABILITY, JdbcCompatibility.DEFAULT, null, null);
+        FusekiTestServer.ctlBeforeClass();
+        List<String> defaultGraphUris = Lists.newArrayList(DEFAULT_GRAPH_URI);
+        connection = new RemoteEndpointConnection(FusekiTestServer.serviceQuery(), FusekiTestServer.serviceUpdate(), defaultGraphUris, null, defaultGraphUris, null, null, JenaConnection.DEFAULT_HOLDABILITY, JdbcCompatibility.DEFAULT, null, null);
         connection.setJdbcCompatibilityLevel(JdbcCompatibility.HIGH);
-    }
-    
-    /**
-     * Clean up after each test by resetting the Fuseki instance
-     * @throws InterruptedException 
-     */
-    @After
-    public void cleanupTest() throws InterruptedException {
-        ServerTest.resetServer();
     }
     
     /**
      * Clean up after tests by de-allocating the Fuseki instance
      * @throws SQLException 
-     * @throws InterruptedException 
      */
     @AfterClass
-    public static void cleanup() throws SQLException, InterruptedException {
+    public static void cleanup() throws SQLException {
         connection.close();
-        ServerTest.freeServer();
+        FusekiTestServer.ctlAfterClass();
     }
 
     @Override
@@ -90,10 +84,8 @@ public class TestRemoteEndpointResultsWithGraphUris extends AbstractRemoteEndpoi
     @Override
     protected ResultSet createResults(Dataset ds, String query, int resultSetType) throws SQLException {
         ds = TestUtils.renameGraph(ds, null, DEFAULT_GRAPH_URI);
-        TestUtils.copyToRemoteDataset(ds, ServerTest.serviceREST);
+        TestUtils.copyToRemoteDataset(ds, FusekiTestServer.serviceGSP());
         Statement stmt = connection.createStatement(resultSetType, ResultSet.CONCUR_READ_ONLY);
         return stmt.executeQuery(query);
     }
-    
-
 }

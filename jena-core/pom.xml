@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+
 <!--
    Licensed to the Apache Software Foundation (ASF) under one or more
    contributor license agreements.  See the NOTICE file distributed with
@@ -21,13 +22,11 @@
   <artifactId>jena-core</artifactId>
   <packaging>jar</packaging>
   <name>Apache Jena - Core</name>
-  <version>2.13.1-SNAPSHOT</version>
-
   <parent>
     <groupId>org.apache.jena</groupId>
-    <artifactId>jena-parent</artifactId>
-    <version>13-SNAPSHOT</version>
-    <relativePath>../jena-parent</relativePath>
+    <artifactId>jena</artifactId>
+    <version>3.16.0-SNAPSHOT</version>
+    <relativePath>..</relativePath>
   </parent>
 
   <description>Jena is a Java framework for building Semantic Web applications. It provides a programmatic environment for RDF, RDFS and OWL, SPARQL and includes a rule-based inference engine.</description>
@@ -35,9 +34,35 @@
   <properties>
     <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ssZ</maven.build.timestamp.format>
     <build.time.xsd>${maven.build.timestamp}</build.time.xsd>
+    <automatic.module.name>org.apache.jena.core</automatic.module.name>
   </properties>
 
   <dependencies>
+
+    <dependency>
+      <groupId>org.apache.jena</groupId>
+      <artifactId>jena-base</artifactId>
+      <version>3.16.0-SNAPSHOT</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.jena</groupId>
+      <artifactId>jena-base</artifactId>
+      <version>3.16.0-SNAPSHOT</version>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.jena</groupId>
+      <artifactId>jena-iri</artifactId>
+      <version>3.16.0-SNAPSHOT</version>
+    </dependency>
+
+     <dependency>
+       <artifactId>commons-cli</artifactId>
+       <groupId>commons-cli</groupId>
+     </dependency>
 
     <dependency>
       <groupId>junit</groupId>
@@ -46,30 +71,38 @@
     </dependency>
 
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
+      <groupId>org.xenei</groupId>
+      <artifactId>junit-contracts</artifactId>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
-       <groupId>org.apache.jena</groupId>
-       <artifactId>jena-iri</artifactId>
-       <version>1.1.3-SNAPSHOT</version>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-all</artifactId>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
-      <groupId>xerces</groupId>
-      <artifactId>xercesImpl</artifactId>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j-impl</artifactId>
+      <scope>test</scope>
     </dependency>
 
   </dependencies>
 
   <build>
-  
+
     <resources>
 
       <!-- Legacy -->
       <resource>
-	<directory>etc</directory>
+        <directory>etc</directory>
         <targetPath>etc</targetPath>
         <filtering>false</filtering>
       </resource>
@@ -88,7 +121,7 @@
       </resource>
 
     </resources>
-  
+
     <plugins>
 
       <plugin>
@@ -100,14 +133,9 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <systemProperties>
-            <property>
-              <name>log4j.configuration</name>
-              <value>jena-test-log4j.properties</value>
-            </property>
-          </systemProperties>
           <includes>
-            <include>com/hp/hpl/jena/test/TestPackage.java</include>
+            <include>org/apache/jena/test/TestPackage.java</include>
+            <include>**/*_CS.java</include>
           </includes>
         </configuration>
       </plugin>
@@ -120,7 +148,7 @@
             <id>attach-sources</id>
             <phase>package</phase>
             <goals>
-	      <goal>jar-no-fork</goal>
+              <goal>jar-no-fork</goal>
             </goals>
           </execution>
           <execution>
@@ -145,15 +173,16 @@
           <windowtitle>Apache Jena</windowtitle>
           <doctitle>Apache Jena Core ${project.version}</doctitle>
           <bottom>Licenced under the Apache License, Version 2.0</bottom>
-          <excludePackageNames>com.hp.hpl.jena.shared.*:*.impl:com.hp.hpl.jena.assembler.assemblers:*.exceptions:*.regexptrees:com.hp.hpl.jena.mem:com.hp.hpl.jena.mem.*:com.hp.hpl.jena.n3:com.hp.hpl.jena.n3.*:com.hp.hpl.jena.rdf.arp.*:com.hp.hpl.jena.util.*:jena.cmdline:jena.util</excludePackageNames>
+<!--           <excludePackageNames>org.apache.jena.shared.*:*.impl:org.apache.jena.assembler.assemblers:*.exceptions:*.regexptrees:org.apache.jena.mem:org.apache.jena.mem.*:org.apache.jena.n3:org.apache.jena.n3.*:org.apache.jena.rdf.arp.*:org.apache.jena.util.*:jena.cmdline:jena.util</excludePackageNames> -->
+          <excludePackageNames>org.apache.jena.n3:org.apache.jena.n3.*</excludePackageNames>
           <groups>
             <group>
               <title>API - Application Programming Interface</title>
-              <packages>com.hp.hpl.jena.db:com.hp.hpl.jena.rdf.model:com.hp.hpl.jena.rdf.listeners:com.hp.hpl.jena.rdf.arp:com.hp.hpl.jena.rdf.arp.lang:com.hp.hpl.jena.datatypes:com.hp.hpl.jena.datatypes.xsd:com.hp.hpl.jena.rdql:com.hp.hpl.jena.shared:com.hp.hpl.jena.vocabulary:com.hp.hpl.jena.xmloutput:com.hp.hpl.jena.ontology:com.hp.hpl.jena.ontology.daml:com.hp.hpl.jena.reasoner:com.hp.hpl.jena.reasoner.rulesys:com.hp.hpl.jena.reasoner.rulesys.builtins:com.hp.hpl.jena.reasoner.transitiveReasoner:com.hp.hpl.jena.reasoner.dig</packages>
+              <packages>org.apache.jena.db:org.apache.jena.rdf.model:org.apache.jena.rdf.listeners:org.apache.jena.rdf.arp:org.apache.jena.rdf.arp.lang:org.apache.jena.datatypes:org.apache.jena.datatypes.xsd:org.apache.jena.rdql:org.apache.jena.shared:org.apache.jena.vocabulary:org.apache.jena.xmloutput:org.apache.jena.ontology:org.apache.jena.ontology.daml:org.apache.jena.reasoner:org.apache.jena.reasoner.rulesys:org.apache.jena.reasoner.rulesys.builtins:org.apache.jena.reasoner.transitiveReasoner:org.apache.jena.reasoner.dig</packages>
             </group>
             <group>
               <title>SPI - System Programming Interface</title>
-              <packages>com.hp.hpl.jena.enhanced:com.hp.hpl.jena.graph:com.hp.hpl.jena.graph.compose:com.hp.hpl.jena.graph.query:com.hp.hpl.jena.util:com.hp.hpl.jena.util.iterator</packages>
+              <packages>org.apache.jena.enhanced:org.apache.jena.graph:org.apache.jena.graph.compose:org.apache.jena.graph.query:org.apache.jena.util:org.apache.jena.util.iterator</packages>
             </group>
             <group>
               <title>Command line tools</title>
@@ -161,7 +190,7 @@
             </group>
             <group>
               <title>Other Packages</title>
-              <packages>com.hp.hpl.jena.assembler</packages>
+              <packages>org.apache.jena.assembler</packages>
             </group>
           </groups>
         </configuration>
@@ -170,6 +199,13 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <archive>
+            <manifestEntries>
+              <Automatic-Module-Name>${automatic.module.name}</Automatic-Module-Name>
+            </manifestEntries>
+          </archive>
+        </configuration>
         <executions>
           <execution>
             <goals>
@@ -179,24 +215,49 @@
         </executions>
       </plugin>
 
-      <!--
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-resources-plugin</artifactId>
-      </plugin>
-      <!- - see: http://maven.apache.org/guides/mini/guide-attached-tests.html - ->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
+        <groupId>org.xenei</groupId>
+        <artifactId>contract-test-maven-plugin</artifactId>
+        <version>${ver.contract.tests}</version>
+        <configuration>
+          <failOnError>false</failOnError>
+          <packages>
+            <package>org.apache.jena.assembler</package>
+            <package>org.apache.jena.datatypes</package>
+            <package>org.apache.jena.enhanced</package>
+            <package>org.apache.jena.graph</package>
+            <package>org.apache.jena.mem</package>
+            <package>org.apache.jena.n3</package>
+            <package>org.apache.jena.ontology</package>
+            <package>org.apache.jena.rdf</package>
+            <package>org.apache.jena.rdfxml</package>
+            <package>org.apache.jena.reasoner</package>
+            <package>org.apache.jena.shared</package>
+            <package>org.apache.jena.util</package>
+            <package>org.apache.jena.vocabulary</package>
+          </packages>
+          <skipFilter>Wildcard( *.test.* )</skipFilter>
+          <unimplemented>
+            <report>true</report>
+            <failOnError>false</failOnError>
+          </unimplemented>
+          <untested>
+            <report>true</report>
+            <failOnError>false</failOnError>
+          </untested>
+          <errors>
+            <report>true</report>
+            <failOnError>false</failOnError>
+          </errors>
+        </configuration>
         <executions>
           <execution>
             <goals>
-              <goal>test-jar</goal>
+              <goal>contract-test</goal>
             </goals>
           </execution>
         </executions>
       </plugin>
-      -->
     </plugins>
   </build>
 

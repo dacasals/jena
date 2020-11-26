@@ -18,13 +18,12 @@
 
 package org.apache.jena.query.spatial;
 
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.graph.NodeFactory ;
-import com.hp.hpl.jena.rdf.model.AnonId ;
+import org.apache.jena.graph.Node ;
+import org.apache.jena.graph.NodeFactory ;
 
 public class SpatialQueryFuncs {
     
-    /** Create a string to put in a Lucene/Solr index for the subject node */  
+    /** Create a string to put in a Lucene index for the subject node */  
     public static String subjectToString(Node s) {
         if ( s == null )
             throw new IllegalArgumentException("Subject node can not be null") ;
@@ -33,7 +32,7 @@ public class SpatialQueryFuncs {
         return nodeToString(s) ;
     }
 
-    /** Create a string to put in a Lucene/Solr index for a graph node */  
+    /** Create a string to put in a Lucene index for a graph node */  
     public static String graphNodeToString(Node g) {
         if ( g == null )
             return null ;
@@ -46,11 +45,11 @@ public class SpatialQueryFuncs {
         return (n.isURI() ) ? n.getURI() : "_:" + n.getBlankNodeLabel() ;
     }
 
-    /** Recover a Node from a stored Lucene/Solr string */
+    /** Recover a Node from a stored Lucene string */
     public static Node stringToNode(String v) {
         if ( v.startsWith("_:") ) {
             v = v.substring("_:".length()) ;
-            return NodeFactory.createAnon(new AnonId(v)) ;
+            return NodeFactory.createBlankNode(v) ;
         }
         else
             return NodeFactory.createURI(v) ;

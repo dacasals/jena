@@ -21,13 +21,11 @@
   <artifactId>jena-sdb</artifactId>
   <packaging>jar</packaging>
   <name>Apache Jena - SDB (SQL based triple store)</name>
-  <version>1.5.3-SNAPSHOT</version>
-
   <parent>
     <groupId>org.apache.jena</groupId>
-    <artifactId>jena-parent</artifactId>
-    <version>13-SNAPSHOT</version>
-    <relativePath>../jena-parent</relativePath>
+    <artifactId>jena</artifactId>
+    <version>3.16.0-SNAPSHOT</version>
+    <relativePath>..</relativePath>
   </parent> 
 
   <description>SDB is a persistence layer for use with Apache Jena that uses an SQL database to store triples/quads.</description>
@@ -36,48 +34,46 @@
     <this.root>${project.artifactId}-${project.version}</this.root>
     <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ssZ</maven.build.timestamp.format>
     <build.time.xsd>${maven.build.timestamp}</build.time.xsd>
+    <automatic.module.name>org.apache.jena.sdb</automatic.module.name>
   </properties>
 
   <dependencies>
-    <dependency>
-      <groupId>org.apache.jena</groupId>
-      <artifactId>jena-core</artifactId>
-      <version>2.13.1-SNAPSHOT</version>
-    </dependency>
-
-    <!-- Need the tests as well -->
-    <dependency>
-      <groupId>org.apache.jena</groupId>
-      <artifactId>jena-core</artifactId>
-      <classifier>tests</classifier>
-      <version>2.13.1-SNAPSHOT</version>
-      <scope>test</scope>
-    </dependency>
 
     <dependency>
       <groupId>org.apache.jena</groupId>
       <artifactId>jena-arq</artifactId>
-      <version>2.13.1-SNAPSHOT</version>
+      <version>3.16.0-SNAPSHOT</version>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.jena</groupId>
+      <artifactId>jena-cmds</artifactId>
+      <version>3.16.0-SNAPSHOT</version>
+    </dependency>
+    
     <!-- Need the tests as well -->
     <dependency>
       <groupId>org.apache.jena</groupId>
       <artifactId>jena-arq</artifactId>
-      <version>2.13.1-SNAPSHOT</version>
+      <version>3.16.0-SNAPSHOT</version>
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
 
     <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
+      <groupId>org.apache.jena</groupId>
+      <artifactId>jena-core</artifactId>
+      <classifier>tests</classifier>
+      <version>3.16.0-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
+      <groupId>org.apache.jena</groupId>
+      <artifactId>jena-base</artifactId>
+      <classifier>tests</classifier>
+      <version>3.16.0-SNAPSHOT</version>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
@@ -94,14 +90,36 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j-impl</artifactId>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <build>
+
     <resources>
       <resource>
-        <targetPath>com/hp/hpl/jena/sdb/</targetPath>
+        <filtering>false</filtering>
+        <directory>src/main/resources</directory>
+        <excludes>
+          <exclude>org/apache/jena/sdb/sdb-properties.xml</exclude>
+        </excludes>
+      </resource>
+      <resource>
         <filtering>true</filtering>
         <directory>src/main/resources</directory>
+        <includes>
+          <include>org/apache/jena/sdb/sdb-properties.xml</include>
+        </includes>
       </resource>
     </resources>
 
@@ -110,16 +128,26 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
       </plugin>
-
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <archive>
+            <manifestEntries>
+              <Automatic-Module-Name>${automatic.module.name}</Automatic-Module-Name>
+            </manifestEntries>
+          </archive>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <includes>
-            <!-- Requires HSQL and Apache Derbey to be set in 
+            <!-- Requires HSQL and Apache Derby to be set in 
                  store-list.ttl and store-list-simple.ttl
             -->
-            <include>com/hp/hpl/jena/sdb/test/SDBTestAll.java</include>
+            <include>org/apache/jena/sdb/test/SDBTestAll.java</include>
           </includes>
         </configuration>
       </plugin>

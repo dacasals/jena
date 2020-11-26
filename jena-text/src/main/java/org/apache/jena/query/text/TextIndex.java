@@ -22,8 +22,8 @@ import java.util.List ;
 import java.util.Map ;
 
 import org.apache.jena.atlas.lib.Closeable ;
-
-import com.hp.hpl.jena.graph.Node ;
+import org.apache.jena.graph.Node ;
+import org.apache.jena.rdf.model.Resource;
 
 /** TextIndex abstraction */ 
 public interface TextIndex extends Closeable //, Transactional 
@@ -37,19 +37,31 @@ public interface TextIndex extends Closeable //, Transactional
     // Update operations
     void addEntity(Entity entity) ;
     void updateEntity(Entity entity) ;
+    void deleteEntity(Entity entity) ;
     
     
     // read operations
     /** Get all entries for uri */
     Map<String, Node> get(String uri) ;
 
-    //** score
-    // Need to have more complex results.
+    /** Access the index - limit if -1 for as many as possible 
+     * Throw QueryParseException for syntax errors in the query string.
+     */ 
+    List<TextHit> query(Node property, String qs, String graphURI, String lang, int limit) ;
     
-    /** Access the index - limit if -1 for as many as possible */ 
-    List<Node> query(String qs, int limit) ;
+    List<TextHit> query(Node property, String qs, String graphURI, String lang) ;
+
+    List<TextHit> query(Node property, String qs, String graphURI, String lang, int limit, String highlight) ;
+
+    List<TextHit> query(List<Resource> props, String qs, String graphURI, String lang, int limit, String highlight) ;
     
-    List<Node> query(String qs) ;
+    List<TextHit> query(String subjectUri, List<Resource> props, String qs, String graphURI, String lang, int limit, String highlight);
+    
+    List<TextHit> query(Node subj, List<Resource> props, String qs, String graphURI, String lang, int limit, String highlight);
+
+    default List<TextHit> query(String subjectUri, Node property, String qs, String graphURI, String lang, int limit, String highlight){
+        return query(property, qs, graphURI, lang, limit, highlight);
+    }
 
     EntityDefinition getDocDef() ;
 }

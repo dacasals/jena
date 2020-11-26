@@ -20,14 +20,16 @@ package org.apache.jena.arq.querybuilder.handlers;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.jena.arq.querybuilder.ExprFactory;
+import org.apache.jena.graph.Node ;
+import org.apache.jena.query.Query ;
 import org.apache.jena.riot.system.IRIResolver;
-import com.hp.hpl.jena.graph.Node;
-import com.hp.hpl.jena.query.Query;
-import com.hp.hpl.jena.shared.PrefixMapping;
-import com.hp.hpl.jena.sparql.core.Var;
+import org.apache.jena.shared.PrefixMapping ;
+import org.apache.jena.shared.impl.PrefixMappingImpl;
+import org.apache.jena.sparql.core.Var ;
 
 /**
- * The proglog handler
+ * The prolog handler
  *
  */
 public class PrologHandler implements Handler {
@@ -49,9 +51,9 @@ public class PrologHandler implements Handler {
 	 * Removes ':' from the end of the name if present.
 	 * 
 	 * @param x The prefix name
-	 * @return The prefix name with the trialing ':' removed.
+	 * @return The prefix name with the trailing ':' removed.
 	 */
-	private String canonicalPfx(String x) {
+	private static String canonicalPfx(String x) {
 		if (x.endsWith(":"))
 			return x.substring(0, x.length() - 1);
 		return x;
@@ -82,15 +84,30 @@ public class PrologHandler implements Handler {
 	public void addPrefix(String pfx, String uri) {
 		query.setPrefix(canonicalPfx(pfx), uri);
 	}
+	
+	/**
+	 * Clear the prefix mapping.
+	 */
+	public void clearPrefixes() {
+		query.setPrefixMapping( new PrefixMappingImpl() );
+	}
 
 	/**
 	 * Add the map of prefixes to the query prefixes.
-	 * @param prefixes The map of prefixs to URIs.
+	 * @param prefixes The map of prefixes to URIs.
 	 */
 	public void addPrefixes(Map<String, String> prefixes) {
 		for (Map.Entry<String, String> e : prefixes.entrySet()) {
 			addPrefix(e.getKey(), e.getValue());
 		}
+	}
+	
+	public PrefixMapping getPrefixes() {
+		return query.getPrefixMapping();
+	}
+	
+	public ExprFactory getExprFactory() {
+		return new ExprFactory( query.getPrefixMapping() );
 	}
 
 	/**

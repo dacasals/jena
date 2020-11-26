@@ -18,49 +18,65 @@
 
 package org.apache.jena.riot.tokens;
 
-import java.io.ByteArrayInputStream ;
-import java.io.InputStream ;
-import java.io.Reader ;
+import java.io.InputStream;
 
-import org.apache.jena.atlas.io.PeekReader ;
-import org.apache.jena.atlas.lib.StrUtils ;
-
-public class TokenizerFactory
-{
-    /** Discouraged - be careful about character sets */ 
-    public static Tokenizer makeTokenizer(Reader reader)
-    {
-        PeekReader peekReader = PeekReader.make(reader) ;
-        Tokenizer tokenizer = new TokenizerText(peekReader) ;
-        return tokenizer ;
+/** @deprecated Use {@code TokenizerText.create()...} */
+@Deprecated
+public class TokenizerFactory {
+    // Just in case anyone is uing this operation, the only and proper old world operation. 
+    /** @deprecated Use {@code TokenizerText.create().source(in).build();} */
+    @Deprecated
+    public static Tokenizer makeTokenizerUTF8(InputStream in) {
+        return TokenizerText.create().source(in).build();
     }
     
-    public static Tokenizer makeTokenizerUTF8(InputStream in)
-    {
-        // BOM will be removed
-        PeekReader peekReader = PeekReader.makeUTF8(in) ;
-        Tokenizer tokenizer = new TokenizerText(peekReader) ;
-        return tokenizer ;
-    }
-   
-    public static Tokenizer makeTokenizerASCII(InputStream in)
-    {
-        PeekReader peekReader = PeekReader.makeASCII(in) ;
-        Tokenizer tokenizer = new TokenizerText(peekReader) ;
-        return tokenizer ;
-    }
-    
-    public static Tokenizer makeTokenizerASCII(String string)
-    {
-        byte b[] = StrUtils.asUTF8bytes(string) ;
-        ByteArrayInputStream in = new ByteArrayInputStream(b) ;
-        return makeTokenizerASCII(in) ;
-    }
-    
-    public static Tokenizer makeTokenizerString(String str)
-    {
-        PeekReader peekReader = PeekReader.readString(str) ;
-        Tokenizer tokenizer = new TokenizerText(peekReader) ;
-        return tokenizer ;
-    }
+//
+//    private static ErrorHandler dftErrorHandler = null;
+//
+//    /** Discouraged - be careful about character sets */
+//    @Deprecated
+//    public static Tokenizer makeTokenizer(Reader reader) {
+//        return TokenizerText.create().source(reader).build();
+//    }
+//
+//    /** Discouraged - be careful about character sets */
+//    @Deprecated
+//    public static Tokenizer makeTokenizer(Reader reader, ErrorHandler errorHandler) {
+//        return TokenizerText.create().source(reader).errorHandler(errorHandler).build();
+//    }
+//
+//    /** Safe use of a StringReader */
+//    public static Tokenizer makeTokenizer(StringReader reader) {
+//        return TokenizerText.create().source(reader).build();
+//    }
+//
+//    /** Safe use of a StringReader */
+//    public static Tokenizer makeTokenizer(StringReader reader, ErrorHandler errorHandler) {
+//        return TokenizerText.create().source(reader).errorHandler(errorHandler).build();
+//    }
+//
+//    public static Tokenizer makeTokenizerUTF8(InputStream in) {
+//        return makeTokenizerUTF8(in, dftErrorHandler);
+//    }
+//
+//    public static Tokenizer makeTokenizerUTF8(InputStream input, ErrorHandler errorHandler) {
+//        // BOM will be removed
+//        return TokenizerText.create().source(input).errorHandler(errorHandler).build();
+//    }
+//
+//    public static Tokenizer makeTokenizerASCII(InputStream input) {
+//        return TokenizerText.create().source(input).asciiOnly(true).build();
+//    }
+//
+//    public static Tokenizer makeTokenizerASCII(InputStream input, ErrorHandler errorHandler) {
+//        return TokenizerText.create().source(input).asciiOnly(true).errorHandler(errorHandler).build();
+//    }
+//
+//    public static Tokenizer makeTokenizerString(String str) {
+//        return TokenizerText.create().fromString(str).build();
+//    }
+//
+//    public static Tokenizer makeTokenizerString(String str, ErrorHandler errorHandler) {
+//        return TokenizerText.create().fromString(str).errorHandler(errorHandler).build();
+//    }
 }

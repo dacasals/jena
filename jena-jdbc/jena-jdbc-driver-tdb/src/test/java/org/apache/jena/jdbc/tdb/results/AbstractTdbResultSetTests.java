@@ -25,12 +25,11 @@ import java.sql.Statement;
 import org.apache.jena.jdbc.JdbcCompatibility;
 import org.apache.jena.jdbc.results.AbstractResultSetTests;
 import org.apache.jena.jdbc.tdb.connections.DebugTdbConnection;
+import org.apache.jena.query.Dataset ;
+import org.apache.jena.query.DatasetFactory ;
+import org.apache.jena.vocabulary.XSD ;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-
-import com.hp.hpl.jena.query.Dataset;
-import com.hp.hpl.jena.query.DatasetFactory;
-import com.hp.hpl.jena.vocabulary.XSD;
 
 /**
  * Abstract
@@ -63,7 +62,7 @@ public abstract class AbstractTdbResultSetTests extends AbstractResultSetTests {
         // scenes and so we need a temporary fake final dataset for closing the
         // connection or we get an error that the underlying dataset is already
         // closed
-        connection.setJenaDataset(DatasetFactory.createMem());
+        connection.setJenaDataset(DatasetFactory.create());
         connection.close();
     }
 

@@ -25,20 +25,19 @@ import java.sql.* ;
 import java.util.Calendar ;
 import java.util.HashMap ;
 
+import org.apache.jena.datatypes.TypeMapper ;
+import org.apache.jena.datatypes.xsd.XSDDatatype ;
 import org.apache.jena.jdbc.JdbcCompatibility ;
 import org.apache.jena.jdbc.results.metadata.AskResultsMetadata ;
 import org.apache.jena.jdbc.results.metadata.TripleResultsMetadata ;
+import org.apache.jena.query.Dataset ;
+import org.apache.jena.query.DatasetFactory ;
+import org.apache.jena.rdf.model.* ;
+import org.apache.jena.rdf.model.Statement ;
+import org.apache.jena.sparql.util.NodeFactoryExtra ;
+import org.apache.jena.sys.JenaSystem ;
+import org.apache.jena.vocabulary.XSD ;
 import org.junit.* ;
-
-import com.hp.hpl.jena.datatypes.TypeMapper ;
-import com.hp.hpl.jena.datatypes.xsd.XSDDatatype ;
-import com.hp.hpl.jena.query.ARQ ;
-import com.hp.hpl.jena.query.Dataset ;
-import com.hp.hpl.jena.query.DatasetFactory ;
-import com.hp.hpl.jena.rdf.model.* ;
-import com.hp.hpl.jena.rdf.model.Statement ;
-import com.hp.hpl.jena.sparql.util.NodeFactoryExtra ;
-import com.hp.hpl.jena.vocabulary.XSD ;
 
 /**
  * Abstract tests for Jena JDBC {@link ResultSet} implementations, these tests
@@ -49,7 +48,7 @@ import com.hp.hpl.jena.vocabulary.XSD ;
 public abstract class AbstractResultSetTests {
 
     static {
-        ARQ.init();
+        JenaSystem.init();
     }
 
     private static Dataset empty, ds;
@@ -61,13 +60,13 @@ public abstract class AbstractResultSetTests {
     public static void globalSetup() {
         // Empty dataset
         if (empty == null) {
-            empty = DatasetFactory.createMem();
+            empty = DatasetFactory.create();
         }
 
         // Build a dataset that has one of every type we expect to
         // commonly see
         if (ds == null) {
-            ds = DatasetFactory.createMem();
+            ds = DatasetFactory.create();
 
             // Create model and our RDF terms
             Model m = ModelFactory.createDefaultModel();
@@ -2380,7 +2379,7 @@ public abstract class AbstractResultSetTests {
      */
     @Test(expected = SQLException.class)
     public void results_bad_creation_01() throws SQLException {
-        new AskResults(null, true, false);
+        new AskResults(null, true, false).close();
     }
 
     /**
@@ -3414,13 +3413,9 @@ public abstract class AbstractResultSetTests {
      */
     @Test(expected = SQLFeatureNotSupportedException.class)
     public void results_bad_updates_60() throws SQLException {
-        ResultSet rset = this.createResults(ds, "SELECT * WHERE { ?s ?p ?o }");
-
-        try {
+        try (ResultSet rset = this.createResults(ds, "SELECT * WHERE { ?s ?p ?o }")) {
             rset.updateNCharacterStream("s", (Reader) null);
-        } finally {
-            rset.close();
-        }
+        } 
     }
 
     /**

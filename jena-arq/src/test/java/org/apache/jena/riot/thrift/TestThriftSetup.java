@@ -19,15 +19,15 @@
 package org.apache.jena.riot.thrift;
 
 import static org.apache.jena.riot.RDFLanguages.THRIFT ;
-import org.apache.jena.atlas.junit.BaseTest ;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import org.apache.jena.riot.* ;
-import org.junit.BeforeClass ;
 import org.junit.Test ;
 
-public class TestThriftSetup extends BaseTest {
+public class TestThriftSetup {
 
-    @BeforeClass public static void beforeClass() { RIOT.init() ; }
-    
     @Test public void setup_01() {
         assertTrue(RDFLanguages.isRegistered(THRIFT)) ;
     }
@@ -37,9 +37,11 @@ public class TestThriftSetup extends BaseTest {
         assertEquals(lang, THRIFT) ;
     }
 
+    @SuppressWarnings("deprecation")
     @Test public void setup_03() {
         assertTrue(RDFParserRegistry.isQuads(THRIFT)) ;
         assertTrue(RDFParserRegistry.isTriples(THRIFT)) ;
+        assertTrue(RDFParserRegistry.isRegistered(THRIFT));
         assertNotNull(RDFParserRegistry.getFactory(THRIFT)) ;
     }
     
