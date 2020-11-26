@@ -27,6 +27,7 @@ import org.apache.jena.atlas.io.IO ;
 import org.apache.jena.atlas.lib.PropertyUtils ;
 import org.apache.jena.atlas.logging.Log ;
 import org.apache.jena.query.ARQ ;
+import org.apache.jena.sparql.engine.main.OpExecutorFactory;
 import org.apache.jena.sparql.engine.optimizer.reorder.ReorderLib ;
 import org.apache.jena.sparql.engine.optimizer.reorder.ReorderTransformation ;
 import org.apache.jena.sparql.util.Symbol ;
@@ -35,6 +36,7 @@ import org.apache.jena.tdb.TDB ;
 import org.apache.jena.tdb.TDBException ;
 import org.apache.jena.tdb.base.block.FileMode ;
 import org.apache.jena.tdb.base.record.RecordFactory ;
+import org.apache.jena.tdb.solver.OpExecutorTDB1;
 import org.apache.jena.tdb.store.NodeId ;
 import org.slf4j.Logger ;
 import org.slf4j.LoggerFactory ;
@@ -184,7 +186,16 @@ public class SystemTDB
     
 //    /** Number of adds/deletes between calls to sync (-ve to disable) */
 //    public static final int SyncTick                = intValue("SyncTick", -1) ;
+    /** Define Default OpExecutorFactory to use in TDB2StorageBuilder */
+    private static OpExecutorFactory defaultOpExecutorFactory = OpExecutorTDB1.OpExecFactoryTDB;
 
+    public static void setOpExecutorFactory(OpExecutorFactory opExecutorFactory) {
+        defaultOpExecutorFactory = opExecutorFactory;
+    }
+
+    public static OpExecutorFactory getOpExecutorFactory() {
+        return defaultOpExecutorFactory;
+    }
     /** Default BGP optimizer */
     public static ReorderTransformation defaultReorderTransform = ReorderLib.fixed() ;
 

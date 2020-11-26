@@ -4,6 +4,9 @@ import arq.cmdline.* ;
 import jena.cmd.ArgDecl;
 import jena.cmd.CmdException;
 import jena.cmd.TerminationException;;
+import org.apache.jena.atlas.RuntimeIOException;
+import org.apache.jena.base.Sys;
+import org.apache.jena.sparql.algebra.Op;
 import org.apache.jena.sparql.engine.Plan;
 import org.apache.jena.sparql.engine.QueryExecutionBase;
 import org.utfsm.apache.cmds.arq.cmdline.ModCsvQueriesIn;
@@ -22,11 +25,13 @@ import org.apache.jena.sparql.resultset.ResultsFormat ;
 import org.apache.jena.system.Txn ;
 import org.apache.jena.tdb2.sys.SystemTDB;
 import org.utfsm.jena.tdb2.solver.OpExecutorTDB2Neo;
+import org.utfsm.utils.BinaryTreePlan;
 import tdb2.cmdline.CmdTDB;
 import tdb2.cmdline.ModTDBDataset;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.concurrent.*;
 import java.util.logging.Logger;
 
 public class tdbqueryplan extends CmdARQ
@@ -39,6 +44,9 @@ public class tdbqueryplan extends CmdARQ
     protected final ArgDecl queriesFile    = new ArgDecl(ArgDecl.HasValue, "queriesFile") ;
     protected final ArgDecl queryColumn    = new ArgDecl(ArgDecl.HasValue, "queryCol") ;
     public  static HashMap<String, HashMap<String, ArrayList<String>>> registros = new HashMap<>();
+    public  static HashMap<String, ArrayList<String>> currentReg = new HashMap<>();
+    public  static String currentRegStr = "";
+    public  static ArrayList<BinaryTreePlan> registrosObj = new ArrayList<>();
     public  static String lastReg = "";
     protected int repeatCount = 1 ;
     protected int warmupCount = 0 ;
@@ -49,7 +57,7 @@ public class tdbqueryplan extends CmdARQ
     protected ModCsvQueriesIn modQueries =  new ModCsvQueriesIn(Syntax.syntaxARQ);
     protected ModResultsOut modResults =  new ModResultsOut() ;
     protected ModEngine     modEngine =   new ModEngine() ;
-
+    public static  Dataset dataset;
     public static void main (String... argv) {
         CmdTDB.init();
         new tdbqueryplan(argv).mainRun() ;
@@ -186,68 +194,92 @@ public class tdbqueryplan extends CmdARQ
     {
         try {
             HashMap<String, Query> queries = modQueries.readCsvFile();
-
+            System.out.println("Queries readed ".concat(String.valueOf(queries.size())));
+            int contador = 0;
             SystemTDB.setOpExecutorFactory(OpExecutorTDB2Neo.OpExecFactoryTDB);
             if ( isQuiet() )
                 LogCtl.setError(SysRIOT.riotLoggerName) ;
-            Dataset dataset = modDataset.getDataset();
+            dataset = modDataset.getDataset();
             Object[] ids = queries.keySet().toArray();
+
+            /////////////////////
+            Logger.getLogger("COMMAND_NEO").info("Outputing to csv");
+            System.out.println("Queries : ".concat(String.valueOf(registros.size())));
+            FileOutputStream output = new FileOutputStream(new File(outFileVal));
+            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(output));
+            String delimiterCol = "ᶶ";
+            String delimiterColVals = "ᶷ";
+            /////////////////////
 
             for (Object index : ids) {
                 String key = String.valueOf(index);
-                System.out.println(key);
+//                System.out.println(key);
                 Query query = queries.get(key);
-                Log.info(tdbqueryplan.class, key);
+//                Log.info(tdbqueryplan.class, key);
                 HashMap<String,ArrayList<String>> qData = new HashMap<>();
                 //Only one for id;
                 ArrayList<String> queryArr = new ArrayList<>();
-                queryArr.add(query.toString().replaceAll("\n", " "));
-                qData.put("query", queryArr);
+                try {
+                    queryArr.add(query.toString().replaceAll("\n", " "));
+                    qData.put("query", queryArr);
+                    qData.put("execution_tree", new ArrayList<>());
+                }
+                catch (Exception e){
+                    continue;
+                }
                 lastReg = key;
-                registros.put(lastReg, qData);
-
+                currentReg = qData;
                 // Check there is a dataset. See dealWithNoDataset(query).
                 // The default policy is to create an empty one - convenience for VALUES and BIND providing the data.
                 if (dataset == null && !query.hasDatasetDescription()) {
                     System.err.println("Dataset not specified in query nor provided on command line.");
                     throw new TerminationException(1);
                 }
-                Transactional transactional = (dataset != null && dataset.supportsTransactions()) ? dataset : new TransactionalNull();
-                Txn.executeRead(transactional, () -> {
-                    modTime.startTimer();
+                try {
+                    contador++;
+                    System.out.println("Line: ".concat(String.valueOf(contador)).concat(" ").concat(query.toString()));
+                    System.out.println("Line: ".concat(String.valueOf(contador)));
+                    Transactional transactional = (dataset != null && dataset.supportsTransactions()) ? dataset : new TransactionalNull();
+                    Txn.executeRead(transactional, () -> {
+                        try (QueryExecution qe = QueryExecutionFactory.create(query, dataset)) {
 
-                    try (QueryExecution qe = QueryExecutionFactory.create(query, dataset)) {
-//                        qe.getContext().set(ARQ.optimization, false);
-//                        qe.getContext().set(ARQ.optReorderBGP, false);
-                        try {
-                            qe.execSelect();
-//                            qe.getContext().get(Symbol.create(""))
-//                            Plan plan = ((QueryExecutionBase) qe).getPlan();
-//                            plan.getOp()
-//                            QueryExecUtils.executeQuery(query, qe, fmt);
-                        } catch (QueryCancelledException ex) {
-                            System.out.flush();
-                            System.err.println("Query timed out");
+                            Plan plan = ((QueryExecutionBase) qe).getPlan();
+                            plan.getOp();
+                            System.out.println("Queries readed ".concat(String.valueOf(queries.size())));
+
+                        } catch (ResultSetException ex) {
+                            System.err.println(ex.getMessage());
+                            ex.printStackTrace(System.err);
+                        } catch (QueryException qEx) {
+                            // System.err.println(qEx.getMessage()) ;
+                            throw new CmdException("Query Exeception", qEx);
                         }
-                        catch (Exception ex) {
-                            ex.printStackTrace();
+                        catch (Exception qEx) {
+                             System.err.println(qEx.getMessage()) ;
+                             System.err.println(qEx.getMessage()) ;
                         }
-                        long time = modTime.endTimer();
-                        if (timed) {
-                            totalTime += time;
-                            System.err.println("Time: " + modTime.timeStr(time) + " sec");
-                        }
-                    } catch (ResultSetException ex) {
-                        System.err.println(ex.getMessage());
-                        ex.printStackTrace(System.err);
-                    } catch (QueryException qEx) {
-                        // System.err.println(qEx.getMessage()) ;
-                        throw new CmdException("Query Exeception", qEx);
-                    }
-                });
+                    });
+                }
+                catch (RuntimeIOException ex){
+                    System.out.println("Query cancelada por timeout.");
+                }
+                catch (Exception ex){
+                    System.out.println("Query fallo otro motivo.");
+                    continue;
+                }
+                String row = "";
+                row = row.concat(key.concat(delimiterCol));
+                row = row.concat(currentReg.get("query").get(0).concat(delimiterCol));
+                row = row.concat(currentRegStr);
+                try {
+                    bw.write(row);
+                    bw.newLine();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
-            outputQPlanDataset(registros);
-
+            bw.close();
+//            outputQPlanDataset(registros);
         }
         catch (ARQInternalErrorException intEx) {
             System.err.println(intEx.getMessage()) ;
@@ -265,33 +297,35 @@ public class tdbqueryplan extends CmdARQ
         }
     }
 
-    private void outputQPlanDataset(HashMap<String, HashMap<String, ArrayList<String>>> registros) {
-        Logger.getLogger("COMMAND_NEO").info("Outputing to csv");
-        System.out.println("Queries : ".concat(String.valueOf(registros.size())));
-        FileOutputStream output = null;
-        try {
-            output = new FileOutputStream(new File(outFileVal));
-            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(output));
-            String delimiterCol = "ᶶ";
-            String delimiterColVals = "ᶷ";
-            StringBuilder sb = new StringBuilder();
-            for (String key : registros.keySet()) {
-                HashMap<String, ArrayList<String>> registro = registros.get(key);
-                sb.append(key.concat(delimiterCol));
-                sb.append(registro.get("query").get(0).concat(delimiterCol));
-//                sb.append(String.join(delimiterColVals, ((ArrayList<String>) stringObjectHashMap.get("tdb"))).concat(delimiterCol));
-//                sb.append(String.join(delimiterColVals, ((ArrayList<String>) stringObjectHashMap.get("execute"))).concat(delimiterCol));
-                if (registro.containsKey("execution_tree")) {
-                    sb.append(String.join(delimiterColVals, ((ArrayList<String>) registro.get("execution_tree"))));
-                }
-                sb.append("\n");
-            }
-            bw.write(sb.toString());
-            bw.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-    }
+//    private void outputQPlanDataset(HashMap<String, HashMap<String, ArrayList<String>>> registros) {
+//        Logger.getLogger("COMMAND_NEO").info("Outputing to csv");
+//        System.out.println("Queries : ".concat(String.valueOf(registros.size())));
+//        FileOutputStream output = null;
+//        try {
+//            output = new FileOutputStream(new File(outFileVal));
+//            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(output));
+//            String delimiterCol = "ᶶ";
+//            String delimiterColVals = "ᶷ";
+//            for (String key : registros.keySet()) {
+//                HashMap<String, ArrayList<String>> registro = registros.get(key);
+//                String row = "";
+//                row = row.concat(key.concat(delimiterCol));
+//                row = row.concat(registro.get("query").get(0).concat(delimiterCol));
+////                sb.append(String.join(delimiterColVals, ((ArrayList<String>) stringObjectHashMap.get("tdb"))).concat(delimiterCol));
+////                sb.append(String.join(delimiterColVals, ((ArrayList<String>) stringObjectHashMap.get("execute"))).concat(delimiterCol));
+//                if (registro.containsKey("execution_tree")) {
+//                    row = row.concat(String.join(delimiterColVals, registro.get("execution_tree")));
+//                }
+//                bw.write(row);
+//                bw.newLine();
+//                bw.close();
+//            }
+//            bw.write(sb.toString());
+//            bw.close();
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//
+//    }
 
 }

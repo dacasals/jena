@@ -16,10 +16,12 @@ import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.iterator.QueryIterPeek;
+import org.apache.jena.sparql.engine.join.Join;
 import org.apache.jena.sparql.engine.main.OpExecutor;
 import org.apache.jena.sparql.engine.main.OpExecutorFactory;
 import org.apache.jena.sparql.engine.main.QC;
 import org.apache.jena.sparql.engine.main.iterator.QueryIterGraph;
+import org.apache.jena.sparql.engine.main.iterator.QueryIterOptionalIndex;
 import org.apache.jena.sparql.engine.optimizer.reorder.ReorderProc;
 import org.apache.jena.sparql.engine.optimizer.reorder.ReorderTransformation;
 import org.apache.jena.sparql.expr.ExprList;
@@ -33,6 +35,7 @@ import org.apache.jena.tdb2.store.NodeId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.utfsm.apache.cmds.tdb2.tdbqueryplan;
+import org.utfsm.jena.arq.sparql.mgt.NeoExplain;
 import org.utfsm.utils.BinaryTreePlan;
 
 import java.util.ArrayList;
@@ -53,35 +56,37 @@ public class OpExecutorTDB2Neo extends OpExecutor
     public OpExecutorTDB2Neo(ExecutionContext execCxt)
     {
         super(execCxt);
+//        this.executor
         // NB. The dataset may be a TDB one, or a general one.
         // Any merged union graph magic (for a TDB dataset was handled
         // in QueryEngineTDB).
-
         isForTDB = (execCxt.getActiveGraph() instanceof GraphTDB);
     }
 
     @Override
     protected QueryIterator exec(Op op, QueryIterator input) {
-        if ( level < 0 )
             // Print only at top level (and we're called before level++)
+        {
             Explain.explain("TDB", op, super.execCxt.getContext());
-        return super.exec(op, input);
+            tdbqueryplan.currentRegStr = NeoExplain.explain("TDB", op, super.execCxt.getContext(), input);
+        }
+        return input;
+    }
+    protected QueryIterator execute(OpConditional opCondition, QueryIterator input) {
+        QueryIterator left = exec(opCondition.getLeft(), input) ;
+        QueryIterator qIter = new QueryIterOptionalIndex(left, opCondition.getRight(), execCxt) ;
+        return qIter ;
     }
 
-    // Retrieving nodes isn't so bad because they will be needed anyway.
-    // And if their duplicates, likely to be cached.
-    // Need to work with SolverLib which wraps the NodeId bindgins with a converter.
-
-    @Override
-    protected QueryIterator execute(OpDistinct opDistinct, QueryIterator input)
-    {
-        return super.execute(opDistinct, input);
-    }
-
-    @Override
-    protected QueryIterator execute(OpReduced opReduced, QueryIterator input)
-    {
-        return super.execute(opReduced, input);
+    protected QueryIterator execute(OpJoin opJoin, QueryIterator input) {
+        // Need to clone input into left and right.
+        // Do by evaling for each input case, the left and right and concat'ing
+        // the results.
+        QueryIterator left = exec(opJoin.getLeft(), input) ;
+        QueryIterator right = exec(opJoin.getRight(), root()) ;
+        // Join key.
+        QueryIterator qIter = Join.join(left, right, execCxt) ;
+        return qIter ;
     }
 
     @Override
@@ -406,17 +411,17 @@ public class OpExecutorTDB2Neo extends OpExecutor
 //                    Log.info("EXECUTION_TREE", tree.toString());
 
                     //modify global var
-                    HashMap<String, ArrayList<String>> qData = tdbqueryplan.registros.get(tdbqueryplan.lastReg);
+//                    HashMap<String, ArrayList<String>> qData = tdbqueryplan.currentReg;
+//                    ArrayList<BinaryTreePlan> qDataObj = tdbqueryplan.registrosObj.get(tdbqueryplan.lastReg);
+
                     ArrayList<String> exeTree;
-                    if (qData.containsKey("execution_tree")) {
-                        exeTree = qData.get("execution_tree");
-                    }
-                    else {
-                        exeTree = new ArrayList<>();
-                    }
-                    exeTree.add(tree.toString().replaceAll("\n", " "));
-                    qData.put("execution_tree", exeTree);
-                    tdbqueryplan.registros.put(tdbqueryplan.lastReg, qData);
+                    exeTree = tdbqueryplan.currentReg.get("execution_tree");
+
+                    tdbqueryplan.currentReg.get("execution_tree").add(tree.toString().replaceAll("\n", " "));
+//                    tdbqueryplan.currentReg.put("execution_tree", exeTree);
+//                    qDataObj.add(tree);
+//                    tdbqueryplan.currentReg =  qData;
+//                    tdbqueryplan.registrosObj.put(tdbqueryplan.lastReg,qDataObj);
                 }
                 // Triple-backed (but may be named as explicit default graph).
                 //return SolverLib.execute((GraphTDB)g, bgp, input, filter, execCxt);
@@ -464,7 +469,7 @@ public class OpExecutorTDB2Neo extends OpExecutor
                 // Triples graph from TDB (which is the default graph of the dataset),
                 // used a named graph in a composite dataset.
                 BasicPattern bgp = opQuadPattern.getBasicPattern();
-                Explain.explain("Execute", bgp, execCxt.getContext());
+                NeoExplain.explain("Execute", bgp, execCxt.getContext());
                 // Don't pass in G -- gn may be different.
                 return SolverLib.execute(((GraphTDB)g).getDSG(), gn, bgp, input, filter, execCxt);
             }

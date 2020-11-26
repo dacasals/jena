@@ -227,7 +227,7 @@ public class DatasetBuilderStd {
         DatasetGraphTDB dsg = new DatasetGraphTDB(tripleTable, quadTable, prefixes, transform, storageConfig) ;
         // TDB does filter placement on BGPs itself.
         dsg.getContext().set(ARQ.optFilterPlacementBGP, false) ;
-        QC.setFactory(dsg.getContext(), OpExecutorTDB1.OpExecFactoryTDB) ;
+        QC.setFactory(dsg.getContext(), SystemTDB.getOpExecutorFactory()) ;
         return dsg ;
     }
     
