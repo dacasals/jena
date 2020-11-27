@@ -53,38 +53,77 @@ public class VisitorNeo implements OpVisitor {
     }
 
     private void visitOpN(OpN op) {
-        out.print(Tags.LBRACKET);
-
-        out.println("\"JOIN\"");
-        out.print(", ");
-        out.print(Tags.LBRACKET);
+        ArrayList<Op> ops = new ArrayList<>();
         for (Iterator<Op> iter = op.iterator(); iter.hasNext(); ) {
             Op sub = iter.next();
-            out.ensureStartOfLine();
-            printOp(sub);
-            if(iter.hasNext())
-                out.print(", ");
+            if(sub instanceof OpTable){
+                continue;
+            }
+            ops.add(sub);
         }
-        out.print(Tags.RBRACKET);
-        out.print(Tags.RBRACKET);
+        if(ops.size() == 0){
+            return;
+        }
+        else {
+            printJoin(ops,"\"JOIN\"");
+        }
+    }
+    private void printJoin(ArrayList<Op> ops, String joinType){
+        if(ops.size() > 2){
+            out.print(Tags.LBRACKET);
+            out.print(joinType);
+            out.print(", ");
+            out.print(Tags.LBRACKET);
+            out.print(ops.get(0));
+            out.print(", ");
+            ops.remove(0);
+            printJoin(ops, joinType);
+            out.print(Tags.RBRACKET);
+        }
+        else if(ops.size() == 2){
+            out.print(Tags.LBRACKET);
+            out.print("\"JOIN\"");
+            out.print(", ");
+            out.print(Tags.LBRACKET);
+            out.print(ops.get(0));
+            out.print(", ");
+            out.print(ops.get(1));
+            out.print(Tags.RBRACKET);
+        }
+        else {
+            printOp(ops.get(0));
+        }
     }
 
     private void visitOp2(OpConditional op, ExprList exprs) {
+        if(op.getLeft() instanceof OpTable || op.getLeft() instanceof OpLabel) {
+            printOp(op.getRight());
+            return;
+        }
+        if(op.getRight()    instanceof OpTable || op.getRight() instanceof OpLabel) {
+            printOp(op.getLeft());
+            return;
+        }
         out.print(Tags.LBRACKET);
         out.println("\"LEFT_JOIN\"");
         out.print(", ");
+        out.print(Tags.LBRACKET);
         printOp(op.getLeft());
-
         out.ensureStartOfLine();
         out.print(", ");
         printOp(op.getRight());
-//        if (exprs != null) {
-//            out.ensureStartOfLine();
-//            WriterExpr.output(out, exprs, sContext);
-//        }
+        out.print(Tags.RBRACKET);
         finish(op);
     }
     private void visitOp2(OpUnion op, ExprList exprs) {
+        if(op.getLeft() instanceof OpTable || op.getLeft() instanceof OpLabel) {
+            printOp(op.getRight());
+            return;
+        }
+        if(op.getRight() instanceof OpTable || op.getRight() instanceof OpLabel) {
+            printOp(op.getLeft());
+            return;
+        }
         out.print(Tags.LBRACKET);
         out.println("\"LEFT_JOIN\"");
         out.print(", ");
@@ -93,10 +132,6 @@ public class VisitorNeo implements OpVisitor {
         out.ensureStartOfLine();
         out.print(", ");
         printOp(op.getRight());
-//        if (exprs != null) {
-//            out.ensureStartOfLine();
-//            WriterExpr.output(out, exprs, sContext);
-//        }
         finish(op);
     }
 
@@ -104,11 +139,12 @@ public class VisitorNeo implements OpVisitor {
         out.print(Tags.LBRACKET);
         out.println("\"JOIN\"");
         out.print(", ");
+        out.print(Tags.LBRACKET);
         printOp(op.getLeft());
-
         out.ensureStartOfLine();
         out.print(", ");
         printOp(op.getRight());
+        out.print(Tags.RBRACKET);
 //        if (exprs != null) {
 //            out.ensureStartOfLine();
 //            WriterExpr.output(out, exprs, sContext);
@@ -124,10 +160,6 @@ public class VisitorNeo implements OpVisitor {
         out.ensureStartOfLine();
         out.print(", ");
         printOp(op.getRight());
-//        if (exprs != null) {
-//            out.ensureStartOfLine();
-//            WriterExpr.output(out, exprs, sContext);
-//        }
         finish(op);
     }
     private void visitOp1(OpDistinct op) {
@@ -387,26 +419,28 @@ public class VisitorNeo implements OpVisitor {
 
     @Override
     public void visit(OpTable opTable) {
-        if (TableUnit.isTableUnit(opTable.getTable())) {
-            start(opTable, WriterLib.NoNL);
-            out.print("unit");
-            finish(opTable);
-            return;
-        }
-
-        if (TableEmpty.isTableEmpty(opTable.getTable())) {
-            start(opTable, WriterLib.NoNL);
-            out.print("empty");
-            finish(opTable);
-            return;
-        }
-
-        start(opTable, WriterLib.NoNL);
-        WriterNode.outputVars(out, opTable.getTable().getVars(), null);
-        if (!opTable.getTable().isEmpty()) {
-            out.println();
-            WriterTable.outputPlain(out, opTable.getTable(), null);
-        }
+//        if (TableUnit.isTableUnit(opTable.getTable())) {
+//            start(opTable, WriterLib.NoNL);
+//            out.print("unit");
+//            finish(opTable);
+//            return;
+//        }
+//
+//        if (TableEmpty.isTableEmpty(opTable.getTable())) {
+//            start(opTable, WriterLib.NoNL);
+//            out.print("empty");
+//            finish(opTable);
+//            return;
+//        }
+//
+//        start(opTable, WriterLib.NoNL);
+//        WriterNode.outputVars(out, opTable.getTable().getVars(), null);
+//        if (!opTable.getTable().isEmpty()) {
+//            out.println();
+//            WriterTable.outputPlain(out, opTable.getTable(), null);
+//        }
+        out.print(Tags.LBRACKET);
+        out.print("\"TABLE\"");
         finish(opTable);
     }
 
@@ -433,16 +467,19 @@ public class VisitorNeo implements OpVisitor {
     @Override
     public void visit(OpLabel opLabel) {
         String x = FmtUtils.stringForString(opLabel.getObject().toString());
-        if (opLabel.hasSubOp()) {
-            start(opLabel, WriterLib.NL);
-            out.println(x);
-            printOp(opLabel.getSubOp());
-            finish(opLabel);
-        } else {
-            start(opLabel, WriterLib.NoNL);
-            out.print(x);
-            finish(opLabel);
-        }
+//        if (opLabel.hasSubOp()) {
+//            start(opLabel, WriterLib.NL);
+//            out.println(x);
+//            printOp(opLabel.getSubOp());
+//            finish(opLabel);
+//        } else {
+//            start(opLabel, WriterLib.NoNL);
+//            out.print(x);
+//            finish(opLabel);
+//        }
+        out.print(Tags.LBRACKET);
+        out.print("\"".concat(x).concat("\""));
+        out.println(Tags.RBRACKET);
     }
 
     @Override
@@ -483,22 +520,22 @@ public class VisitorNeo implements OpVisitor {
 
     @Override
     public void visit(OpOrder opOrder) {
-        start(opOrder, WriterLib.NoNL);
+//        start(opOrder, WriterLib.NoNL);
 
         // Write conditions
-        start();
-
-        boolean first = true;
-        for (SortCondition sc : opOrder.getConditions()) {
-            if (!first)
-                out.print(" ");
-            first = false;
-            formatSortCondition(sc);
-        }
-        finish();
-        out.newline();
+//        start();
+//
+//        boolean first = true;
+//        for (SortCondition sc : opOrder.getConditions()) {
+//            if (!first)
+//                out.print(" ");
+//            first = false;
+//            formatSortCondition(sc);
+//        }
+//        finish();
+//        out.newline();
         printOp(opOrder.getSubOp());
-        finish(opOrder);
+//        finish(opOrder);
     }
 
     @Override
@@ -585,13 +622,13 @@ public class VisitorNeo implements OpVisitor {
 
     @Override
     public void visit(OpSlice opSlice) {
-        start(opSlice, WriterLib.NoNL);
-        writeIntOrDefault(opSlice.getStart());
-        out.print(" ");
-        writeIntOrDefault(opSlice.getLength());
-        out.println();
+//        start(opSlice, WriterLib.NoNL);
+//        writeIntOrDefault(opSlice.getStart());
+//        out.print(" ");
+//        writeIntOrDefault(opSlice.getLength());
+//        out.println();
         printOp(opSlice.getSubOp());
-        finish(opSlice);
+//        finish(opSlice);
     }
 
     private void writeIntOrDefault(long value) {

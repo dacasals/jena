@@ -69,6 +69,7 @@ public class OpExecutorTDB2Neo extends OpExecutor
         {
             Explain.explain("TDB", op, super.execCxt.getContext());
             tdbqueryplan.currentRegStr = NeoExplain.explain("TDB", op, super.execCxt.getContext(), input);
+            System.out.println(tdbqueryplan.currentRegStr);
         }
         return input;
     }
@@ -469,7 +470,7 @@ public class OpExecutorTDB2Neo extends OpExecutor
                 // Triples graph from TDB (which is the default graph of the dataset),
                 // used a named graph in a composite dataset.
                 BasicPattern bgp = opQuadPattern.getBasicPattern();
-                NeoExplain.explain("Execute", bgp, execCxt.getContext());
+                Explain.explain("Execute", bgp, execCxt.getContext());
                 // Don't pass in G -- gn may be different.
                 return SolverLib.execute(((GraphTDB)g).getDSG(), gn, bgp, input, filter, execCxt);
             }

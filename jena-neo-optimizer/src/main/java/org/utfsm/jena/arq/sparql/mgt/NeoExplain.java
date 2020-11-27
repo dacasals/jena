@@ -170,7 +170,7 @@ public class NeoExplain {
     public static String explain(String message, Op op, Context context, QueryIterator input) {
        VisitorNeo visitorNeo =  new VisitorNeo(context, input);
        op.visit(visitorNeo);
-       return visitorNeo.out.toString();
+       return visitorNeo.out.toString().replaceAll("\n", " ");
     }
 
     // ---- BGP and quads
