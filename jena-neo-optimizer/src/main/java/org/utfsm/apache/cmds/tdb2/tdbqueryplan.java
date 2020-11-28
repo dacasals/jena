@@ -242,7 +242,6 @@ public class tdbqueryplan extends CmdARQ
                     Transactional transactional = (dataset != null && dataset.supportsTransactions()) ? dataset : new TransactionalNull();
                     Txn.executeRead(transactional, () -> {
                         try (QueryExecution qe = QueryExecutionFactory.create(query, dataset)) {
-
                             Plan plan = ((QueryExecutionBase) qe).getPlan();
                             plan.getOp();
                             System.out.println("Queries readed ".concat(String.valueOf(queries.size())));
@@ -251,7 +250,6 @@ public class tdbqueryplan extends CmdARQ
                             System.err.println(ex.getMessage());
                             ex.printStackTrace(System.err);
                         } catch (QueryException qEx) {
-                            // System.err.println(qEx.getMessage()) ;
                             throw new CmdException("Query Exeception", qEx);
                         }
                         catch (Exception qEx) {
@@ -279,7 +277,6 @@ public class tdbqueryplan extends CmdARQ
                 }
             }
             bw.close();
-//            outputQPlanDataset(registros);
         }
         catch (ARQInternalErrorException intEx) {
             System.err.println(intEx.getMessage()) ;
@@ -296,36 +293,4 @@ public class tdbqueryplan extends CmdARQ
             throw new CmdException("Exception", ex) ;
         }
     }
-
-//    private void outputQPlanDataset(HashMap<String, HashMap<String, ArrayList<String>>> registros) {
-//        Logger.getLogger("COMMAND_NEO").info("Outputing to csv");
-//        System.out.println("Queries : ".concat(String.valueOf(registros.size())));
-//        FileOutputStream output = null;
-//        try {
-//            output = new FileOutputStream(new File(outFileVal));
-//            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(output));
-//            String delimiterCol = "ᶶ";
-//            String delimiterColVals = "ᶷ";
-//            for (String key : registros.keySet()) {
-//                HashMap<String, ArrayList<String>> registro = registros.get(key);
-//                String row = "";
-//                row = row.concat(key.concat(delimiterCol));
-//                row = row.concat(registro.get("query").get(0).concat(delimiterCol));
-////                sb.append(String.join(delimiterColVals, ((ArrayList<String>) stringObjectHashMap.get("tdb"))).concat(delimiterCol));
-////                sb.append(String.join(delimiterColVals, ((ArrayList<String>) stringObjectHashMap.get("execute"))).concat(delimiterCol));
-//                if (registro.containsKey("execution_tree")) {
-//                    row = row.concat(String.join(delimiterColVals, registro.get("execution_tree")));
-//                }
-//                bw.write(row);
-//                bw.newLine();
-//                bw.close();
-//            }
-//            bw.write(sb.toString());
-//            bw.close();
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//
-//    }
-
 }

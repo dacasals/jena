@@ -80,9 +80,6 @@ public class OpExecutorTDB2Neo extends OpExecutor
     }
 
     protected QueryIterator execute(OpJoin opJoin, QueryIterator input) {
-        // Need to clone input into left and right.
-        // Do by evaling for each input case, the left and right and concat'ing
-        // the results.
         QueryIterator left = exec(opJoin.getLeft(), input) ;
         QueryIterator right = exec(opJoin.getRight(), root()) ;
         // Join key.
@@ -132,7 +129,6 @@ public class OpExecutorTDB2Neo extends OpExecutor
 
         GraphTDB graph = (GraphTDB)execCxt.getActiveGraph();
         return executeBGP(graph, opBGP, input, null, execCxt);
-
     }
 
     @Override

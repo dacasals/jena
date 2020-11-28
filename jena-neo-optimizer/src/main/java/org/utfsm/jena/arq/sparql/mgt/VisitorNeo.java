@@ -21,25 +21,17 @@ import org.apache.jena.sparql.engine.iterator.QueryIterPeek;
 import org.apache.jena.sparql.engine.optimizer.reorder.ReorderProc;
 import org.apache.jena.sparql.engine.optimizer.reorder.ReorderTransformation;
 import org.apache.jena.sparql.expr.Expr;
-import org.apache.jena.sparql.expr.ExprAggregator;
 import org.apache.jena.sparql.expr.ExprList;
 import org.apache.jena.sparql.path.*;
-import org.apache.jena.sparql.pfunction.PropFuncArg;
-import org.apache.jena.sparql.serializer.SerializationContext;
 import org.apache.jena.sparql.sse.Tags;
 import org.apache.jena.sparql.sse.writers.*;
 import org.apache.jena.sparql.util.Context;
 import org.apache.jena.sparql.util.FmtUtils;
 import org.apache.jena.tdb2.store.DatasetGraphTDB;
-import org.utfsm.apache.cmds.tdb2.tdbqueryplan;
-import org.utfsm.utils.BinaryTree;
 import org.utfsm.utils.BinaryTreePlan;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-
-import static org.utfsm.apache.cmds.tdb2.tdbqueryplan.dataset;
 
 public class VisitorNeo implements OpVisitor {
     public IndentedWriter out;
@@ -73,21 +65,23 @@ public class VisitorNeo implements OpVisitor {
             out.print(Tags.LBRACKET);
             out.print(joinType);
             out.print(", ");
-            out.print(Tags.LBRACKET);
-            out.print(ops.get(0));
-            out.print(", ");
-            ops.remove(0);
-            printJoin(ops, joinType);
+                out.print(Tags.LBRACKET);
+            printOp(ops.get(0));
+                out.print(", ");
+                ops.remove(0);
+                printJoin(ops, joinType);
+                out.print(Tags.RBRACKET);
             out.print(Tags.RBRACKET);
         }
         else if(ops.size() == 2){
             out.print(Tags.LBRACKET);
             out.print("\"JOIN\"");
             out.print(", ");
-            out.print(Tags.LBRACKET);
-            out.print(ops.get(0));
-            out.print(", ");
-            out.print(ops.get(1));
+                out.print(Tags.LBRACKET);
+                printOp(ops.get(0));
+                out.print(", ");
+                printOp(ops.get(1));
+                out.print(Tags.RBRACKET);
             out.print(Tags.RBRACKET);
         }
         else {
@@ -100,7 +94,7 @@ public class VisitorNeo implements OpVisitor {
             printOp(op.getRight());
             return;
         }
-        if(op.getRight()    instanceof OpTable || op.getRight() instanceof OpLabel) {
+        if(op.getRight() instanceof OpTable || op.getRight() instanceof OpLabel) {
             printOp(op.getLeft());
             return;
         }
@@ -149,6 +143,17 @@ public class VisitorNeo implements OpVisitor {
 //            out.ensureStartOfLine();
 //            WriterExpr.output(out, exprs, sContext);
 //        }
+        finish(op);
+    }
+    private void visitOp2(OpMinus op, ExprList exprs) {
+        out.print(Tags.LBRACKET);
+//        out.println(op.getName());
+//        out.print(", ");
+        printOp(op.getLeft());
+
+//        out.ensureStartOfLine();
+        out.print(", ");
+        printOp(op.getRight());
         finish(op);
     }
     private void visitOp2(Op2 op, ExprList exprs) {
@@ -306,7 +311,7 @@ public class VisitorNeo implements OpVisitor {
 //        out.print(formatTriplePath(opPath.getTriplePath());
         HashMap<String, ArrayList<String>> res = formatTriplePath(opPath.getTriplePath());
         BinaryTreePlan tree = new BinaryTreePlan("ᶲ");
-        out.print(tree.printLeafDataNode(res));
+        out.print("\"".concat(tree.printLeafDataNode(res)).concat("\""));
         out.print(Tags.RBRACKET);
     }
 
@@ -317,7 +322,7 @@ public class VisitorNeo implements OpVisitor {
         out.print(", ");
         HashMap<String, ArrayList<String>> res = formatTriple(opFind.getTriple());
         BinaryTreePlan tree = new BinaryTreePlan("ᶲ");
-        out.print(tree.printLeafDataNode(res));
+        out.print("\"".concat(tree.printLeafDataNode(res)).concat("\""));
         finish(opFind);
     }
 
@@ -540,24 +545,24 @@ public class VisitorNeo implements OpVisitor {
 
     @Override
     public void visit(OpTopN opTop) {
-        start(opTop, WriterLib.NoNL);
-
-        // Write conditions
-        start();
-        writeIntOrDefault(opTop.getLimit());
-        out.print(" ");
-
-        boolean first = true;
-        for (SortCondition sc : opTop.getConditions()) {
-            if (!first)
-                out.print(" ");
-            first = false;
-            formatSortCondition(sc);
-        }
-        finish();
-        out.newline();
+//        start(opTop, WriterLib.NoNL);
+//
+//        // Write conditions
+//        start();
+//        writeIntOrDefault(opTop.getLimit());
+//        out.print(" ");
+//
+//        boolean first = true;
+//        for (SortCondition sc : opTop.getConditions()) {
+//            if (!first)
+//                out.print(" ");
+//            first = false;
+//            formatSortCondition(sc);
+//        }
+//        finish();
+//        out.newline();
         printOp(opTop.getSubOp());
-        finish(opTop);
+//        finish(opTop);
     }
 
     // Neater would be a pair of explicit SortCondition formatters
@@ -604,11 +609,11 @@ public class VisitorNeo implements OpVisitor {
 
     @Override
     public void visit(OpAssign opAssign) {
-        start(opAssign, WriterLib.NoNL);
-        writeNamedExprList(opAssign.getVarExprList());
-        out.println();
+//        start(opAssign, WriterLib.NoNL);
+//        writeNamedExprList(opAssign.getVarExprList());
+//        out.println();
         printOp(opAssign.getSubOp());
-        finish(opAssign);
+//        finish(opAssign);
     }
 
     @Override
@@ -741,7 +746,7 @@ public class VisitorNeo implements OpVisitor {
         }else
             predicate = tp.getPredicate();
 
-        Triple triple = new Triple(tp.getSubject(), predicate ,tp.getObject());
+        Triple triple = new Triple(tp.getSubject(), predicate, tp.getObject());
         return formatTriple(triple);
     }
 
