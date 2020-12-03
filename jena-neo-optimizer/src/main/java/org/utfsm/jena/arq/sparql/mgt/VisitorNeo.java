@@ -65,23 +65,19 @@ public class VisitorNeo implements OpVisitor {
             out.print(Tags.LBRACKET);
             out.print(joinType);
             out.print(", ");
-                out.print(Tags.LBRACKET);
-            printOp(ops.get(0));
+                printOp(ops.get(0));
                 out.print(", ");
                 ops.remove(0);
                 printJoin(ops, joinType);
-                out.print(Tags.RBRACKET);
             out.print(Tags.RBRACKET);
         }
         else if(ops.size() == 2){
             out.print(Tags.LBRACKET);
             out.print("\"JOIN\"");
             out.print(", ");
-                out.print(Tags.LBRACKET);
                 printOp(ops.get(0));
                 out.print(", ");
                 printOp(ops.get(1));
-                out.print(Tags.RBRACKET);
             out.print(Tags.RBRACKET);
         }
         else {
@@ -101,12 +97,10 @@ public class VisitorNeo implements OpVisitor {
         out.print(Tags.LBRACKET);
         out.println("\"LEFT_JOIN\"");
         out.print(", ");
-        out.print(Tags.LBRACKET);
         printOp(op.getLeft());
         out.ensureStartOfLine();
         out.print(", ");
         printOp(op.getRight());
-        out.print(Tags.RBRACKET);
         finish(op);
     }
     private void visitOp2(OpUnion op, ExprList exprs) {
@@ -133,32 +127,24 @@ public class VisitorNeo implements OpVisitor {
         out.print(Tags.LBRACKET);
         out.println("\"JOIN\"");
         out.print(", ");
-        out.print(Tags.LBRACKET);
         printOp(op.getLeft());
         out.ensureStartOfLine();
         out.print(", ");
         printOp(op.getRight());
-        out.print(Tags.RBRACKET);
-//        if (exprs != null) {
-//            out.ensureStartOfLine();
-//            WriterExpr.output(out, exprs, sContext);
-//        }
         finish(op);
     }
     private void visitOp2(OpMinus op, ExprList exprs) {
         out.print(Tags.LBRACKET);
-//        out.println(op.getName());
-//        out.print(", ");
+        out.println("\"MINUS\"");
+        out.print(", ");
         printOp(op.getLeft());
-
-//        out.ensureStartOfLine();
         out.print(", ");
         printOp(op.getRight());
         finish(op);
     }
     private void visitOp2(Op2 op, ExprList exprs) {
         out.print(Tags.LBRACKET);
-        out.println(op.getName());
+        out.println("\"OP2\"");
         out.print(", ");
         printOp(op.getLeft());
 
@@ -592,9 +578,9 @@ public class VisitorNeo implements OpVisitor {
     @Override
     public void visit(OpProject opProject) {
 //        start(opProject, WriterLib.NoNL);
-        out.println(Tags.LBRACKET);
+//        out.println(Tags.LBRACKET);
         printOp(opProject.getSubOp());
-        finish(opProject);
+//        finish(opProject);
     }
 
     @Override
