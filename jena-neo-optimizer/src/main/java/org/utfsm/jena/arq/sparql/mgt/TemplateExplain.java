@@ -1,3 +1,24 @@
+package org.utfsm.jena.arq.sparql.mgt;
+
+import org.apache.jena.atlas.io.IndentedLineBuffer;
+import org.apache.jena.atlas.lib.StrUtils;
+import org.apache.jena.graph.Node;
+import org.apache.jena.graph.Triple;
+import org.apache.jena.query.ARQ;
+import org.apache.jena.query.Query;
+import org.apache.jena.sparql.algebra.Op;
+import org.apache.jena.sparql.core.BasicPattern;
+import org.apache.jena.sparql.core.Quad;
+import org.apache.jena.sparql.core.QuadPattern;
+import org.apache.jena.sparql.mgt.Explain;
+import org.apache.jena.sparql.path.Path;
+import org.apache.jena.sparql.serializer.SerializationContext;
+import org.apache.jena.sparql.sse.SSE;
+import org.apache.jena.sparql.sse.writers.WriterNode;
+import org.apache.jena.sparql.util.Context;
+import org.slf4j.Logger;
+
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -16,33 +37,23 @@
  * limitations under the License.
  */
 
-package org.utfsm.jena.arq.sparql.mgt ;
 
-import org.apache.jena.atlas.io.IndentedLineBuffer ;
-import org.apache.jena.atlas.lib.StrUtils ;
-import org.apache.jena.graph.Node ;
-import org.apache.jena.graph.Triple ;
-import org.apache.jena.query.ARQ ;
-import org.apache.jena.query.Query ;
-import org.apache.jena.sparql.algebra.Op ;
-import org.apache.jena.sparql.algebra.OpVisitor;
-import org.apache.jena.sparql.core.BasicPattern ;
-import org.apache.jena.sparql.core.Quad ;
-import org.apache.jena.sparql.core.QuadPattern ;
-import org.apache.jena.sparql.engine.ExecutionContext;
-import org.apache.jena.sparql.engine.QueryIterator;
-import org.apache.jena.sparql.mgt.Explain;
-import org.apache.jena.sparql.path.Path ;
-import org.apache.jena.sparql.serializer.SerializationContext ;
-import org.apache.jena.sparql.sse.SSE ;
-import org.apache.jena.sparql.sse.writers.WriterNode ;
-import org.apache.jena.sparql.util.Context ;
-import org.slf4j.Logger ;
-import org.utfsm.apache.cmds.tdb2.tdbqueryplan;
-import org.utfsm.utils.BinaryTreePlan;
-
-import java.util.ArrayList;
-import java.util.HashMap;
+        import org.apache.jena.atlas.io.IndentedLineBuffer ;
+        import org.apache.jena.atlas.lib.StrUtils ;
+        import org.apache.jena.graph.Node ;
+        import org.apache.jena.graph.Triple ;
+        import org.apache.jena.query.ARQ ;
+        import org.apache.jena.query.Query ;
+        import org.apache.jena.sparql.algebra.Op ;
+        import org.apache.jena.sparql.core.BasicPattern ;
+        import org.apache.jena.sparql.core.Quad ;
+        import org.apache.jena.sparql.core.QuadPattern ;
+        import org.apache.jena.sparql.path.Path ;
+        import org.apache.jena.sparql.serializer.SerializationContext ;
+        import org.apache.jena.sparql.sse.SSE ;
+        import org.apache.jena.sparql.sse.writers.WriterNode ;
+        import org.apache.jena.sparql.util.Context ;
+        import org.slf4j.Logger ;
 
 /**
  * Execution logging for query processing on a per query basis. This class
@@ -61,7 +72,8 @@ import java.util.HashMap;
  * @see ARQ#setExecutionLogging
  */
 
-public class NeoExplain {
+public class TemplateExplain {
+
     /**
      * Control whether messages include multiple line output. In multiple line
      * output, subsequent lines start with a space to help log file parsing.
@@ -70,7 +82,7 @@ public class NeoExplain {
 
     /*
      * The logging system provided levels: TRACE < DEBUG < INFO < WARN < ERROR <
-     * FATAL NeoExplain logging is always at logging level INFO. Per query: SYSTEM
+     * FATAL Explain logging is always at logging level INFO. Per query: SYSTEM
      * > EXEC (Query) > DETAIL (Algebra) > DEBUG (every BGP)
      *
      * Control: tdb:logExec = true (all), or enum
@@ -118,15 +130,15 @@ public class NeoExplain {
 
         abstract public int level() ;
 
-        public static InfoLevel get(String name) {
+        public static org.apache.jena.sparql.mgt.Explain.InfoLevel get(String name) {
             if ( "ALL".equalsIgnoreCase(name) )
-                return ALL ;
+                return Explain.InfoLevel.ALL ;
             if ( "FINE".equalsIgnoreCase(name) )
-                return FINE ;
+                return Explain.InfoLevel.FINE ;
             if ( "INFO".equalsIgnoreCase(name) )
-                return INFO ;
+                return Explain.InfoLevel.INFO ;
             if ( "NONE".equalsIgnoreCase(name) )
-                return NONE ;
+                return Explain.InfoLevel.NONE ;
             return null ;
         }
     }
@@ -146,7 +158,7 @@ public class NeoExplain {
     }
 
     public static void explain(String message, Query query, Context context) {
-        if ( explaining(InfoLevel.INFO, logExec, context) ) {
+        if ( explaining(org.apache.jena.sparql.mgt.Explain.InfoLevel.INFO, logExec, context) ) {
             // One line or indented multiline format
             IndentedLineBuffer iBuff = new IndentedLineBuffer() ;
             if ( true )
@@ -162,16 +174,24 @@ public class NeoExplain {
     // ---- Algebra
 
     public static void explain(Op op, Context context) {
-        Explain.explain("Algebra", op, context); ;
+        explain("Algebra", op, context) ;
     }
 
     private static final boolean MultiLinesForOps = true ;
     private static final boolean MultiLinesForPatterns = true ;
 
-    public static String explain(String message, Op op, ExecutionContext context, QueryIterator input) {
-       VisitorNeo visitorNeo =  new VisitorNeo(context, input);
-       op.visit(visitorNeo);
-       return visitorNeo.out.toString().replaceAll("\n", " ");
+    public static void explain(String message, Op op, Context context) {
+        if ( explaining(org.apache.jena.sparql.mgt.Explain.InfoLevel.FINE, logExec, context) ) {
+            try (IndentedLineBuffer iBuff = new IndentedLineBuffer()) {
+                if ( MultiLinesForOps )
+                    iBuff.incIndent() ;
+                else
+                    iBuff.setFlatMode(true) ;
+                op.output(iBuff) ;
+                String x = iBuff.asString() ;
+                _explain(logExec, message, x, true) ;
+            }
+        }
     }
 
     // ---- BGP and quads
@@ -181,7 +201,7 @@ public class NeoExplain {
     }
 
     public static void explain(String message, BasicPattern bgp, Context context) {
-        if ( explaining(InfoLevel.ALL, logExec, context) ) {
+        if ( explaining(org.apache.jena.sparql.mgt.Explain.InfoLevel.ALL, logExec, context) ) {
             try (IndentedLineBuffer iBuff = new IndentedLineBuffer()) {
                 if ( MultiLinesForPatterns )
                     iBuff.incIndent() ;
@@ -194,7 +214,7 @@ public class NeoExplain {
     }
 
     public static void explain(String message, QuadPattern quads, Context context) {
-        if ( explaining(InfoLevel.ALL, logExec, context) ) {
+        if ( explaining(org.apache.jena.sparql.mgt.Explain.InfoLevel.ALL, logExec, context) ) {
             try (IndentedLineBuffer iBuff = new IndentedLineBuffer()) {
                 if ( MultiLinesForPatterns )
                     iBuff.incIndent() ;
@@ -205,6 +225,23 @@ public class NeoExplain {
             }
         }
     }
+
+    // public static void explainHTTP(String message, String request, Context
+    // context)
+    // {
+    // if ( explaining(InfoLevel.ALL, logExec,context) )
+    // {
+    // IndentedLineBuffer iBuff = new IndentedLineBuffer() ;
+    // if ( true )
+    // iBuff.incIndent() ;
+    // else
+    // iBuff.setFlatMode(true) ;
+    // ???
+    // iBuff.flush() ;
+    // String str = iBuff.toString() ;
+    // _explain(logExec, message, str, false) ;
+    // }
+    // }
 
     // TEMP : quad list that looks right.
     // Remove when QuadPatterns roll through from ARQ.
@@ -237,83 +274,19 @@ public class NeoExplain {
     }
 
     private static void formatTriples(IndentedLineBuffer out, BasicPattern triples) {
-//        SerializationContext sCxt = SSE.sCxt(SSE.getPrefixMapWrite()) ;
-//
-//        boolean first = true ;
-//        for ( Triple qp : triples ) {
-//            if ( ! first && ! MultiLinesForPatterns )
-//                out.print(" ") ;
-//            first = false ;
-//            WriterNode.outputPlain(out, qp, sCxt);
-//            if ( MultiLinesForPatterns )
-//                out.println() ;
-//        }
-        BinaryTreePlan tree = new BinaryTreePlan("ᶲ");
-        ArrayList<HashMap<String, ArrayList<String>>> triplesArr = new ArrayList<>();
+        SerializationContext sCxt = SSE.sCxt(SSE.getPrefixMapWrite()) ;
 
-        for (Triple value : triples) {
-            ArrayList<String> subType, predType, objType;
-            subType = getType(value.getSubject());
-            predType = getType(value.getPredicate());
-            objType = getType(value.getObject());
-            HashMap<String, ArrayList<String>> treeLeaf = new HashMap<>();
-            // Get tpf_type
-            String patron = subType.get(0).concat("_").concat(predType.get(0)).concat("_").concat(objType.get(0));
-            ArrayList<String> tpfList = new ArrayList<>();
-            tpfList.add(patron);
-            treeLeaf.put("tpf_type", tpfList);
-            //Define predicates, in case of leaf only one( the triple predicate).
-            ArrayList<String> preds = new ArrayList<>();
-            //Todo, need to validate.
-            //Define the predicate of tpf in the order: (1)predicate, (2)subject,(3)object
-            if(!patron.equals("VAR_VAR_VAR") && !patron.equals("VAR_VAR_LITERAL") && !patron.equals("LITERAL_VAR_VAR")){
-                if(predType.get(0).equals("URI")){
-                    preds.add(value.getPredicate().getURI());
-                }else if (subType.get(0).equals("URI")){
-                    preds.add(value.getSubject().getURI());
-                }
-                else{
-                    preds.add(value.getObject().getURI());
-                }
-            }
-            treeLeaf.put("predicates", preds);
-            triplesArr.add(treeLeaf);
-        }
-        if(triplesArr.size() > 0)
-        {
-            tree.addNodeList(triplesArr);
-//                    Log.info("EXECUTION_TREE", tree.toString());
-
-            //modify global var
-//                    HashMap<String, ArrayList<String>> qData = tdbqueryplan.currentReg;
-//                    ArrayList<BinaryTreePlan> qDataObj = tdbqueryplan.registrosObj.get(tdbqueryplan.lastReg);
-
-            ArrayList<String> exeTree;
-            exeTree = tdbqueryplan.currentReg.get("execution_tree");
-
-            tdbqueryplan.currentReg.get("execution_tree").add(tree.toString().replaceAll("\n", " "));
-//                    tdbqueryplan.currentReg.put("execution_tree", exeTree);
-//                    qDataObj.add(tree);
-//                    tdbqueryplan.currentReg =  qData;
-                    tdbqueryplan.registrosObj.add(tree);
+        boolean first = true ;
+        for ( Triple qp : triples ) {
+            if ( ! first && ! MultiLinesForPatterns )
+                out.print(" ") ;
+            first = false ;
+            WriterNode.outputPlain(out, qp, sCxt);
+            if ( MultiLinesForPatterns )
+                out.println() ;
         }
     }
-    private static ArrayList<String> getType(Node node){
-        ArrayList<String> lista = new ArrayList<>();
-        if (node.isVariable()){
-            lista.add("VAR");
-            lista.add(node.getName());
-        }
-        else if (node.isURI()){
-            lista.add("URI");
-            lista.add(node.getURI());
-        }
-        else if(node.isLiteral()){
-            lista.add("LITERAL");
-            lista.add(node.getLiteral().toString());
-        }
-        return lista;
-    }
+
     // ----
 
     private static void _explain(Logger logger, String reason, String explanation, boolean newlineAlways) {
@@ -334,12 +307,12 @@ public class NeoExplain {
 
     // General information
     public static void explain(Context context, String message) {
-        if ( explaining(InfoLevel.INFO, logInfo, context) )
+        if ( explaining(org.apache.jena.sparql.mgt.Explain.InfoLevel.INFO, logInfo, context) )
             _explain(logInfo, message) ;
     }
 
     public static void explain(Context context, String format, Object... args) {
-        if ( explaining(InfoLevel.INFO, logInfo, context) ) {
+        if ( explaining(org.apache.jena.sparql.mgt.Explain.InfoLevel.INFO, logInfo, context) ) {
             // Caveat: String.format is not cheap.
             String str = String.format(format, args) ;
             _explain(logInfo, str) ;
@@ -351,14 +324,14 @@ public class NeoExplain {
     // return explaining(level, logExec, context) ;
     // }
 
-    public static boolean explaining(InfoLevel level, Logger logger, Context context) {
-//        if ( !_explaining(level, context) )
-//            return false ;
+    public static boolean explaining(org.apache.jena.sparql.mgt.Explain.InfoLevel level, Logger logger, Context context) {
+        if ( !_explaining(level, context) )
+            return false ;
         return logger.isInfoEnabled() ;
     }
 
-    private static boolean _explaining(InfoLevel level, Context context) {
-        if ( level == InfoLevel.NONE )
+    private static boolean _explaining(org.apache.jena.sparql.mgt.Explain.InfoLevel level, Context context) {
+        if ( level == org.apache.jena.sparql.mgt.Explain.InfoLevel.NONE )
             return false ;
 
         Object x = context.get(ARQ.symLogExec, null) ;
@@ -367,12 +340,12 @@ public class NeoExplain {
             return false ;
 
         // Enum level.
-        if ( level.level() == InfoLevel.NONE.level() )
+        if ( level.level() == org.apache.jena.sparql.mgt.Explain.InfoLevel.NONE.level() )
             return false ;
 
-        if ( x instanceof InfoLevel ) {
-            InfoLevel z = (InfoLevel)x ;
-            if ( z == InfoLevel.NONE )
+        if ( x instanceof org.apache.jena.sparql.mgt.Explain.InfoLevel) {
+            org.apache.jena.sparql.mgt.Explain.InfoLevel z = (org.apache.jena.sparql.mgt.Explain.InfoLevel)x ;
+            if ( z == org.apache.jena.sparql.mgt.Explain.InfoLevel.NONE )
                 return false ;
             return (z.level() >= level.level()) ;
         }
@@ -381,9 +354,9 @@ public class NeoExplain {
             String s = (String)x ;
 
             if ( s.equalsIgnoreCase("info") )
-                return level.equals(InfoLevel.INFO) ;
+                return level.equals(org.apache.jena.sparql.mgt.Explain.InfoLevel.INFO) ;
             if ( s.equalsIgnoreCase("fine") )
-                return level.equals(InfoLevel.FINE) || level.equals(InfoLevel.INFO) ;
+                return level.equals(org.apache.jena.sparql.mgt.Explain.InfoLevel.FINE) || level.equals(org.apache.jena.sparql.mgt.Explain.InfoLevel.INFO) ;
             if ( s.equalsIgnoreCase("all") )
                 // All levels.
                 return true ;
@@ -404,7 +377,7 @@ public class NeoExplain {
     }
 
     public static void explain(String message, Node s, Path path, Node o, Context context) {
-        if ( explaining(InfoLevel.ALL, logExec, context) ) {
+        if ( explaining(org.apache.jena.sparql.mgt.Explain.InfoLevel.ALL, logExec, context) ) {
             String str = s + " " + path + " " + o ;
             _explain(logExec, message, str, false) ;
         }

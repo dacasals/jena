@@ -1,11 +1,8 @@
 package org.utfsm.jena.arq.sparql.mgt;
 
-import com.github.jsonldjava.core.RDFDataset;
 import org.apache.jena.atlas.io.IndentedLineBuffer;
 import org.apache.jena.atlas.io.IndentedWriter;
 import org.apache.jena.graph.Node;
-import org.apache.jena.graph.Node_ANY;
-import org.apache.jena.graph.Node_URI;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.SortCondition;
@@ -17,150 +14,66 @@ import org.apache.jena.sparql.algebra.table.TableUnit;
 import org.apache.jena.sparql.core.*;
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
-import org.apache.jena.sparql.engine.iterator.QueryIterPeek;
 import org.apache.jena.sparql.engine.optimizer.reorder.ReorderProc;
 import org.apache.jena.sparql.engine.optimizer.reorder.ReorderTransformation;
 import org.apache.jena.sparql.expr.Expr;
+import org.apache.jena.sparql.expr.ExprAggregator;
 import org.apache.jena.sparql.expr.ExprList;
-import org.apache.jena.sparql.path.*;
+import org.apache.jena.sparql.path.P_Link;
+import org.apache.jena.sparql.path.P_Path0;
+import org.apache.jena.sparql.path.P_Path1;
+import org.apache.jena.sparql.pfunction.PropFuncArg;
+import org.apache.jena.sparql.serializer.SerializationContext;
 import org.apache.jena.sparql.sse.Tags;
 import org.apache.jena.sparql.sse.writers.*;
 import org.apache.jena.sparql.util.Context;
 import org.apache.jena.sparql.util.FmtUtils;
 import org.apache.jena.tdb2.store.DatasetGraphTDB;
 import org.utfsm.utils.BinaryTreePlan;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 
-public class VisitorNeo implements OpVisitor {
+public class VisitorNeoForTree implements OpVisitor {
     public IndentedWriter out;
     private ExecutionContext sContext;
     private QueryIterator input;
-    public String salida = "";
-    public VisitorNeo(ExecutionContext sContext, QueryIterator input) {
+
+    public VisitorNeoForTree(ExecutionContext sContext, QueryIterator input) {
         out = new IndentedLineBuffer();
         this.sContext =  sContext;
         this.input =  input;
     }
 
     private void visitOpN(OpN op) {
-        ArrayList<Op> ops = new ArrayList<>();
+        start(op, WriterLib.NL);
         for (Iterator<Op> iter = op.iterator(); iter.hasNext(); ) {
             Op sub = iter.next();
-            if(sub instanceof OpTable){
-                continue;
-            }
-            ops.add(sub);
+            out.ensureStartOfLine();
+            printOp(sub);
+            if(iter.hasNext())
+                out.write(", ");
         }
-        if(ops.size() == 0){
-            return;
-        }
-        else {
-            printJoin(ops,"\"JOIN\"");
-        }
-    }
-    private void printJoin(ArrayList<Op> ops, String joinType){
-        if(ops.size() > 2){
-            out.print(Tags.LBRACKET);
-            out.print(joinType);
-            out.print(", ");
-                printOp(ops.get(0));
-                out.print(", ");
-                ops.remove(0);
-                printJoin(ops, joinType);
-            out.print(Tags.RBRACKET);
-        }
-        else if(ops.size() == 2){
-            out.print(Tags.LBRACKET);
-            out.print("\"JOIN\"");
-            out.print(", ");
-                printOp(ops.get(0));
-                out.print(", ");
-                printOp(ops.get(1));
-            out.print(Tags.RBRACKET);
-        }
-        else {
-            printOp(ops.get(0));
-        }
-    }
-
-    private void visitOp2(OpConditional op, ExprList exprs) {
-        if(op.getLeft() instanceof OpTable || op.getLeft() instanceof OpLabel) {
-            printOp(op.getRight());
-            return;
-        }
-        if(op.getRight() instanceof OpTable || op.getRight() instanceof OpLabel) {
-            printOp(op.getLeft());
-            return;
-        }
-        out.print(Tags.LBRACKET);
-        out.println("\"LEFT_JOIN\"");
-        out.print(", ");
-        printOp(op.getLeft());
-        out.ensureStartOfLine();
-        out.print(", ");
-        printOp(op.getRight());
-        finish(op);
-    }
-    private void visitOp2(OpUnion op, ExprList exprs) {
-        if(op.getLeft() instanceof OpTable || op.getLeft() instanceof OpLabel) {
-            printOp(op.getRight());
-            return;
-        }
-        if(op.getRight() instanceof OpTable || op.getRight() instanceof OpLabel) {
-            printOp(op.getLeft());
-            return;
-        }
-        out.print(Tags.LBRACKET);
-        out.println("\"LEFT_JOIN\"");
-        out.print(", ");
-        printOp(op.getLeft());
-
-        out.ensureStartOfLine();
-        out.print(", ");
-        printOp(op.getRight());
         finish(op);
     }
 
-    private void visitOp2(OpJoin op, ExprList exprs) {
-        out.print(Tags.LBRACKET);
-        out.println("\"JOIN\"");
-        out.print(", ");
-        printOp(op.getLeft());
-        out.ensureStartOfLine();
-        out.print(", ");
-        printOp(op.getRight());
-        finish(op);
-    }
-    private void visitOp2(OpMinus op, ExprList exprs) {
-        out.print(Tags.LBRACKET);
-        out.println("\"MINUS\"");
-        out.print(", ");
-        printOp(op.getLeft());
-        out.print(", ");
-        printOp(op.getRight());
-        finish(op);
-    }
     private void visitOp2(Op2 op, ExprList exprs) {
-        out.print(Tags.LBRACKET);
-        out.println("\"OP2\"");
-        out.print(", ");
+        start(op, WriterLib.NL);
         printOp(op.getLeft());
 
-        out.ensureStartOfLine();
         out.print(", ");
+
         printOp(op.getRight());
+//        if (exprs != null) {
+//            out.ensureStartOfLine();
+//            WriterExpr.output(out, exprs, sContext);
+//        }
         finish(op);
     }
-    private void visitOp1(OpDistinct op) {
 
-//        start(op, WriterLib.NL);
-        printOp(op.getSubOp());
-//        finish(op);
-    }
     private void visitOp1(Op1 op) {
-
         start(op, WriterLib.NL);
         printOp(op.getSubOp());
         finish(op);
@@ -170,7 +83,7 @@ public class VisitorNeo implements OpVisitor {
     public void visit(OpBGP opBGP) {
         if (opBGP.getPattern().size() == 1) {
             start(opBGP, WriterLib.NoNL);
-
+            write(opBGP.getPattern(), true);
             finish(opBGP);
             return;
         }
@@ -191,31 +104,28 @@ public class VisitorNeo implements OpVisitor {
 
     @Override
     public void visit(OpQuadPattern opQuadP) {
-//        QuadPattern quads = opQuadP.getPattern();
+        QuadPattern quads = opQuadP.getPattern();
+        if (quads.size() == 1) {
+//            start(opQuadP, WriterLib.NoNL);
+//            out.print(Tags.LBRACKET);
+            start(new OpTriple(null), WriterLib.NoNL);
+            HashMap<String, ArrayList<String>> res = formatQuad(quads.get(0));
+            BinaryTreePlan tree = new BinaryTreePlan("ᶲ");
+            out.print("\"".concat(tree.printLeafDataNode(res)).concat("\""));
+            finish();
+            return;
+        }
 
         DatasetGraphTDB ds = (DatasetGraphTDB) sContext.getDataset();
         ReorderTransformation transform = ds.getDefaultGraphTDB().getDSG().getReorderTransform();
-        OpBGP opBGP = new OpBGP(opQuadP.getBasicPattern()) ;
-        BasicPattern pattern = opBGP.getPattern();
+        BasicPattern pattern = opQuadP.getBasicPattern();
         if ( transform != null )
         {
-            ReorderProc proc = transform.reorderIndexes(opBGP.getPattern());
+            ReorderProc proc = transform.reorderIndexes(pattern);
             // Then reorder original patten
-            pattern = proc.reorder(opBGP.getPattern());
+            pattern = proc.reorder(pattern);
         }
-        write(pattern, true);
-
-//        if (quads.size() == 1) {
-////            start(opQuadP, WriterLib.NoNL);
-//            out.print(Tags.LBRACKET);
-//
-//            HashMap<String, ArrayList<String>> res = formatQuad(quads.get(0));
-//            BinaryTreePlan tree = new BinaryTreePlan("ᶲ");
-//            out.print("\"".concat(tree.printLeafDataNode(res)).concat("\""));
-//            out.print(Tags.RBRACKET);
-//            return;
-//        }
-//        write(quads, false);
+        write(pattern, false);
     }
 
     @Override
@@ -223,9 +133,7 @@ public class VisitorNeo implements OpVisitor {
         QuadPattern quads = opQuads.getPattern();
         if (quads.size() == 1) {
             start(opQuads, WriterLib.NoNL);
-            HashMap<String, ArrayList<String>> res = formatQuad(quads.get(0));
-            BinaryTreePlan tree = new BinaryTreePlan("ᶲ");
-            out.print("\"".concat(tree.printLeafDataNode(res)).concat("\""));
+            formatQuad(quads.get(0));
             finish(opQuads);
             return;
         }
@@ -235,39 +143,21 @@ public class VisitorNeo implements OpVisitor {
     }
 
     private void write(BasicPattern pattern, boolean oneLine) {
-        BinaryTreePlan tree = new BinaryTreePlan("ᶲ");
-        ArrayList<HashMap<String, ArrayList<String>>> triplesArr = new ArrayList<>();
+        boolean first = true;
+        for (Triple t : pattern) {
+            formatTriple(t);
+            if (oneLine) {
+                if (!first)
+                    out.print(" ");
+            } else
+                out.println();
+            first = false;
+        }
+    }
 
-        for (Triple q : pattern) {
-            HashMap<String, ArrayList<String>> treeLeaf = formatTriple(q);
-            triplesArr.add(treeLeaf);
-        }
-        if(triplesArr.size() > 0)
-        {
-            tree.addNodeList(triplesArr);
-            out.println(tree.toString().replaceAll("\n", " "));
-        }
-    }
-    private ArrayList<String> getType(Node node){
-        ArrayList<String> lista = new ArrayList<>();
-        if (node.isVariable()){
-            lista.add("VAR");
-            lista.add(node.getName());
-        }
-        else if (node.isURI()){
-            lista.add("URI");
-            lista.add(node.getURI());
-        }
-        else if(node.isLiteral()){
-            lista.add("LITERAL");
-            lista.add(node.getLiteral().toString());
-        }
-        return lista;
-    }
     private void write(QuadPattern quads, boolean oneLine) {
         BinaryTreePlan tree = new BinaryTreePlan("ᶲ");
         ArrayList<HashMap<String, ArrayList<String>>> triplesArr = new ArrayList<>();
-
 
         for (Quad q : quads) {
             HashMap<String, ArrayList<String>> treeLeaf = formatQuad(q);
@@ -290,74 +180,66 @@ public class VisitorNeo implements OpVisitor {
 //        }
 //        out.println(Tags.RBRACKET);
     }
-
     @Override
     public void visit(OpTriple opTriple) {
-        HashMap<String, ArrayList<String>> res = formatTriple(opTriple.getTriple());
-        BinaryTreePlan tree = new BinaryTreePlan("ᶲ");
-        out.print("\"".concat(tree.printLeafDataNode(res)).concat("\""));
+        formatTriple(opTriple.getTriple());
     }
 
     @Override
     public void visit(OpQuad opQuad) {
-        HashMap<String, ArrayList<String>> res = formatQuad(opQuad.getQuad());
-        BinaryTreePlan tree = new BinaryTreePlan("ᶲ");
-        out.print("\"".concat(tree.printLeafDataNode(res)).concat("\""));
+        formatQuad(opQuad.getQuad());
     }
 
     @Override
     public void visit(OpPath opPath) {
-        out.print(Tags.LBRACKET);
-//        out.print(formatTriplePath(opPath.getTriplePath());
+         start(opPath, WriterLib.NoNL) ;
         HashMap<String, ArrayList<String>> res = formatTriplePath(opPath.getTriplePath());
-        BinaryTreePlan tree = new BinaryTreePlan("ᶲ");
+        BinaryTreePlan tree = new BinaryTreePlan(",");
         out.print("\"".concat(tree.printLeafDataNode(res)).concat("\""));
-        out.print(Tags.RBRACKET);
+        finish(opPath);
     }
 
     @Override
     public void visit(OpFind opFind) {
         start(opFind, WriterLib.NoNL);
-//        out.print(opFind.getVar());
-        out.print(", ");
-        HashMap<String, ArrayList<String>> res = formatTriple(opFind.getTriple());
-        BinaryTreePlan tree = new BinaryTreePlan("ᶲ");
-        out.print("\"".concat(tree.printLeafDataNode(res)).concat("\""));
+        out.print(opFind.getVar());
+        out.print(" ");
+        formatTriple(opFind.getTriple());
         finish(opFind);
     }
 
     @Override
     public void visit(OpProcedure opProc) {
-//        start(opProc, WriterLib.NoNL);
-//        WriterNode.output(out, opProc.getProcId(), sContext);
-//        out.println();
-//        WriterExpr.output(out, opProc.getArgs(), true, false, sContext);
-//        out.println();
+        start(opProc, WriterLib.NoNL);
+        WriterNode.output(out, opProc.getProcId(), null);
+        out.println();
+        WriterExpr.output(out, opProc.getArgs(), true, false, null);
+        out.println();
         printOp(opProc.getSubOp());
-//        finish(opProc);
+        finish(opProc);
     }
 
     @Override
     public void visit(OpPropFunc opPropFunc) {
-//        start(opPropFunc, WriterLib.NoNL);
-//        out.print(FmtUtils.stringForNode(opPropFunc.getProperty(), sContext));
-//        out.println();
-//
-//        outputPF(opPropFunc.getSubjectArgs());
-//        out.print(" ");
-//        outputPF(opPropFunc.getObjectArgs());
-//        out.println();
+        start(opPropFunc, WriterLib.NoNL);
+        out.print(FmtUtils.stringForNode(opPropFunc.getProperty()));
+        out.println();
+
+        outputPF(opPropFunc.getSubjectArgs());
+        out.print(" ");
+        outputPF(opPropFunc.getObjectArgs());
+        out.println();
         printOp(opPropFunc.getSubOp());
-//        finish(opPropFunc);
+        finish(opPropFunc);
     }
 
-//    private void outputPF(PropFuncArg pfArg) {
-//        if (pfArg.isNode()) {
-//            WriterNode.output(out, pfArg.getArg(), sContext);
-//            return;
-//        }
-//        WriterNode.output(out, pfArg.getArgList(), sContext);
-//    }
+    private void outputPF(PropFuncArg pfArg) {
+        if (pfArg.isNode()) {
+            WriterNode.output(out, pfArg.getArg(), null);
+            return;
+        }
+        WriterNode.output(out, pfArg.getArgList(), null);
+    }
 
     @Override
     public void visit(OpJoin opJoin) {
@@ -401,51 +283,60 @@ public class VisitorNeo implements OpVisitor {
 
     @Override
     public void visit(OpFilter opFilter) {
+        start(opFilter, WriterLib.NoNL);
+
+//        ExprList exprs = opFilter.getExprs();
+//        if (exprs == null) {
+//            start();
+//            finish();
+//        } else
+//            WriterExpr.output(out, exprs, sContext);
+        out.println();
         printOp(opFilter.getSubOp());
+
+        finish(opFilter);
     }
 
     @Override
     public void visit(OpGraph opGraph) {
-//        start(opGraph, WriterLib.NoNL);
+        start(opGraph, WriterLib.NoNL);
 //        out.println(FmtUtils.stringForNode(opGraph.getNode(), sContext));
         opGraph.getSubOp().visit(this);
-//        finish(opGraph);
+        finish(opGraph);
     }
 
     @Override
     public void visit(OpService opService) {
-//        start(opService, WriterLib.NoNL);
-//        if (opService.getSilent())
-//            out.println("silent ");
-//        out.println(FmtUtils.stringForNode(opService.getService(), sContext));
+        start(opService, WriterLib.NoNL);
+        if (opService.getSilent())
+            out.println("silent ");
+        out.println(FmtUtils.stringForNode(opService.getService()));
         opService.getSubOp().visit(this);
-//        finish(opService);
+        finish(opService);
     }
 
     @Override
     public void visit(OpTable opTable) {
-//        if (TableUnit.isTableUnit(opTable.getTable())) {
-//            start(opTable, WriterLib.NoNL);
-//            out.print("unit");
-//            finish(opTable);
-//            return;
-//        }
-//
-//        if (TableEmpty.isTableEmpty(opTable.getTable())) {
-//            start(opTable, WriterLib.NoNL);
-//            out.print("empty");
-//            finish(opTable);
-//            return;
-//        }
-//
-//        start(opTable, WriterLib.NoNL);
-//        WriterNode.outputVars(out, opTable.getTable().getVars(), null);
-//        if (!opTable.getTable().isEmpty()) {
-//            out.println();
-//            WriterTable.outputPlain(out, opTable.getTable(), null);
-//        }
-        out.print(Tags.LBRACKET);
-        out.print("\"TABLE\"");
+        if (TableUnit.isTableUnit(opTable.getTable())) {
+            start(opTable, WriterLib.NoNL);
+            out.print("unit");
+            finish(opTable);
+            return;
+        }
+
+        if (TableEmpty.isTableEmpty(opTable.getTable())) {
+            start(opTable, WriterLib.NoNL);
+            out.print("empty");
+            finish(opTable);
+            return;
+        }
+
+        start(opTable, WriterLib.NoNL);
+//        WriterNode.outputVars(out, opTable.getTable().getVars(), sContext);
+        if (!opTable.getTable().isEmpty()) {
+            out.println();
+            WriterTable.outputPlain(out, opTable.getTable(), null);
+        }
         finish(opTable);
     }
 
@@ -472,19 +363,16 @@ public class VisitorNeo implements OpVisitor {
     @Override
     public void visit(OpLabel opLabel) {
         String x = FmtUtils.stringForString(opLabel.getObject().toString());
-//        if (opLabel.hasSubOp()) {
-//            start(opLabel, WriterLib.NL);
-//            out.println(x);
-//            printOp(opLabel.getSubOp());
-//            finish(opLabel);
-//        } else {
-//            start(opLabel, WriterLib.NoNL);
-//            out.print(x);
-//            finish(opLabel);
-//        }
-        out.print(Tags.LBRACKET);
-        out.print("\"".concat(x).concat("\""));
-        out.println(Tags.RBRACKET);
+        if (opLabel.hasSubOp()) {
+            start(opLabel, WriterLib.NL);
+            out.println(x);
+            printOp(opLabel.getSubOp());
+            finish(opLabel);
+        } else {
+            start(opLabel, WriterLib.NoNL);
+            out.print(x);
+            finish(opLabel);
+        }
     }
 
     @Override
@@ -494,7 +382,7 @@ public class VisitorNeo implements OpVisitor {
 
     @Override
     public void visit(OpGroup opGroup) {
-//        start(opGroup, WriterLib.NoNL);
+        start(opGroup, WriterLib.NoNL);
 //        writeNamedExprList(opGroup.getGroupVars());
 //        if (!opGroup.getAggregators().isEmpty()) {
 //            // --- Aggregators
@@ -518,40 +406,40 @@ public class VisitorNeo implements OpVisitor {
 //            finish();
 //            out.decIndent();
 //        }
-//        out.println();
+        out.println();
         printOp(opGroup.getSubOp());
-//        finish(opGroup);
+        finish(opGroup);
     }
 
     @Override
     public void visit(OpOrder opOrder) {
-//        start(opOrder, WriterLib.NoNL);
+        start(opOrder, WriterLib.NoNL);
 
         // Write conditions
-//        start();
-//
-//        boolean first = true;
-//        for (SortCondition sc : opOrder.getConditions()) {
-//            if (!first)
-//                out.print(" ");
-//            first = false;
-//            formatSortCondition(sc);
-//        }
-//        finish();
-//        out.newline();
+        start();
+
+        boolean first = true;
+        for (SortCondition sc : opOrder.getConditions()) {
+            if (!first)
+                out.print(" ");
+            first = false;
+            formatSortCondition(sc);
+        }
+        finish();
+        out.newline();
         printOp(opOrder.getSubOp());
-//        finish(opOrder);
+        finish(opOrder);
     }
 
     @Override
     public void visit(OpTopN opTop) {
-//        start(opTop, WriterLib.NoNL);
-//
-//        // Write conditions
+        start(opTop, WriterLib.NoNL);
+
+        // Write conditions
 //        start();
 //        writeIntOrDefault(opTop.getLimit());
 //        out.print(" ");
-//
+
 //        boolean first = true;
 //        for (SortCondition sc : opTop.getConditions()) {
 //            if (!first)
@@ -560,9 +448,8 @@ public class VisitorNeo implements OpVisitor {
 //            formatSortCondition(sc);
 //        }
 //        finish();
-//        out.newline();
         printOp(opTop.getSubOp());
-//        finish(opTop);
+        finish(opTop);
     }
 
     // Neater would be a pair of explicit SortCondition formatters
@@ -591,10 +478,11 @@ public class VisitorNeo implements OpVisitor {
 
     @Override
     public void visit(OpProject opProject) {
-//        start(opProject, WriterLib.NoNL);
-//        out.println(Tags.LBRACKET);
+        start(opProject, WriterLib.NoNL);
+//        writeVarList(opProject.getVars());
+        out.println();
         printOp(opProject.getSubOp());
-//        finish(opProject);
+        finish(opProject);
     }
 
     @Override
@@ -609,31 +497,31 @@ public class VisitorNeo implements OpVisitor {
 
     @Override
     public void visit(OpAssign opAssign) {
-//        start(opAssign, WriterLib.NoNL);
-//        writeNamedExprList(opAssign.getVarExprList());
-//        out.println();
+        start(opAssign, WriterLib.NoNL);
+        writeNamedExprList(opAssign.getVarExprList());
+        out.println();
         printOp(opAssign.getSubOp());
-//        finish(opAssign);
+        finish(opAssign);
     }
 
     @Override
     public void visit(OpExtend opExtend) {
-//        start(opExtend, WriterLib.NoNL);
-//        writeNamedExprList(opExtend.getVarExprList());
-//        out.println();
+        start(opExtend, WriterLib.NoNL);
+        writeNamedExprList(opExtend.getVarExprList());
+        out.println();
         printOp(opExtend.getSubOp());
-//        finish(opExtend);
+        finish(opExtend);
     }
 
     @Override
     public void visit(OpSlice opSlice) {
-//        start(opSlice, WriterLib.NoNL);
-//        writeIntOrDefault(opSlice.getStart());
-//        out.print(" ");
-//        writeIntOrDefault(opSlice.getLength());
-//        out.println();
+        start(opSlice, WriterLib.NoNL);
+        writeIntOrDefault(opSlice.getStart());
+        out.print(" ");
+        writeIntOrDefault(opSlice.getLength());
+        out.println();
         printOp(opSlice.getSubOp());
-//        finish(opSlice);
+        finish(opSlice);
     }
 
     private void writeIntOrDefault(long value) {
@@ -644,7 +532,8 @@ public class VisitorNeo implements OpVisitor {
     }
 
     private void start(Op op, int newline) {
-        WriterLib.start2(out, op.getName(), newline);
+        WriterLib.start2(out, "\"".concat(op.getName()).concat("\""), newline);
+        out.print(",");
     }
 
     private void finish(Op op) {
@@ -652,11 +541,12 @@ public class VisitorNeo implements OpVisitor {
     }
 
     private void start() {
-        WriterLib.start(out);
+        WriterLib.start2(out);
+        out.print(",");
     }
 
     private void finish() {
-        WriterLib.finish(out);
+        WriterLib.finish2(out);
     }
 
     private void printOp(Op op) {
@@ -665,6 +555,18 @@ public class VisitorNeo implements OpVisitor {
             WriterLib.finish(out, Tags.tagNull);
         } else
             op.visit(this);
+    }
+
+    private void writeVarList(List<Var> vars) {
+//        start();
+//        boolean first = true;
+//        for (Var var : vars) {
+//            if (!first)
+//                out.print(" ");
+//            first = false;
+//            out.print(var.toString());
+//        }
+//        finish();
     }
 
     private void writeNamedExprList(VarExprList project) {
@@ -685,6 +587,10 @@ public class VisitorNeo implements OpVisitor {
                 out.print(v.toString());
         }
         finish();
+    }
+
+    private HashMap<String, ArrayList<String>> formatQuad(Quad qp) {
+        return formatTriple(qp.asTriple());
     }
 
     private HashMap<String, ArrayList<String>> formatTriple(Triple triple) {
@@ -726,10 +632,6 @@ public class VisitorNeo implements OpVisitor {
         return treeLeaf;
     }
 
-    private HashMap<String, ArrayList<String>> formatQuad(Quad qp) {
-        return formatTriple(qp.asTriple());
-    }
-
     private HashMap<String, ArrayList<String>> formatTriplePath(TriplePath tp) {
         Node predicate;
         if(tp.getPath() != null){
@@ -748,6 +650,23 @@ public class VisitorNeo implements OpVisitor {
 
         Triple triple = new Triple(tp.getSubject(), predicate, tp.getObject());
         return formatTriple(triple);
+    }
+
+    private ArrayList<String> getType(Node node){
+        ArrayList<String> lista = new ArrayList<>();
+        if (node.isVariable()){
+            lista.add("VAR");
+            lista.add(node.getName());
+        }
+        else if (node.isURI()){
+            lista.add("URI");
+            lista.add(node.getURI());
+        }
+        else if(node.isLiteral()){
+            lista.add("LITERAL");
+            lista.add(node.getLiteral().toString());
+        }
+        return lista;
     }
 
 }

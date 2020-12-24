@@ -36,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.utfsm.apache.cmds.tdb2.tdbqueryplan;
 import org.utfsm.jena.arq.sparql.mgt.NeoExplain;
+import org.utfsm.jena.arq.sparql.mgt.NeoExplainTreeTDB;
 import org.utfsm.utils.BinaryTreePlan;
 
 import java.util.ArrayList;
@@ -68,7 +69,10 @@ public class OpExecutorTDB2Neo extends OpExecutor
             // Print only at top level (and we're called before level++)
         {
             Explain.explain("TDB", op, super.execCxt.getContext());
-            tdbqueryplan.currentRegStr = NeoExplain.explain("TDB", op, super.execCxt.getContext(), input);
+            if(tdbqueryplan.tdbTreeVal){
+                tdbqueryplan.currentTdbTreeStr = NeoExplainTreeTDB.explain("TDB", op, super.execCxt, input);
+            }
+            tdbqueryplan.currentRegStr = NeoExplain.explain("TDB", op, super.execCxt, input);
             System.out.println(tdbqueryplan.currentRegStr);
         }
         return input;
@@ -169,6 +173,8 @@ public class OpExecutorTDB2Neo extends OpExecutor
         // Execute a BGP on the real default graph
         return optimizeExecuteTriples(graph, input, opBGP.getPattern(), exprs, execCxt);
     }
+
+
 
     /** Execute, with optimization, a basic graph pattern on the default graph storage */
     private static QueryIterator optimizeExecuteTriples(GraphTDB graph, QueryIterator input,

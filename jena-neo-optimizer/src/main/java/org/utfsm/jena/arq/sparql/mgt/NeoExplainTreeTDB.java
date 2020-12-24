@@ -16,28 +16,27 @@
  * limitations under the License.
  */
 
-package org.utfsm.jena.arq.sparql.mgt ;
+package org.utfsm.jena.arq.sparql.mgt;
 
-import org.apache.jena.atlas.io.IndentedLineBuffer ;
-import org.apache.jena.atlas.lib.StrUtils ;
-import org.apache.jena.graph.Node ;
-import org.apache.jena.graph.Triple ;
-import org.apache.jena.query.ARQ ;
-import org.apache.jena.query.Query ;
-import org.apache.jena.sparql.algebra.Op ;
-import org.apache.jena.sparql.algebra.OpVisitor;
-import org.apache.jena.sparql.core.BasicPattern ;
-import org.apache.jena.sparql.core.Quad ;
-import org.apache.jena.sparql.core.QuadPattern ;
+import org.apache.jena.atlas.io.IndentedLineBuffer;
+import org.apache.jena.atlas.lib.StrUtils;
+import org.apache.jena.graph.Node;
+import org.apache.jena.graph.Triple;
+import org.apache.jena.query.ARQ;
+import org.apache.jena.query.Query;
+import org.apache.jena.sparql.algebra.Op;
+import org.apache.jena.sparql.core.BasicPattern;
+import org.apache.jena.sparql.core.Quad;
+import org.apache.jena.sparql.core.QuadPattern;
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.mgt.Explain;
-import org.apache.jena.sparql.path.Path ;
-import org.apache.jena.sparql.serializer.SerializationContext ;
-import org.apache.jena.sparql.sse.SSE ;
-import org.apache.jena.sparql.sse.writers.WriterNode ;
-import org.apache.jena.sparql.util.Context ;
-import org.slf4j.Logger ;
+import org.apache.jena.sparql.path.Path;
+import org.apache.jena.sparql.serializer.SerializationContext;
+import org.apache.jena.sparql.sse.SSE;
+import org.apache.jena.sparql.sse.writers.WriterNode;
+import org.apache.jena.sparql.util.Context;
+import org.slf4j.Logger;
 import org.utfsm.apache.cmds.tdb2.tdbqueryplan;
 import org.utfsm.utils.BinaryTreePlan;
 
@@ -61,7 +60,7 @@ import java.util.HashMap;
  * @see ARQ#setExecutionLogging
  */
 
-public class NeoExplain {
+public class NeoExplainTreeTDB {
     /**
      * Control whether messages include multiple line output. In multiple line
      * output, subsequent lines start with a space to help log file parsing.
@@ -169,7 +168,7 @@ public class NeoExplain {
     private static final boolean MultiLinesForPatterns = true ;
 
     public static String explain(String message, Op op, ExecutionContext context, QueryIterator input) {
-       VisitorNeo visitorNeo =  new VisitorNeo(context, input);
+        VisitorNeoForTree visitorNeo =  new VisitorNeoForTree(context, input);
        op.visit(visitorNeo);
        return visitorNeo.out.toString().replaceAll("\n", " ");
     }
