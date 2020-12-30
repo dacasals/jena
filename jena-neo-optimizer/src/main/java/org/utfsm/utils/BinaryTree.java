@@ -10,20 +10,20 @@ import java.util.List;
 
 public abstract class BinaryTree<T>
 {
-    protected static class Node<T>
-    {
-        public T data;
-        public Node<T> left;
-        public Node<T> right;
-        public Node(T item)
-        {
-            data = item;
-            left = right = null;
-        }
-
-    }
+//    protected static class Node<T>
+//    {
+//        public T data;
+//        public Node<T> left;
+//        public Node<T> right;
+//        public Node(T item)
+//        {
+//            data = item;
+//            left = right = null;
+//        }
+//
+//    }
     // Root of the Binary Tree
-    Node<T> root;
+    BTNode<T> root;
     public String delimiterValues;
     public BinaryTree()
     {
@@ -36,10 +36,10 @@ public abstract class BinaryTree<T>
         this.delimiterValues = delimiterValues;
     }
 
-    public abstract String printDataJoin(Node<T> node );
-    public abstract String printLeafDataNode(Node<T> node);
+    public abstract String printDataJoin(BTNode<T> node );
+    public abstract String printLeafDataNode(BTNode<T> node);
 
-    public JsonArray outputJson(Node<T> node){
+    public JsonArray outputJson(BTNode<T> node){
         JsonArray json = new JsonArray();
         if(node.left == null && node.right == null) {
             json = new JsonArray();
@@ -60,20 +60,20 @@ public abstract class BinaryTree<T>
     }
 
 
-    public abstract void defineDataJoinNode(Node<T> node);
+    public abstract void defineDataJoinNode(BTNode<T> node);
 
     public void addNodeList(List<T> arrayList) {
         int index = 0;
         if(arrayList.size()==1){
-            root = new Node<>(arrayList.get(0));
+            root = new BTNode<>(arrayList.get(0));
         }
         else if(arrayList.size()>=2)
             while (index < arrayList.size()) {
                 if(root == null){
-                    Node<T> first = new Node<>(arrayList.get(index));
+                    BTNode<T> first = new BTNode<>(arrayList.get(index));
                     index++;
-                    Node<T> second = new Node<>(arrayList.get(index));
-                    Node<T> newRoot = new Node<>(null);
+                    BTNode<T> second = new BTNode<>(arrayList.get(index));
+                    BTNode<T> newRoot = new BTNode<>(null);
                     newRoot.left = first;
                     newRoot.right = second;
                     //Todo Modificar root con datos del join
@@ -82,9 +82,9 @@ public abstract class BinaryTree<T>
                 }
                 else{
                     T nextLeafOnRight = arrayList.get(index);
-                    Node<T> newRoot = new Node<>(null);
+                    BTNode<T> newRoot = new BTNode<>(null);
                     newRoot.left = root;
-                    newRoot.right = new Node<>(nextLeafOnRight);
+                    newRoot.right = new BTNode<>(nextLeafOnRight);
                     //Todo Modificar valores del root en dependencia de sus hijos.
                     defineDataJoinNode(newRoot);
                     root = newRoot;
@@ -97,15 +97,15 @@ public abstract class BinaryTree<T>
     {
         BinaryTree<Integer> tree = new BinaryTree<Integer>() {
             @Override
-            public void defineDataJoinNode(Node<Integer> node) {
+            public void defineDataJoinNode(BTNode<Integer> node) {
                 node.data = -1;
             }
             @Override
-            public String printDataJoin(Node<Integer> node) {
+            public String printDataJoin(BTNode<Integer> node) {
                 return node.data.toString();
             }
             @Override
-            public String printLeafDataNode(Node<Integer> node) {
+            public String printLeafDataNode(BTNode<Integer> node) {
                 return node.data.toString();
             }
         };

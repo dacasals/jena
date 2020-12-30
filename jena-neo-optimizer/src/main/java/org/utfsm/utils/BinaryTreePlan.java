@@ -8,9 +8,12 @@ public class BinaryTreePlan extends BinaryTree<HashMap<String, ArrayList<String>
     public BinaryTreePlan(String delimiter) {
         super(delimiter);
     }
+    public BTNode<HashMap<String, ArrayList<String>>> getRoot() {
+        return this.root;
+    }
 
     @Override
-    public void defineDataJoinNode(Node<HashMap<String, ArrayList<String>>> node) {
+    public void defineDataJoinNode(BTNode<HashMap<String, ArrayList<String>>> node) {
         HashMap<String, ArrayList<String>> join = new HashMap<>();
         String tpf_type = "JOIN";
         //Add node type
@@ -25,7 +28,7 @@ public class BinaryTreePlan extends BinaryTree<HashMap<String, ArrayList<String>
         //Todo define other info.
         node.data = join;
     }
-    public void defineLeftJoinNode(Node<HashMap<String, ArrayList<String>>> node, String tpf_type) {
+    public void defineLeftJoinNode(BTNode<HashMap<String, ArrayList<String>>> node, String tpf_type) {
 
         HashMap<String, ArrayList<String>> join = new HashMap<>();
         //Add node type
@@ -42,14 +45,14 @@ public class BinaryTreePlan extends BinaryTree<HashMap<String, ArrayList<String>
     }
 
     @Override
-    public String printDataJoin(Node<HashMap<String, ArrayList<String>>> node) {
+    public String printDataJoin(BTNode<HashMap<String, ArrayList<String>>> node) {
         return node.data.get("tpf_type").get(0).
                 concat(this.delimiterValues).
                 concat(String.join(this.delimiterValues, node.data.get("predicates")));
     }
 
     @Override
-    public String printLeafDataNode(Node<HashMap<String, ArrayList<String>>> node) {
+    public String printLeafDataNode(BTNode<HashMap<String, ArrayList<String>>> node) {
         //If predicate list ins empty then we add "NONE" symbol to indicate note preds in the tpf
         //Todo interpret this in the parse
         return node.data.get("tpf_type").get(0).

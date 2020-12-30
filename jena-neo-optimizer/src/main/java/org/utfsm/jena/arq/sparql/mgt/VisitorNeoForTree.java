@@ -4,116 +4,113 @@ import org.apache.jena.atlas.io.IndentedLineBuffer;
 import org.apache.jena.atlas.io.IndentedWriter;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
-import org.apache.jena.query.Query;
-import org.apache.jena.query.SortCondition;
 import org.apache.jena.sparql.algebra.Op;
 import org.apache.jena.sparql.algebra.OpVisitor;
 import org.apache.jena.sparql.algebra.op.*;
-import org.apache.jena.sparql.algebra.table.TableEmpty;
-import org.apache.jena.sparql.algebra.table.TableUnit;
 import org.apache.jena.sparql.core.*;
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.optimizer.reorder.ReorderProc;
 import org.apache.jena.sparql.engine.optimizer.reorder.ReorderTransformation;
-import org.apache.jena.sparql.expr.Expr;
-import org.apache.jena.sparql.expr.ExprAggregator;
 import org.apache.jena.sparql.expr.ExprList;
 import org.apache.jena.sparql.path.P_Link;
 import org.apache.jena.sparql.path.P_Path0;
 import org.apache.jena.sparql.path.P_Path1;
-import org.apache.jena.sparql.pfunction.PropFuncArg;
-import org.apache.jena.sparql.serializer.SerializationContext;
-import org.apache.jena.sparql.sse.Tags;
 import org.apache.jena.sparql.sse.writers.*;
-import org.apache.jena.sparql.util.Context;
-import org.apache.jena.sparql.util.FmtUtils;
 import org.apache.jena.tdb2.store.DatasetGraphTDB;
+import org.utfsm.utils.BTNode;
 import org.utfsm.utils.BinaryTreePlan;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 
-public class VisitorNeoForTree implements OpVisitor {
+public class VisitorNeoForTree implements OpVisitorTDB {
     public IndentedWriter out;
     private ExecutionContext sContext;
     private QueryIterator input;
-
+    public BinaryTreePlan TreeTDB;
     public VisitorNeoForTree(ExecutionContext sContext, QueryIterator input) {
         out = new IndentedLineBuffer();
         this.sContext =  sContext;
         this.input =  input;
+        TreeTDB = new BinaryTreePlan(",");
     }
 
-    private void visitOpN(OpN op) {
+    private BTNode visitOpN(OpN op) {
+//        BTNode root = new BTNode<>(op.getName());
+        
+        BTNode join = new BTNode<>("OpN_".concat(op.getName()));
         start(op, WriterLib.NL);
         for (Iterator<Op> iter = op.iterator(); iter.hasNext(); ) {
+            
             Op sub = iter.next();
-            out.ensureStartOfLine();
-            printOp(sub);
-            if(iter.hasNext())
-                out.write(", ");
-        }
-        finish(op);
-    }
-
-    private void visitOp2(Op2 op, ExprList exprs) {
-        start(op, WriterLib.NL);
-        printOp(op.getLeft());
-
-        out.print(", ");
-
-        printOp(op.getRight());
-//        if (exprs != null) {
+            if(join.left == null){
+                join.left = visit(sub);
+            }
+            else if(join.right== null) {
+                join.right = visit(sub);
+            }
+            else{
+                BTNode aux = new BTNode<>("JOIN_SEQ");
+                aux.left = join.left;
+                aux.right = join.right;
+                join = new BTNode<>("JOIN_SEQ");
+                join.left = aux;
+            }
 //            out.ensureStartOfLine();
-//            WriterExpr.output(out, exprs, sContext);
-//        }
-        finish(op);
+//            printOp(sub);
+//            if(iter.hasNext())
+//                out.write(", ");
+        }
+        return join;
     }
 
-    private void visitOp1(Op1 op) {
-        start(op, WriterLib.NL);
-        printOp(op.getSubOp());
-        finish(op);
+    private BTNode visitOp2(Op2 op, ExprList exprs) {
+        BTNode node = new BTNode<String>(op.getName());
+        node.left = visit(op.getLeft());
+        node.right = visit(op.getRight());
+        return node;
     }
 
-    @Override
-    public void visit(OpBGP opBGP) {
+    private BTNode visitOp1(Op1 op) {
+        BTNode node = new BTNode<>(op.getName());
+        node.left = visit(op.getSubOp());
+//        node.right = new BTNode("NONE");
+        return node;
+    }
+
+    public BTNode visit(OpBGP opBGP) {
+        BTNode node = new BTNode(opBGP.getName());
+
         if (opBGP.getPattern().size() == 1) {
-            start(opBGP, WriterLib.NoNL);
-            write(opBGP.getPattern(), true);
-            finish(opBGP);
-            return;
+            node.left = write(opBGP.getPattern(), true);
         }
-
-        start(opBGP, WriterLib.NL);
-        DatasetGraphTDB ds = (DatasetGraphTDB) sContext.getDataset();
-        ReorderTransformation transform = ds.getDefaultGraphTDB().getDSG().getReorderTransform();
-        BasicPattern pattern = opBGP.getPattern();
-        if ( transform != null )
-        {
-            ReorderProc proc = transform.reorderIndexes(opBGP.getPattern());
-            // Then reorder original patten
-            pattern = proc.reorder(opBGP.getPattern());
+        else{
+            start(opBGP, WriterLib.NL);
+            DatasetGraphTDB ds = (DatasetGraphTDB) sContext.getDataset();
+            ReorderTransformation transform = ds.getDefaultGraphTDB().getDSG().getReorderTransform();
+            BasicPattern pattern = opBGP.getPattern();
+            if ( transform != null )
+            {
+                ReorderProc proc = transform.reorderIndexes(opBGP.getPattern());
+                // Then reorder original patten
+                pattern = proc.reorder(opBGP.getPattern());
+            }
+            node.left = write(pattern, false);
         }
-        write(pattern, false);
-        finish(opBGP);
+//        node.right = new BTNode("NONE");
+        return node;
     }
 
-    @Override
-    public void visit(OpQuadPattern opQuadP) {
+    public BTNode visit(OpQuadPattern opQuadP) {
         QuadPattern quads = opQuadP.getPattern();
+        BTNode node = new BTNode(opQuadP.getName());
         if (quads.size() == 1) {
-//            start(opQuadP, WriterLib.NoNL);
-//            out.print(Tags.LBRACKET);
             start(new OpTriple(null), WriterLib.NoNL);
             HashMap<String, ArrayList<String>> res = formatQuad(quads.get(0));
-            BinaryTreePlan tree = new BinaryTreePlan("ᶲ");
-            out.print("\"".concat(tree.printLeafDataNode(res)).concat("\""));
-            finish();
-            return;
+            node.left = new BTNode(res.get("tpf_type"));
+
         }
 
         DatasetGraphTDB ds = (DatasetGraphTDB) sContext.getDataset();
@@ -125,37 +122,54 @@ public class VisitorNeoForTree implements OpVisitor {
             // Then reorder original patten
             pattern = proc.reorder(pattern);
         }
-        write(pattern, false);
+        node.left = write(pattern, false);
+//        node.right = new BTNode("NONE");
+        return  node;
     }
 
-    @Override
-    public void visit(OpQuadBlock opQuads) {
+    public BTNode visit(OpQuadBlock opQuads) {
         QuadPattern quads = opQuads.getPattern();
+        BTNode node = new BTNode(opQuads.getName());
+
         if (quads.size() == 1) {
-            start(opQuads, WriterLib.NoNL);
-            formatQuad(quads.get(0));
-            finish(opQuads);
-            return;
+//            start(opQuads, WriterLib.NoNL);
+            HashMap<String, ArrayList<String>> temp = formatQuad(quads.get(0));
+            node.left = new BTNode(temp.get("tpf_type"));
+//            finish(opQuads);
+        }else{
+            node.left = write(quads, false);
         }
-        start(opQuads, WriterLib.NL);
-        write(quads, false);
-        finish(opQuads);
+//        node.right = new BTNode("NONE");
+        return node;
     }
 
-    private void write(BasicPattern pattern, boolean oneLine) {
-        boolean first = true;
-        for (Triple t : pattern) {
-            formatTriple(t);
-            if (oneLine) {
-                if (!first)
-                    out.print(" ");
-            } else
-                out.println();
-            first = false;
+    private BTNode write(BasicPattern pattern, boolean oneLine) {
+//        boolean first = true;
+//        for (Triple t : pattern) {
+//            formatTriple(t);
+//            if (oneLine) {
+//                if (!first)
+//                    out.print(" ");
+//            } else
+//                out.println();
+//            first = false;
+//        }
+        BinaryTreePlan tree = new BinaryTreePlan("ᶲ");
+        ArrayList<HashMap<String, ArrayList<String>>> triplesArr = new ArrayList<>();
+
+        for (Triple q : pattern) {
+            HashMap<String, ArrayList<String>> treeLeaf = formatTriple(q);
+            triplesArr.add(treeLeaf);
         }
+        if(triplesArr.size() > 0)
+        {
+            tree.addNodeList(triplesArr);
+            out.println(tree.toString().replaceAll("\n", " "));
+        }
+        return tree.getRoot();
     }
 
-    private void write(QuadPattern quads, boolean oneLine) {
+    private BTNode write(QuadPattern quads, boolean oneLine) {
         BinaryTreePlan tree = new BinaryTreePlan("ᶲ");
         ArrayList<HashMap<String, ArrayList<String>>> triplesArr = new ArrayList<>();
 
@@ -168,426 +182,290 @@ public class VisitorNeoForTree implements OpVisitor {
             tree.addNodeList(triplesArr);
             out.println(tree.toString().replaceAll("\n", " "));
         }
-//
-//        int count= 0;
-//        out.println(Tags.LBRACKET);
-//        for (Quad t : quads) {
-//            count ++;
-//            formatQuad(t);
-//            if(count < quads.size()) {
-//                out.print(", ");
-//            }
-//        }
-//        out.println(Tags.RBRACKET);
-    }
-    @Override
-    public void visit(OpTriple opTriple) {
-        formatTriple(opTriple.getTriple());
+        return tree.getRoot();
     }
 
-    @Override
-    public void visit(OpQuad opQuad) {
-        formatQuad(opQuad.getQuad());
+    public BTNode visit(OpTriple opTriple) {
+        BTNode node = new BTNode(opTriple.getName());
+        node.left = new BTNode(formatTriple(opTriple.getTriple()).get("tpf_type"));
+        return node;
     }
 
-    @Override
-    public void visit(OpPath opPath) {
-         start(opPath, WriterLib.NoNL) ;
-        HashMap<String, ArrayList<String>> res = formatTriplePath(opPath.getTriplePath());
-        BinaryTreePlan tree = new BinaryTreePlan(",");
-        out.print("\"".concat(tree.printLeafDataNode(res)).concat("\""));
-        finish(opPath);
+    public BTNode visit(OpQuad opQuad) {
+        BTNode node = new BTNode(opQuad.getName());
+        node.left = new BTNode(formatQuad(opQuad.getQuad()).get("tpf_type"));
+        return node;
     }
 
-    @Override
-    public void visit(OpFind opFind) {
-        start(opFind, WriterLib.NoNL);
-        out.print(opFind.getVar());
-        out.print(" ");
-        formatTriple(opFind.getTriple());
-        finish(opFind);
+    public BTNode visit(OpPath opPath) {
+
+        BTNode node = new BTNode(opPath.getName());
+        node.left = new BTNode(formatTriplePath(opPath.getTriplePath()).get("tpf_type"));
+        return node;
     }
 
-    @Override
-    public void visit(OpProcedure opProc) {
-        start(opProc, WriterLib.NoNL);
-        WriterNode.output(out, opProc.getProcId(), null);
-        out.println();
-        WriterExpr.output(out, opProc.getArgs(), true, false, null);
-        out.println();
-        printOp(opProc.getSubOp());
-        finish(opProc);
+    public BTNode visit(OpFind opFind) {
+
+        BTNode node = new BTNode(opFind.getName());
+        node.left = new BTNode(formatTriple(opFind.getTriple()).get("tpf_type"));
+        return node;
     }
 
-    @Override
-    public void visit(OpPropFunc opPropFunc) {
-        start(opPropFunc, WriterLib.NoNL);
-        out.print(FmtUtils.stringForNode(opPropFunc.getProperty()));
-        out.println();
-
-        outputPF(opPropFunc.getSubjectArgs());
-        out.print(" ");
-        outputPF(opPropFunc.getObjectArgs());
-        out.println();
-        printOp(opPropFunc.getSubOp());
-        finish(opPropFunc);
+    public BTNode visit(OpProcedure opProc) {
+        BTNode node = new BTNode(opProc.getName());
+        node.left = new BTNode(opProc.getSubOp());
+        return node;
     }
 
-    private void outputPF(PropFuncArg pfArg) {
-        if (pfArg.isNode()) {
-            WriterNode.output(out, pfArg.getArg(), null);
-            return;
-        }
-        WriterNode.output(out, pfArg.getArgList(), null);
+    public BTNode visit(OpPropFunc opPropFunc) {
+        BTNode node = new BTNode(opPropFunc.getName());
+        node.left = visit(opPropFunc.getSubOp());
+        return node;
     }
 
-    @Override
-    public void visit(OpJoin opJoin) {
-        visitOp2(opJoin, null);
+    public BTNode visit(OpJoin opJoin) {
+        return visitOp2(opJoin, null);
     }
 
-    @Override
-    public void visit(OpSequence opSequence) {
-        visitOpN(opSequence);
+    public BTNode visit(OpSequence opSequence) {
+        return visitOpN(opSequence);
     }
 
-    @Override
-    public void visit(OpDisjunction opDisjunction) {
-        visitOpN(opDisjunction);
+    public BTNode visit(OpDisjunction opDisjunction) {
+        return visitOpN(opDisjunction);
     }
 
-    @Override
-    public void visit(OpLeftJoin opLeftJoin) {
-        visitOp2(opLeftJoin, opLeftJoin.getExprs());
+    public BTNode visit(OpLeftJoin opLeftJoin) {
+        return visitOp2(opLeftJoin, opLeftJoin.getExprs());
     }
 
-    @Override
-    public void visit(OpDiff opDiff) {
-        visitOp2(opDiff, null);
+    public BTNode visit(OpDiff opDiff) {
+        return visitOp2(opDiff, null);
     }
 
-    @Override
-    public void visit(OpMinus opMinus) {
-        visitOp2(opMinus, null);
+    public BTNode visit(OpMinus opMinus) {
+        return visitOp2(opMinus, null);
     }
 
-    @Override
-    public void visit(OpUnion opUnion) {
-        visitOp2(opUnion, null);
+    public BTNode visit(OpUnion opUnion) {
+        return visitOp2(opUnion, null);
     }
 
-    @Override
-    public void visit(OpConditional opCondition) {
-        visitOp2(opCondition, null);
+    public BTNode visit(OpConditional opCondition) {
+        return visitOp2(opCondition, null);
     }
 
-    @Override
-    public void visit(OpFilter opFilter) {
-        start(opFilter, WriterLib.NoNL);
-
-//        ExprList exprs = opFilter.getExprs();
-//        if (exprs == null) {
-//            start();
-//            finish();
-//        } else
-//            WriterExpr.output(out, exprs, sContext);
-        out.println();
-        printOp(opFilter.getSubOp());
-
-        finish(opFilter);
+    public BTNode visit(OpFilter opFilter) {
+        BTNode node = new BTNode(opFilter.getName());
+        node.left = visit(opFilter.getSubOp());
+        return node;
     }
 
-    @Override
-    public void visit(OpGraph opGraph) {
-        start(opGraph, WriterLib.NoNL);
-//        out.println(FmtUtils.stringForNode(opGraph.getNode(), sContext));
-        opGraph.getSubOp().visit(this);
-        finish(opGraph);
+    public BTNode visit(OpGraph opGraph) {
+        BTNode node = new BTNode(opGraph.getName());
+        node.left = visit(opGraph.getSubOp());
+        return node;
     }
 
-    @Override
-    public void visit(OpService opService) {
-        start(opService, WriterLib.NoNL);
-        if (opService.getSilent())
-            out.println("silent ");
-        out.println(FmtUtils.stringForNode(opService.getService()));
-        opService.getSubOp().visit(this);
-        finish(opService);
+    public BTNode visit(OpService opService) {
+        BTNode node = new BTNode(opService.getName());
+        node.left = visit(opService.getSubOp());
+        return node;
     }
 
-    @Override
-    public void visit(OpTable opTable) {
-        if (TableUnit.isTableUnit(opTable.getTable())) {
-            start(opTable, WriterLib.NoNL);
-            out.print("unit");
-            finish(opTable);
-            return;
-        }
-
-        if (TableEmpty.isTableEmpty(opTable.getTable())) {
-            start(opTable, WriterLib.NoNL);
-            out.print("empty");
-            finish(opTable);
-            return;
-        }
-
-        start(opTable, WriterLib.NoNL);
-//        WriterNode.outputVars(out, opTable.getTable().getVars(), sContext);
-        if (!opTable.getTable().isEmpty()) {
-            out.println();
-            WriterTable.outputPlain(out, opTable.getTable(), null);
-        }
-        finish(opTable);
+    public BTNode visit(OpTable opTable) {
+        return new BTNode(opTable.getName());
     }
 
-    @Override
-    public void visit(OpDatasetNames dsNames) {
-        start(dsNames, WriterLib.NoNL);
-        WriterNode.output(out, dsNames.getGraphNode(), null);
-        finish(dsNames);
+    public BTNode visit(OpDatasetNames dsNames) {
+        return new BTNode(dsNames.getName());
     }
 
-    @Override
-    public void visit(OpExt opExt) {
-        // start(opExt, WriterLib.NL) ;
-        opExt.output(out, null);
-        // finish(opExt) ;
+    public BTNode visit(OpExt opExt) {
+        return new BTNode(opExt.getName());
     }
 
-    @Override
-    public void visit(OpNull opNull) {
-        start(opNull, WriterLib.NoSP);
-        finish(opNull);
+    public BTNode visit(OpNull opNull) {
+        return new BTNode(opNull.getName());
     }
 
-    @Override
-    public void visit(OpLabel opLabel) {
-        String x = FmtUtils.stringForString(opLabel.getObject().toString());
-        if (opLabel.hasSubOp()) {
-            start(opLabel, WriterLib.NL);
-            out.println(x);
-            printOp(opLabel.getSubOp());
-            finish(opLabel);
-        } else {
-            start(opLabel, WriterLib.NoNL);
-            out.print(x);
-            finish(opLabel);
-        }
+    public BTNode visit(OpLabel opLabel) {
+        return new BTNode(opLabel.getName());
     }
 
-    @Override
-    public void visit(OpList opList) {
-        visitOp1(opList);
+    public BTNode visit(OpList opList) {
+        return  visitOp1(opList);
     }
 
-    @Override
-    public void visit(OpGroup opGroup) {
-        start(opGroup, WriterLib.NoNL);
-//        writeNamedExprList(opGroup.getGroupVars());
-//        if (!opGroup.getAggregators().isEmpty()) {
-//            // --- Aggregators
-//            out.print(" ");
-//            start();
-//            out.incIndent();
-//            boolean first = true;
-//            for (ExprAggregator agg : opGroup.getAggregators()) {
-//                if (!first) {
-//                    out.print(" ");
-//                }
-//                first = false;
-//                Var v = agg.getVar();
-//                String str = agg.getAggregator().toPrefixString();
-//                start();
-//                out.print(v.toString());
-//                out.print(" ");
-//                out.print(str);
-//                finish();
-//            }
-//            finish();
-//            out.decIndent();
-//        }
-        out.println();
-        printOp(opGroup.getSubOp());
-        finish(opGroup);
+    public BTNode visit(OpGroup opGroup) {
+        BTNode node = new BTNode(opGroup.getName());
+        node.left = visit(opGroup.getSubOp());
+        return node;
     }
 
-    @Override
-    public void visit(OpOrder opOrder) {
-        start(opOrder, WriterLib.NoNL);
-
-        // Write conditions
-        start();
-
-        boolean first = true;
-        for (SortCondition sc : opOrder.getConditions()) {
-            if (!first)
-                out.print(" ");
-            first = false;
-            formatSortCondition(sc);
-        }
-        finish();
-        out.newline();
-        printOp(opOrder.getSubOp());
-        finish(opOrder);
+    public BTNode visit(OpOrder opOrder) {
+        BTNode node = new BTNode(opOrder.getName());
+        node.left = visit(opOrder.getSubOp());
+        return node;
     }
 
-    @Override
-    public void visit(OpTopN opTop) {
-        start(opTop, WriterLib.NoNL);
-
-        // Write conditions
-//        start();
-//        writeIntOrDefault(opTop.getLimit());
-//        out.print(" ");
-
-//        boolean first = true;
-//        for (SortCondition sc : opTop.getConditions()) {
-//            if (!first)
-//                out.print(" ");
-//            first = false;
-//            formatSortCondition(sc);
-//        }
-//        finish();
-        printOp(opTop.getSubOp());
-        finish(opTop);
+    public BTNode visit(OpTopN opTop) {
+        BTNode node = new BTNode(opTop.getName());
+        node.left = visit(opTop.getSubOp());
+        return node;
     }
 
-    // Neater would be a pair of explicit SortCondition formatters
-    private void formatSortCondition(SortCondition sc) {
-        boolean close = true;
-        String tag = null;
-
-        if (sc.getDirection() != Query.ORDER_DEFAULT) {
-            if (sc.getDirection() == Query.ORDER_ASCENDING) {
-                tag = Tags.tagAsc;
-                WriterLib.start(out, tag, WriterLib.NoNL);
-            }
-
-            if (sc.getDirection() == Query.ORDER_DESCENDING) {
-                tag = Tags.tagDesc;
-                WriterLib.start(out, tag, WriterLib.NoNL);
-            }
-
-        }
-
-        WriterExpr.output(out, sc.getExpression(), null);
-
-        if (tag != null)
-            WriterLib.finish(out, tag);
+    public BTNode visit(OpProject opProject) {
+        BTNode node = new BTNode<>(opProject.getName());
+        node.left = visit(opProject.getSubOp());
+        return node;
+    }
+    
+    public BTNode visit(OpDistinct opDistinct) {
+        return visitOp1(opDistinct);
     }
 
-    @Override
-    public void visit(OpProject opProject) {
-        start(opProject, WriterLib.NoNL);
-//        writeVarList(opProject.getVars());
-        out.println();
-        printOp(opProject.getSubOp());
-        finish(opProject);
+    public BTNode visit(OpReduced opReduced) {
+        return visitOp1(opReduced);
     }
 
-    @Override
-    public void visit(OpDistinct opDistinct) {
-        visitOp1(opDistinct);
+    public BTNode visit(OpAssign opAssign) {
+        BTNode node = new BTNode<>(opAssign.getName());
+        node.left = visit(opAssign.getSubOp());
+        return node;
     }
 
-    @Override
-    public void visit(OpReduced opReduced) {
-        visitOp1(opReduced);
+    public BTNode visit(OpExtend opExtend) {
+        BTNode node = new BTNode<>(opExtend.getName());
+        node.left = visit(opExtend.getSubOp());
+        return node;
     }
 
-    @Override
-    public void visit(OpAssign opAssign) {
-        start(opAssign, WriterLib.NoNL);
-        writeNamedExprList(opAssign.getVarExprList());
-        out.println();
-        printOp(opAssign.getSubOp());
-        finish(opAssign);
+    public BTNode visit(OpSlice opSlice) {
+        BTNode node = new BTNode<>(opSlice.getName());
+        node.left = visit(opSlice.getSubOp());
+        return node;
     }
-
-    @Override
-    public void visit(OpExtend opExtend) {
-        start(opExtend, WriterLib.NoNL);
-        writeNamedExprList(opExtend.getVarExprList());
-        out.println();
-        printOp(opExtend.getSubOp());
-        finish(opExtend);
-    }
-
-    @Override
-    public void visit(OpSlice opSlice) {
-        start(opSlice, WriterLib.NoNL);
-        writeIntOrDefault(opSlice.getStart());
-        out.print(" ");
-        writeIntOrDefault(opSlice.getLength());
-        out.println();
-        printOp(opSlice.getSubOp());
-        finish(opSlice);
-    }
-
-    private void writeIntOrDefault(long value) {
-        String x = "_";
-        if (value != Query.NOLIMIT)
-            x = Long.toString(value);
-        out.print(x);
-    }
-
+    
     private void start(Op op, int newline) {
         WriterLib.start2(out, "\"".concat(op.getName()).concat("\""), newline);
         out.print(",");
     }
 
-    private void finish(Op op) {
-        WriterLib.finish2(out, op.getName());
-    }
-
-    private void start() {
-        WriterLib.start2(out);
-        out.print(",");
-    }
-
-    private void finish() {
-        WriterLib.finish2(out);
-    }
-
-    private void printOp(Op op) {
+    public BTNode visit(Op op) {
+        //Im not proud of this method:)
         if (op == null) {
-            WriterLib.start(out, Tags.tagNull, WriterLib.NoSP);
-            WriterLib.finish(out, Tags.tagNull);
-        } else
-            op.visit(this);
-    }
-
-    private void writeVarList(List<Var> vars) {
-//        start();
-//        boolean first = true;
-//        for (Var var : vars) {
-//            if (!first)
-//                out.print(" ");
-//            first = false;
-//            out.print(var.toString());
-//        }
-//        finish();
-    }
-
-    private void writeNamedExprList(VarExprList project) {
-        start();
-        boolean first = true;
-        for (Var v : project.getVars()) {
-            if (!first)
-                out.print(" ");
-            first = false;
-            Expr expr = project.getExpr(v);
-            if (expr != null) {
-                start();
-                out.print(v.toString());
-                out.print(" ");
-                WriterExpr.output(out, expr, null);
-                finish();
-            } else
-                out.print(v.toString());
+            return new BTNode("NONE");
         }
-        finish();
+        else if (op instanceof OpProject) {
+            return visit((OpProject) op);
+        }
+        else if (op instanceof OpSlice) {
+            return visit((OpSlice) op);
+        }
+        else if (op instanceof OpExtend) {
+            return visit((OpExtend) op);
+        }
+        else if (op instanceof OpAssign) {
+            return visit((OpAssign) op);
+        }
+        else if (op instanceof OpReduced) {
+            return visit((OpReduced) op);
+        }
+        else if (op instanceof OpDistinct) {
+            return visit((OpDistinct) op);
+        }
+        else if (op instanceof OpTopN) {
+            return visit((OpTopN) op);
+        }
+        else if (op instanceof OpOrder) {
+            return visit((OpOrder) op);
+        }
+        else if (op instanceof OpGroup) {
+            return visit((OpGroup) op);
+        }
+        else if (op instanceof OpList) {
+            return visit((OpList) op);
+        }
+        else if (op instanceof OpLabel) {
+            return visit((OpLabel) op);
+        }
+        else if (op instanceof OpNull) {
+            return visit((OpNull) op);
+        }
+        else if (op instanceof OpExt) {
+            return visit((OpExt) op);
+        }
+        else if (op instanceof OpDatasetNames) {
+            return visit((OpDatasetNames) op);
+        }
+        else if (op instanceof OpTable) {
+            return visit((OpTable) op);
+        }
+        else if (op instanceof OpService) {
+            return visit((OpService) op);
+        }
+        else if (op instanceof OpGraph) {
+            return visit((OpGraph) op);
+        }
+        else if (op instanceof OpFilter) {
+            return visit((OpFilter) op);
+        }
+        else if (op instanceof OpConditional) {
+            return visit((OpConditional) op);
+        }
+        else if (op instanceof OpUnion) {
+            return visit((OpUnion) op);
+        }
+        else if (op instanceof OpMinus) {
+            return visit((OpMinus) op);
+        }
+        else if (op instanceof OpDiff) {
+            return visit((OpDiff) op);
+        }
+        else if (op instanceof OpLeftJoin) {
+            return visit((OpLeftJoin) op);
+        }
+        else if (op instanceof OpDisjunction) {
+            return visit((OpDisjunction) op);
+        }
+        else if (op instanceof OpSequence) {
+            return visit((OpSequence) op);
+        }
+        else if (op instanceof OpJoin) {
+            return visit((OpJoin) op);
+        }
+        else if (op instanceof OpPropFunc) {
+            return visit((OpPropFunc) op);
+        }
+        else if (op instanceof OpProcedure) {
+            return visit((OpProcedure) op);
+        }
+        else if (op instanceof OpFind) {
+            return visit((OpFind) op);
+        }
+        else if (op instanceof OpPath) {
+            return visit((OpPath) op);
+        }
+        else if (op instanceof OpQuad) {
+            return visit((OpQuad) op);
+        }
+        else if (op instanceof OpTriple) {
+            return visit((OpTriple) op);
+        }
+        else if (op instanceof OpQuadPattern) {
+            return visit((OpQuadPattern) op);
+        }
+        else if (op instanceof OpQuadBlock) {
+            return visit((OpQuadBlock) op);
+        }
+        else if (op instanceof OpBGP) {
+            return visit((OpBGP) op);
+        }
+        else
+            return new BTNode("UNKNOW");
     }
+
 
     private HashMap<String, ArrayList<String>> formatQuad(Quad qp) {
         return formatTriple(qp.asTriple());
@@ -668,5 +546,4 @@ public class VisitorNeoForTree implements OpVisitor {
         }
         return lista;
     }
-
 }

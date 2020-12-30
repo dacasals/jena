@@ -170,7 +170,9 @@ public class VisitorNeo implements OpVisitor {
     public void visit(OpBGP opBGP) {
         if (opBGP.getPattern().size() == 1) {
             start(opBGP, WriterLib.NoNL);
-
+            HashMap<String, ArrayList<String>> res = formatTriple(opBGP.getPattern().get(0));
+            BinaryTreePlan tree = new BinaryTreePlan("ᶲ");
+            out.print("\"".concat(tree.printLeafDataNode(res)).concat("\""));
             finish(opBGP);
             return;
         }
@@ -191,7 +193,17 @@ public class VisitorNeo implements OpVisitor {
 
     @Override
     public void visit(OpQuadPattern opQuadP) {
-//        QuadPattern quads = opQuadP.getPattern();
+        QuadPattern quads = opQuadP.getPattern();
+        if (quads.size() == 1) {
+//            start(opQuadP, WriterLib.NoNL);
+            out.print(Tags.LBRACKET);
+
+            HashMap<String, ArrayList<String>> res = formatQuad(quads.get(0));
+            BinaryTreePlan tree = new BinaryTreePlan("ᶲ");
+            out.print("\"".concat(tree.printLeafDataNode(res)).concat("\""));
+            out.print(Tags.RBRACKET);
+            return;
+        }
 
         DatasetGraphTDB ds = (DatasetGraphTDB) sContext.getDataset();
         ReorderTransformation transform = ds.getDefaultGraphTDB().getDSG().getReorderTransform();
@@ -204,18 +216,6 @@ public class VisitorNeo implements OpVisitor {
             pattern = proc.reorder(opBGP.getPattern());
         }
         write(pattern, true);
-
-//        if (quads.size() == 1) {
-////            start(opQuadP, WriterLib.NoNL);
-//            out.print(Tags.LBRACKET);
-//
-//            HashMap<String, ArrayList<String>> res = formatQuad(quads.get(0));
-//            BinaryTreePlan tree = new BinaryTreePlan("ᶲ");
-//            out.print("\"".concat(tree.printLeafDataNode(res)).concat("\""));
-//            out.print(Tags.RBRACKET);
-//            return;
-//        }
-//        write(quads, false);
     }
 
     @Override
@@ -267,8 +267,6 @@ public class VisitorNeo implements OpVisitor {
     private void write(QuadPattern quads, boolean oneLine) {
         BinaryTreePlan tree = new BinaryTreePlan("ᶲ");
         ArrayList<HashMap<String, ArrayList<String>>> triplesArr = new ArrayList<>();
-
-
         for (Quad q : quads) {
             HashMap<String, ArrayList<String>> treeLeaf = formatQuad(q);
             triplesArr.add(treeLeaf);

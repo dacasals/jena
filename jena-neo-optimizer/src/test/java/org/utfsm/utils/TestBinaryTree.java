@@ -39,15 +39,15 @@ public class TestBinaryTree {
     public void dephTree() {
         BinaryTree<Integer> tree = new BinaryTree<Integer>() {
             @Override
-            public void defineDataJoinNode(Node<Integer> node) {
+            public void defineDataJoinNode(BTNode<Integer> node) {
                 node.data = -1;
             }
             @Override
-            public String printDataJoin(Node<Integer> node) {
+            public String printDataJoin(BTNode<Integer> node) {
                 return node.data.toString();
             }
             @Override
-            public String printLeafDataNode(Node<Integer> node) {
+            public String printLeafDataNode(BTNode<Integer> node) {
                 return node.data.toString();
             }
         };
@@ -65,15 +65,15 @@ public class TestBinaryTree {
     public void singleNode() {
         BinaryTree<Integer> tree = new BinaryTree<Integer>() {
             @Override
-            public void defineDataJoinNode(Node<Integer> node) {
+            public void defineDataJoinNode(BTNode<Integer> node) {
                 node.data = -1;
             }
             @Override
-            public String printDataJoin(Node<Integer> node) {
+            public String printDataJoin(BTNode<Integer> node) {
                 return node.data.toString();
             }
             @Override
-            public String printLeafDataNode(Node<Integer> node) {
+            public String printLeafDataNode(BTNode<Integer> node) {
                 return node.data.toString();
             }
         };
