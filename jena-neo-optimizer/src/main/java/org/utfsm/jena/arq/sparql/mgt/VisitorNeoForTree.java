@@ -4,6 +4,7 @@ import org.apache.jena.atlas.io.IndentedLineBuffer;
 import org.apache.jena.atlas.io.IndentedWriter;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
+import org.apache.jena.query.Query;
 import org.apache.jena.sparql.algebra.Op;
 import org.apache.jena.sparql.algebra.OpVisitor;
 import org.apache.jena.sparql.algebra.op.*;
@@ -310,6 +311,13 @@ public class VisitorNeoForTree implements OpVisitorTDB {
     }
 
     public BTNode visit(OpTopN opTop) {
+        HashMap<String,Object> data = new HashMap<>();
+        data.put("name", opTop.getName());
+        if (opTop.getLimit() != Query.NOLIMIT){
+            data.put("start", Long.toString(0));
+        }
+        // Todo verificar si limite por default.
+        data.put("limit",String.valueOf(data));
         BTNode node = new BTNode(opTop.getName());
         node.left = visit(opTop.getSubOp());
         return node;
@@ -342,7 +350,16 @@ public class VisitorNeoForTree implements OpVisitorTDB {
     }
 
     public BTNode visit(OpSlice opSlice) {
-        BTNode node = new BTNode<>(opSlice.getName());
+        HashMap<String,Object> data = new HashMap<>();
+        data.put("name", opSlice.getName());
+        if (opSlice.getStart() != Query.NOLIMIT)
+            data.put("start",Long.toString(opSlice.getStart()));
+        else {
+            data.put("start",Long.toString(0));
+        }
+        data.put("limit",String.valueOf(opSlice.getLength()));
+        BTNode node = new BTNode<>(data);
+
         node.left = visit(opSlice.getSubOp());
         return node;
     }

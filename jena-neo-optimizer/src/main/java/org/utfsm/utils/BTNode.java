@@ -1,5 +1,6 @@
 package org.utfsm.utils;
 import org.apache.jena.atlas.json.JsonString;
+import org.apache.jena.sparql.algebra.op.OpSlice;
 import org.apache.jena.tdb.store.Hash;
 import org.json.simple.JSONArray;
 
@@ -23,7 +24,20 @@ public class BTNode<T>
 
 
         if(data instanceof HashMap){
-            json.add(new JsonString(((HashMap<String, ArrayList>) data).get("tpf_type").get(0).toString()));
+            if(((HashMap<?, ?>) data).containsKey("name")){
+                String name  = (String) ((HashMap<?, ?>) data).get("name");
+                if(name.equals("slice") || name.equals("top") ){
+                    String start  = (String) ((HashMap<?, ?>) data).get("start");
+                    String limit  = (String) ((HashMap<?, ?>) data).get("limit");
+                    json.add(new JsonString(name.concat("ᶲ").concat(start).concat("ᶲ").concat(limit)));
+                }
+                else {
+                    json.add(new JsonString(name));
+                }
+
+            }else{
+                json.add(new JsonString(((HashMap<String, ArrayList>) data).get("tpf_type").get(0).toString()));
+            }
         }
         else {
             json.add(new JsonString(data.toString()));
