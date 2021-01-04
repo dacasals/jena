@@ -1,12 +1,14 @@
 package org.utfsm.apache.cmds.tdb2;
 
 import arq.cmdline.* ;
+import jena.cmd.Arg;
 import jena.cmd.ArgDecl;
 import jena.cmd.CmdException;
 import jena.cmd.TerminationException;
 import org.apache.jena.atlas.RuntimeIOException;
 import org.apache.jena.sparql.engine.Plan;
 import org.apache.jena.sparql.engine.QueryExecutionBase;
+import org.apache.jena.sparql.engine.optimizer.StatsMatcher;
 import org.utfsm.apache.cmds.arq.cmdline.ModCsvQueriesIn;
 import org.apache.jena.atlas.lib.Lib ;
 import org.apache.jena.atlas.logging.LogCtl ;
@@ -21,6 +23,7 @@ import org.apache.jena.sparql.resultset.ResultSetException ;
 import org.apache.jena.sparql.resultset.ResultsFormat ;
 import org.apache.jena.system.Txn ;
 import org.apache.jena.tdb2.sys.SystemTDB;
+import org.utfsm.jena.arq.sparql.engine.optimizer.reorder.ReorderWeighted;
 import org.utfsm.jena.tdb2.solver.OpExecutorTDB2Neo;
 import org.utfsm.utils.BinaryTreePlan;
 import tdb2.cmdline.CmdTDB;
@@ -44,6 +47,7 @@ public class tdbqueryplan extends CmdARQ
     public  static HashMap<String, ArrayList<String>> currentReg = new HashMap<>();
     public  static String currentRegStr = "";
     public  static String currentTdbTreeStr = "";
+    public  static HashMap<String, Double> currentCardinality= new HashMap<>();
     public  static ArrayList<BinaryTreePlan> registrosObj = new ArrayList<>();
     public  static String lastReg = "";
     protected int repeatCount = 1 ;
@@ -199,6 +203,14 @@ public class tdbqueryplan extends CmdARQ
             System.out.println("Queries readed ".concat(String.valueOf(queries.size())));
             int contador = 0;
             SystemTDB.setOpExecutorFactory(OpExecutorTDB2Neo.OpExecFactoryTDB);
+            String location = this.args.get("location").getValue();
+            final String dbPrefix     = "Data-0001";
+            final String statsFile     = "stats.opt";
+            if(!location.substring(location.length() - 1).equals("/")){
+                location = location.concat("/");
+            }
+            StatsMatcher statsMatcher = new StatsMatcher(location.concat(dbPrefix).concat("/").concat(statsFile));
+            SystemTDB.setDefaultReorderTransform(new ReorderWeighted(statsMatcher));
             if ( isQuiet() )
                 LogCtl.setError(SysRIOT.riotLoggerName) ;
             dataset = modDataset.getDataset();
@@ -256,7 +268,7 @@ public class tdbqueryplan extends CmdARQ
                             throw new CmdException("Query Exeception", qEx);
                         }
                         catch (Exception qEx) {
-                             System.err.println(qEx.getMessage()) ;
+                             qEx.printStackTrace();
                              System.err.println(qEx.getMessage()) ;
                         }
                     });

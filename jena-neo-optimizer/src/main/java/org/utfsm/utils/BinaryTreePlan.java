@@ -26,6 +26,11 @@ public class BinaryTreePlan extends BinaryTree<HashMap<String, ArrayList<String>
         preds.addAll(node.right.data.get("predicates"));
         join.put("predicates", preds);
         //Todo define other info.
+//        ArrayList<String> min = node.left.data.get("cardinality");
+//        ArrayList<String> minr = node.right.data.get("cardinality");
+//        if(Double.parseDouble(min.get(0)) > Double.parseDouble(minr.get(0)))
+//            min = minr;
+//        join.put("cardinality",min);
         node.data = join;
     }
     public void defineLeftJoinNode(BTNode<HashMap<String, ArrayList<String>>> node, String tpf_type) {

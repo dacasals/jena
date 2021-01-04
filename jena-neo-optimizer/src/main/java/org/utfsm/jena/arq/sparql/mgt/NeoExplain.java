@@ -39,6 +39,7 @@ import org.apache.jena.sparql.sse.writers.WriterNode ;
 import org.apache.jena.sparql.util.Context ;
 import org.slf4j.Logger ;
 import org.utfsm.apache.cmds.tdb2.tdbqueryplan;
+import org.utfsm.utils.BTNode;
 import org.utfsm.utils.BinaryTreePlan;
 
 import java.util.ArrayList;
@@ -172,6 +173,11 @@ public class NeoExplain {
        VisitorNeo visitorNeo =  new VisitorNeo(context, input);
        op.visit(visitorNeo);
        return visitorNeo.out.toString().replaceAll("\n", " ");
+//        VisitorJoinTreeNeo visitorNeo =  new VisitorJoinTreeNeo(context, input);
+//        BTNode node = visitorNeo.visit(op);
+//        String result  =  node.toString();
+//        System.out.println(result);
+//        return result;
     }
 
     // ---- BGP and quads

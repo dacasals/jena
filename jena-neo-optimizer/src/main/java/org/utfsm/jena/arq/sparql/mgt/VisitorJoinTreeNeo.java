@@ -7,19 +7,22 @@ import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.query.Query;
 import org.apache.jena.sparql.algebra.Op;
-import org.apache.jena.sparql.algebra.OpVisitor;
 import org.apache.jena.sparql.algebra.op.*;
 import org.apache.jena.sparql.core.*;
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
+import org.apache.jena.sparql.engine.optimizer.reorder.PatternTriple;
 import org.apache.jena.sparql.engine.optimizer.reorder.ReorderProc;
 import org.apache.jena.sparql.engine.optimizer.reorder.ReorderTransformation;
 import org.apache.jena.sparql.expr.Expr;
 import org.apache.jena.sparql.expr.ExprList;
-import org.apache.jena.sparql.expr.FunctionLabel;
-import org.apache.jena.sparql.path.*;
+import org.apache.jena.sparql.path.P_Link;
+import org.apache.jena.sparql.path.P_Path0;
+import org.apache.jena.sparql.path.P_Path1;
 import org.apache.jena.sparql.sse.writers.*;
-import org.apache.jena.tdb2.store.DatasetGraphTDB;
+import org.apache.jena.tdb2.sys.SystemTDB;
+import org.utfsm.apache.cmds.tdb2.tdbqueryplan;
+import org.utfsm.jena.arq.sparql.engine.optimizer.reorder.ReorderWeighted;
 import org.utfsm.utils.BTNode;
 import org.utfsm.utils.BinaryTreePlan;
 
@@ -27,28 +30,29 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-public class VisitorNeoForTree implements OpVisitorTDB {
+public class VisitorJoinTreeNeo implements OpVisitorTDB {
     public IndentedWriter out;
     private ExecutionContext sContext;
     private QueryIterator input;
     public BinaryTreePlan TreeTDB;
-    public VisitorNeoForTree(ExecutionContext sContext, QueryIterator input) {
+    private ReorderWeighted transform;
+
+    public VisitorJoinTreeNeo(ExecutionContext sContext, QueryIterator input) {
         out = new IndentedLineBuffer();
         this.sContext =  sContext;
         this.input =  input;
         TreeTDB = new BinaryTreePlan(",");
+        this.transform = (ReorderWeighted) SystemTDB.getDefaultReorderTransform();
     }
 
     private BTNode visitOpN(OpN op) {
 //        BTNode root = new BTNode<>(op.getName());
-        
+
         BTNode join = new BTNode<>("OpN_".concat(op.getName()));
         start(op, WriterLib.NL);
         for (Iterator<Op> iter = op.iterator(); iter.hasNext(); ) {
-            
+
             Op sub = iter.next();
             if(join.left == null){
                 join.left = visit(sub);
@@ -72,7 +76,7 @@ public class VisitorNeoForTree implements OpVisitorTDB {
     }
 
     private BTNode visitOp2(Op2 op, ExprList exprs) {
-        BTNode node = new BTNode<String>(op.getName());
+        BTNode node = new BTNode<>(op.getName());
         node.left = visit(op.getLeft());
         node.right = visit(op.getRight());
         return node;
@@ -92,17 +96,17 @@ public class VisitorNeoForTree implements OpVisitorTDB {
             node.left = write(opBGP.getPattern(), true);
         }
         else{
-            start(opBGP, WriterLib.NL);
-            DatasetGraphTDB ds = (DatasetGraphTDB) sContext.getDataset();
-            ReorderTransformation transform = ds.getDefaultGraphTDB().getDSG().getReorderTransform();
+//            start(opBGP, WriterLib.NL);
+//            DatasetGraphTDB ds = (DatasetGraphTDB) sContext.getDataset();
+//            ReorderTransformation transform = ds.getDefaultGraphTDB().getDSG().getReorderTransform();
             BasicPattern pattern = opBGP.getPattern();
-            if ( transform != null )
+            if ( this.transform != null )
             {
-                ReorderProc proc = transform.reorderIndexes(opBGP.getPattern());
+                ReorderProc proc = this.transform.reorderIndexes(opBGP.getPattern());
                 // Then reorder original patten
                 pattern = proc.reorder(opBGP.getPattern());
             }
-            node.left = write(pattern, false);
+            return write(pattern, false);
         }
 //        node.right = new BTNode("NONE");
         return node;
@@ -110,42 +114,41 @@ public class VisitorNeoForTree implements OpVisitorTDB {
 
     public BTNode visit(OpQuadPattern opQuadP) {
         QuadPattern quads = opQuadP.getPattern();
-        BTNode node = new BTNode(opQuadP.getName());
+//        BTNode node = new BTNode(opQuadP.getName());
         if (quads.size() == 1) {
             start(new OpTriple(null), WriterLib.NoNL);
             HashMap<String, ArrayList<String>> res = formatQuad(quads.get(0));
-            node.left = new BTNode(res.get("tpf_type"));
-
+            return  new BTNode(res);
         }
 
-        DatasetGraphTDB ds = (DatasetGraphTDB) sContext.getDataset();
-        ReorderTransformation transform = ds.getDefaultGraphTDB().getDSG().getReorderTransform();
+//        DatasetGraphTDB ds = (DatasetGraphTDB) sContext.getDataset();
+//        thisReorderTransformation transform = ds.getDefaultGraphTDB().getDSG().getReorderTransform();
         BasicPattern pattern = opQuadP.getBasicPattern();
-        if ( transform != null )
+        if ( this.transform != null )
         {
-            ReorderProc proc = transform.reorderIndexes(pattern);
+            ReorderProc proc = this.transform.reorderIndexes(pattern);
             // Then reorder original patten
             pattern = proc.reorder(pattern);
         }
-        node.left = write(pattern, false);
+        return write(pattern, false);
 //        node.right = new BTNode("NONE");
-        return  node;
+//        return  node;
     }
 
     public BTNode visit(OpQuadBlock opQuads) {
         QuadPattern quads = opQuads.getPattern();
-        BTNode node = new BTNode(opQuads.getName());
+//        BTNode node = new BTNode(opQuads.getName());
 
         if (quads.size() == 1) {
 //            start(opQuads, WriterLib.NoNL);
             HashMap<String, ArrayList<String>> temp = formatQuad(quads.get(0));
-            node.left = new BTNode(temp.get("tpf_type"));
+            return new BTNode(temp);
 //            finish(opQuads);
         }else{
-            node.left = write(quads, false);
+            return write(quads, false);
         }
 //        node.right = new BTNode("NONE");
-        return node;
+//        return node;
     }
 
     private BTNode write(BasicPattern pattern, boolean oneLine) {
@@ -192,13 +195,13 @@ public class VisitorNeoForTree implements OpVisitorTDB {
 
     public BTNode visit(OpTriple opTriple) {
         BTNode node = new BTNode(opTriple.getName());
-        node.left = new BTNode(formatTriple(opTriple.getTriple()).get("tpf_type"));
+        node.left = new BTNode(formatTriple(opTriple.getTriple()));
         return node;
     }
 
     public BTNode visit(OpQuad opQuad) {
         BTNode node = new BTNode(opQuad.getName());
-        node.left = new BTNode(formatQuad(opQuad.getQuad()).get("tpf_type"));
+        node.left = new BTNode(formatQuad(opQuad.getQuad()));
         return node;
     }
 
@@ -212,7 +215,7 @@ public class VisitorNeoForTree implements OpVisitorTDB {
     public BTNode visit(OpFind opFind) {
 
         BTNode node = new BTNode(opFind.getName());
-        node.left = new BTNode(formatTriple(opFind.getTriple()).get("tpf_type"));
+        node.left = new BTNode(formatTriple(opFind.getTriple()));
         return node;
     }
 
@@ -257,7 +260,10 @@ public class VisitorNeoForTree implements OpVisitorTDB {
     }
 
     public BTNode visit(OpConditional opCondition) {
-        return visitOp2(opCondition, null);
+        BTNode node = new BTNode<>("LEFT_JOIN");
+        node.left = visit(opCondition.getLeft());
+        node.right = visit(opCondition.getRight());
+        return node;
     }
 
     public BTNode visit(OpFilter opFilter) {
@@ -353,7 +359,7 @@ public class VisitorNeoForTree implements OpVisitorTDB {
         node.left = visit(opProject.getSubOp());
         return node;
     }
-    
+
     public BTNode visit(OpDistinct opDistinct) {
         return visitOp1(opDistinct);
     }
@@ -388,7 +394,7 @@ public class VisitorNeoForTree implements OpVisitorTDB {
         node.left = visit(opSlice.getSubOp());
         return node;
     }
-    
+
     private void start(Op op, int newline) {
         WriterLib.start2(out, "\"".concat(op.getName()).concat("\""), newline);
         out.print(",");
@@ -405,7 +411,7 @@ public class VisitorNeoForTree implements OpVisitorTDB {
         else if (op instanceof OpSlice) {
             return visit((OpSlice) op);
         }
-         else if (op instanceof OpExtend) {
+        else if (op instanceof OpExtend) {
             return visit((OpExtend) op);
         }
         else if (op instanceof OpAssign) {
@@ -530,6 +536,10 @@ public class VisitorNeoForTree implements OpVisitorTDB {
         ArrayList<String> tpfList = new ArrayList<>();
         tpfList.add(patron);
         treeLeaf.put("tpf_type", tpfList);
+        ArrayList<String> cardinality = new ArrayList<>();
+        double peso = this.transform.getTripleWeight(new PatternTriple(triple));
+        cardinality.add( String.valueOf(peso));
+        treeLeaf.put("cardinality", cardinality);
         //Define predicates, in case of leaf only one( the triple predicate).
         ArrayList<String> preds = new ArrayList<>();
         //Todo, need to validate.

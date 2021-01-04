@@ -1,11 +1,12 @@
 package org.utfsm.utils;
+import org.apache.jena.atlas.json.JsonObject;
 import org.apache.jena.atlas.json.JsonString;
 import org.apache.jena.sparql.algebra.op.OpSlice;
 import org.apache.jena.tdb.store.Hash;
 import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.*;
 
 public class BTNode<T>
 {
@@ -30,6 +31,18 @@ public class BTNode<T>
                     String start  = (String) ((HashMap<?, ?>) data).get("start");
                     String limit  = (String) ((HashMap<?, ?>) data).get("limit");
                     json.add(new JsonString(name.concat("ᶲ").concat(start).concat("ᶲ").concat(limit)));
+                }
+                else if(name.equals("filter")){
+                    HashMap<String,Integer> datafilters = (HashMap<String, Integer>) ((HashMap<String, Object>) data).get("data");
+                    Iterator it = datafilters.entrySet().iterator();
+
+                    String jsonString =name;
+                    while (it.hasNext()) {
+                        Map.Entry pair = (Map.Entry)it.next();
+                        System.out.println(pair.getKey() + " = " + pair.getValue());
+                        jsonString = jsonString.concat("ᶲ").concat(pair.getKey().toString().concat(":").concat(pair.getValue().toString()));
+                    }
+                    json.add(new JsonString(jsonString));
                 }
                 else {
                     json.add(new JsonString(name));

@@ -70,6 +70,7 @@ public class OpExecutorTDB2Neo extends OpExecutor
         {
             Explain.explain("TDB", op, super.execCxt.getContext());
             if(tdbqueryplan.tdbTreeVal){
+                tdbqueryplan.currentCardinality = new HashMap<>();
                 tdbqueryplan.currentTdbTreeStr = NeoExplainTreeTDB.explain("TDB", op, super.execCxt, input);
             }
             tdbqueryplan.currentRegStr = NeoExplain.explain("TDB", op, super.execCxt, input);

@@ -3,10 +3,7 @@ package org.utfsm.jena.arq.sparql.mgt;
 import com.github.jsonldjava.core.RDFDataset;
 import org.apache.jena.atlas.io.IndentedLineBuffer;
 import org.apache.jena.atlas.io.IndentedWriter;
-import org.apache.jena.graph.Node;
-import org.apache.jena.graph.Node_ANY;
-import org.apache.jena.graph.Node_URI;
-import org.apache.jena.graph.Triple;
+import org.apache.jena.graph.*;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.SortCondition;
 import org.apache.jena.sparql.algebra.Op;
@@ -32,6 +29,7 @@ import org.utfsm.utils.BinaryTreePlan;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.regex.Pattern;
 
 public class VisitorNeo implements OpVisitor {
     public IndentedWriter out;
@@ -729,21 +727,15 @@ public class VisitorNeo implements OpVisitor {
     }
 
     private HashMap<String, ArrayList<String>> formatTriplePath(TriplePath tp) {
-        Node predicate;
-        if(tp.getPath() != null){
-            if(tp.getPath() instanceof P_Path1) {
-                predicate = ((P_Link)((P_Path1) tp.getPath()).getSubPath()).getNode();
+        Node predicate = NodeFactory.createURI("<http://fakeuri.com/fake>");
+        String predi =tp.getPath().toString();
+        String[] resp = predi.split("<|>");
+        for (int i = 0; i < resp.length; i++) {
+            if(resp[i].startsWith("http")){
+                predicate = NodeFactory.createURI("<".concat(resp[i]).concat(">"));
+                break;
             }
-            else if(tp.getPath() instanceof P_Path0) {
-                predicate = ((P_Path0) tp.getPath()).getNode();
-            }
-            else {
-                //Todo is is just to avoid error
-                predicate = tp.getPredicate();
-            }
-        }else
-            predicate = tp.getPredicate();
-
+        }
         Triple triple = new Triple(tp.getSubject(), predicate, tp.getObject());
         return formatTriple(triple);
     }
